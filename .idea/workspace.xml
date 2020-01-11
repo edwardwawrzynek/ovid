@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CMakeRunConfigurationManager" shouldGenerate="true" shouldDeleteObsolete="true">
+    <generated>
+      <config projectName="ovid" targetName="ovid" />
+      <config projectName="ovid" targetName="intrinsics_gen" />
+    </generated>
+  </component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" CONFIG_NAME="Debug" />
+    </configurations>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="dbda65f0-8198-49d1-b955-cb460ccb50fe" name="Default Changelist" comment="" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug" />
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="rfGHpctd" />
+  </component>
+  <component name="ProjectId" id="1WEcwjYoIcOEizqkJkP1gMV0EYk" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/CMakeLists.txt" />
+    <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
+    <property name="nodejs_npm_path_reset_for_default_project" value="true" />
+    <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
+  </component>
+  <component name="RunManager" selected="CMake Application.ovid">
+    <configuration name="intrinsics_gen" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="ovid" TARGET_NAME="intrinsics_gen" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ovid" type="CMakeRunConfiguration" factoryName="Application" PASS_PARENT_ENVS_2="true" PROJECT_NAME="ovid" TARGET_NAME="ovid" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="ovid" RUN_TARGET_NAME="ovid">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="CMake Application.intrinsics_gen" />
+      <item itemvalue="CMake Application.ovid" />
+    </list>
+  </component>
+  <component name="ServiceViewManager">
+    <option name="viewStates">
+      <list>
+        <serviceView>
+          <treeState>
+            <expand />
+            <select />
+          </treeState>
+        </serviceView>
+      </list>
+    </option>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="dbda65f0-8198-49d1-b955-cb460ccb50fe" name="Default Changelist" comment="" />
+      <created>1578718451569</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1578718451569</updated>
+      <workItem from="1578718474537" duration="4374000" />
+      <workItem from="1578724754057" duration="418000" />
+      <workItem from="1578725194619" duration="261000" />
+      <workItem from="1578725503966" duration="3310000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="1" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="359" y="160" width="558" height="382" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1578722793403">
+      <screen x="0" y="0" width="1280" height="800" />
+    </state>
+    <state x="359" y="160" width="558" height="382" key="#com.intellij.fileTypes.FileTypeChooser/0.0.1280.800@0.0.1280.800" timestamp="1578722793403" />
+    <state x="422" y="135" width="426" height="479" key="FileChooserDialogImpl" timestamp="1578718502353">
+      <screen x="0" y="0" width="1280" height="800" />
+    </state>
+    <state x="422" y="135" width="426" height="479" key="FileChooserDialogImpl/0.0.1280.800@0.0.1280.800" timestamp="1578718502353" />
+    <state width="1238" height="145" key="GridCell.Tab.0.bottom" timestamp="1578721423056">
+      <screen x="0" y="0" width="1280" height="800" />
+    </state>
+    <state width="1238" height="145" key="GridCell.Tab.0.bottom/0.0.1280.800@0.0.1280.800" timestamp="1578721423056" />
+    <state width="1238" height="145" key="GridCell.Tab.0.center" timestamp="1578721423055">
+      <screen x="0" y="0" width="1280" height="800" />
+    </state>
+    <state width="1238" height="145" key="GridCell.Tab.0.center/0.0.1280.800@0.0.1280.800" timestamp="1578721423055" />
+    <state width="1238" height="145" key="GridCell.Tab.0.left" timestamp="1578721423055">
+      <screen x="0" y="0" width="1280" height="800" />
+    </state>
+    <state width="1238" height="145" key="GridCell.Tab.0.left/0.0.1280.800@0.0.1280.800" timestamp="1578721423055" />
+    <state width="1238" height="145" key="GridCell.Tab.0.right" timestamp="1578721423056">
+      <screen x="0" y="0" width="1280" height="800" />
+    </state>
+    <state width="1238" height="145" key="GridCell.Tab.0.right/0.0.1280.800@0.0.1280.800" timestamp="1578721423056" />
+    <state x="1742" y="128" key="SettingsEditor" timestamp="1578725557498">
+      <screen x="1280" y="0" width="1920" height="1080" />
+    </state>
+    <state x="142" y="-12" key="SettingsEditor/0.0.1280.800@0.0.1280.800" timestamp="1578722693471" />
+    <state x="1742" y="128" key="SettingsEditor/1280.0.1920.1080/0.0.1280.800@1280.0.1920.1080" timestamp="1578725557498" />
+    <state x="1747" y="205" key="com.intellij.ide.util.TipDialog" timestamp="1578725508258">
+      <screen x="1280" y="0" width="1920" height="1080" />
+    </state>
+    <state x="313" y="205" key="com.intellij.ide.util.TipDialog/0.0.1280.800@0.0.1280.800" timestamp="1578718475992" />
+    <state x="1747" y="205" key="com.intellij.ide.util.TipDialog/1280.0.1920.1080/0.0.1280.800@1280.0.1920.1080" timestamp="1578725508258" />
+  </component>
+</project>
