@@ -4,8 +4,8 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/edward/Documents/ovid/main.cpp" "/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles/ovid.dir/main.cpp.o"
-  "/home/edward/Documents/ovid/tokenizer.cpp" "/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles/ovid.dir/tokenizer.cpp.o"
+  "/home/edward/Documents/ovid/main.cpp" "/home/edward/Documents/ovid/build/CMakeFiles/ovid.dir/main.cpp.o"
+  "/home/edward/Documents/ovid/tokenizer.cpp" "/home/edward/Documents/ovid/build/CMakeFiles/ovid.dir/tokenizer.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 

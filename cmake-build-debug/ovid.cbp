@@ -104,22 +104,13 @@
 				</MakeCommands>
 			</Target>
 		</Build>
-		<Unit filename="/home/edward/Documents/ovid/cmake-build-debug/parser.cpp">
-			<Option target="ovid"/>
-		</Unit>
-		<Unit filename="/home/edward/Documents/ovid/cmake-build-debug/parser.cpp.rule">
-			<Option target="ovid"/>
-		</Unit>
-		<Unit filename="/home/edward/Documents/ovid/cmake-build-debug/parser.hpp">
-			<Option target="ovid"/>
-		</Unit>
-		<Unit filename="/home/edward/Documents/ovid/cmake-build-debug/tokens.cpp">
-			<Option target="ovid"/>
-		</Unit>
-		<Unit filename="/home/edward/Documents/ovid/cmake-build-debug/tokens.cpp.rule">
-			<Option target="ovid"/>
-		</Unit>
 		<Unit filename="/home/edward/Documents/ovid/main.cpp">
+			<Option target="ovid"/>
+		</Unit>
+		<Unit filename="/home/edward/Documents/ovid/tokenizer.cpp">
+			<Option target="ovid"/>
+		</Unit>
+		<Unit filename="/home/edward/Documents/ovid/tokenizer.hpp">
 			<Option target="ovid"/>
 		</Unit>
 		<Unit filename="/home/edward/Documents/ovid/CMakeLists.txt">

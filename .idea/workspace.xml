@@ -2,8 +2,8 @@
 <project version="4">
   <component name="CMakeRunConfigurationManager" shouldGenerate="true" shouldDeleteObsolete="true">
     <generated>
-      <config projectName="ovid" targetName="ovid" />
       <config projectName="ovid" targetName="intrinsics_gen" />
+      <config projectName="ovid" targetName="ovid" />
     </generated>
   </component>
   <component name="CMakeSettings">
@@ -12,7 +12,77 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="dbda65f0-8198-49d1-b955-cb460ccb50fe" name="Default Changelist" comment="" />
+    <list default="true" id="dbda65f0-8198-49d1-b955-cb460ccb50fe" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/ast.hpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeCache.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/3.16.2/CMakeCCompiler.cmake" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/3.16.2/CMakeCXXCompiler.cmake" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/3.16.2/CMakeDetermineCompilerABI_C.bin" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/3.16.2/CMakeDetermineCompilerABI_CXX.bin" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/3.16.2/CMakeSystem.cmake" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/3.16.2/CompilerIdC/CMakeCCompilerId.c" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/3.16.2/CompilerIdC/a.out" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/3.16.2/CompilerIdCXX/CMakeCXXCompilerId.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/3.16.2/CompilerIdCXX/a.out" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/CMakeDirectoryInformation.cmake" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/CMakeOutput.log" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/Makefile.cmake" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/Makefile2" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/Progress/1" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/Progress/2" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/Progress/3" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/Progress/count.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/TargetDirectories.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/cmake.check_cache" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/intrinsics_gen.dir/DependInfo.cmake" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/intrinsics_gen.dir/build.make" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/intrinsics_gen.dir/cmake_clean.cmake" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/intrinsics_gen.dir/progress.make" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/ovid.dir/CXX.includecache" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/ovid.dir/DependInfo.cmake" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/ovid.dir/build.make" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/ovid.dir/cmake_clean.cmake" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/ovid.dir/depend.internal" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/ovid.dir/depend.make" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/ovid.dir/flags.make" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/ovid.dir/link.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/ovid.dir/main.cpp.o" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/ovid.dir/progress.make" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/ovid.dir/tokenizer.cpp.o" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/CMakeFiles/progress.marks" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/Makefile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build/cmake_install.cmake" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/main.cpp.o" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/test.ovd" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tokenizer.cpp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tokenizer.cpp.o" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tokenizer.hpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ast.h" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Makefile.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Makefile.cmake" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Makefile2" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Makefile2" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Progress/1" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Progress/3" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Progress/4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/Progress/count.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/CXX.includecache" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/CXX.includecache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/DependInfo.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/DependInfo.cmake" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/build.make" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/build.make" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/cmake_clean.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/cmake_clean.cmake" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/depend.internal" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/depend.internal" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/depend.make" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/depend.make" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/flags.make" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/flags.make" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/link.txt" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/link.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/progress.make" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/ovid.dir/progress.make" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/progress.marks" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/CMakeFiles/progress.marks" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/Makefile" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/Makefile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/ovid" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/ovid" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/ovid.cbp" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/ovid.cbp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/parser.y" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tokens.l" beforeDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -22,19 +92,27 @@
     <option name="formatViaClangd" value="false" />
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
   <component name="MacroExpansionManager">
     <option name="directoryName" value="rfGHpctd" />
   </component>
   <component name="ProjectId" id="1WEcwjYoIcOEizqkJkP1gMV0EYk" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showExcludedFiles" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/CMakeLists.txt" />
+    <property name="com.intellij.ide.scratch.LRUPopupBuilder$1/New Scratch File" value="ObjectiveC" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../zig/CMakeLists.txt" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
     <property name="settings.editor.selected.configurable" value="preferences.pluginManager" />
@@ -80,47 +158,58 @@
       <workItem from="1578718474537" duration="4374000" />
       <workItem from="1578724754057" duration="418000" />
       <workItem from="1578725194619" duration="261000" />
-      <workItem from="1578725503966" duration="3310000" />
+      <workItem from="1578725503966" duration="3352000" />
+      <workItem from="1579339730960" duration="45000" />
+      <workItem from="1579562119962" duration="2274000" />
+      <workItem from="1579564413984" duration="1633000" />
+      <workItem from="1579794322309" duration="4594000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
   </component>
+  <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
+  </component>
   <component name="WindowStateProjectService">
     <state x="359" y="160" width="558" height="382" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1578722793403">
       <screen x="0" y="0" width="1280" height="800" />
     </state>
     <state x="359" y="160" width="558" height="382" key="#com.intellij.fileTypes.FileTypeChooser/0.0.1280.800@0.0.1280.800" timestamp="1578722793403" />
-    <state x="422" y="135" width="426" height="479" key="FileChooserDialogImpl" timestamp="1578718502353">
+    <state x="421" y="111" width="426" height="479" key="FileChooserDialogImpl" timestamp="1579339776712">
       <screen x="0" y="0" width="1280" height="800" />
     </state>
-    <state x="422" y="135" width="426" height="479" key="FileChooserDialogImpl/0.0.1280.800@0.0.1280.800" timestamp="1578718502353" />
-    <state width="1238" height="145" key="GridCell.Tab.0.bottom" timestamp="1578721423056">
+    <state x="421" y="111" width="426" height="479" key="FileChooserDialogImpl/0.0.1280.800@0.0.1280.800" timestamp="1579339776712" />
+    <state width="1238" height="145" key="GridCell.Tab.0.bottom" timestamp="1579803238555">
       <screen x="0" y="0" width="1280" height="800" />
     </state>
-    <state width="1238" height="145" key="GridCell.Tab.0.bottom/0.0.1280.800@0.0.1280.800" timestamp="1578721423056" />
-    <state width="1238" height="145" key="GridCell.Tab.0.center" timestamp="1578721423055">
+    <state width="1238" height="145" key="GridCell.Tab.0.bottom/0.0.1280.800@0.0.1280.800" timestamp="1579803238555" />
+    <state width="1238" height="145" key="GridCell.Tab.0.center" timestamp="1579803238554">
       <screen x="0" y="0" width="1280" height="800" />
     </state>
-    <state width="1238" height="145" key="GridCell.Tab.0.center/0.0.1280.800@0.0.1280.800" timestamp="1578721423055" />
-    <state width="1238" height="145" key="GridCell.Tab.0.left" timestamp="1578721423055">
+    <state width="1238" height="145" key="GridCell.Tab.0.center/0.0.1280.800@0.0.1280.800" timestamp="1579803238554" />
+    <state width="1238" height="145" key="GridCell.Tab.0.left" timestamp="1579803238554">
       <screen x="0" y="0" width="1280" height="800" />
     </state>
-    <state width="1238" height="145" key="GridCell.Tab.0.left/0.0.1280.800@0.0.1280.800" timestamp="1578721423055" />
-    <state width="1238" height="145" key="GridCell.Tab.0.right" timestamp="1578721423056">
+    <state width="1238" height="145" key="GridCell.Tab.0.left/0.0.1280.800@0.0.1280.800" timestamp="1579803238554" />
+    <state width="1238" height="145" key="GridCell.Tab.0.right" timestamp="1579803238554">
       <screen x="0" y="0" width="1280" height="800" />
     </state>
-    <state width="1238" height="145" key="GridCell.Tab.0.right/0.0.1280.800@0.0.1280.800" timestamp="1578721423056" />
+    <state width="1238" height="145" key="GridCell.Tab.0.right/0.0.1280.800@0.0.1280.800" timestamp="1579803238554" />
     <state x="1742" y="128" key="SettingsEditor" timestamp="1578725557498">
       <screen x="1280" y="0" width="1920" height="1080" />
     </state>
     <state x="142" y="-12" key="SettingsEditor/0.0.1280.800@0.0.1280.800" timestamp="1578722693471" />
     <state x="1742" y="128" key="SettingsEditor/1280.0.1920.1080/0.0.1280.800@1280.0.1920.1080" timestamp="1578725557498" />
-    <state x="1747" y="205" key="com.intellij.ide.util.TipDialog" timestamp="1578725508258">
-      <screen x="1280" y="0" width="1920" height="1080" />
+    <state x="310" y="133" key="com.intellij.ide.util.TipDialog" timestamp="1579794308480">
+      <screen x="0" y="0" width="1280" height="800" />
     </state>
-    <state x="313" y="205" key="com.intellij.ide.util.TipDialog/0.0.1280.800@0.0.1280.800" timestamp="1578718475992" />
+    <state x="310" y="133" key="com.intellij.ide.util.TipDialog/0.0.1280.800@0.0.1280.800" timestamp="1579794308480" />
     <state x="1747" y="205" key="com.intellij.ide.util.TipDialog/1280.0.1920.1080/0.0.1280.800@1280.0.1920.1080" timestamp="1578725508258" />
+    <state x="303" y="121" key="search.everywhere.popup" timestamp="1579562249311">
+      <screen x="0" y="0" width="1280" height="800" />
+    </state>
+    <state x="303" y="121" key="search.everywhere.popup/0.0.1280.800@0.0.1280.800" timestamp="1579562249311" />
   </component>
 </project>

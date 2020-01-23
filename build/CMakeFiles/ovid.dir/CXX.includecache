@@ -6,6 +6,26 @@
 
 #IncludeRegexTransform: 
 
+/home/edward/Documents/ovid/ast.hpp
+iostream
+-
+utility
+-
+vector
+-
+memory
+-
+
+/home/edward/Documents/ovid/main.cpp
+iostream
+-
+cstdio
+-
+ast.hpp
+/home/edward/Documents/ovid/ast.hpp
+tokenizer.hpp
+/home/edward/Documents/ovid/tokenizer.hpp
+
 /home/edward/Documents/ovid/tokenizer.cpp
 iostream
 -
@@ -13,8 +33,6 @@ utility
 -
 cstring
 -
-tokenizer.hpp
-/home/edward/Documents/ovid/tokenizer.hpp
 
 /home/edward/Documents/ovid/tokenizer.hpp
 iostream

@@ -1,12 +1,14 @@
 #include <iostream>
+#include <utility>
 #include <vector>
+#include <memory>
 
 namespace ast {
     class Expression;
     class Statement;
 
-    typedef std::vector<Expression *> ExpressionList;
-    typedef std::vector<Statement *> StatementList;
+    typedef std::vector<std::unique_ptr<Expression>> ExpressionList;
+    typedef std::vector<std::unique_ptr<Statement>> StatementList;
 
     /* base ast node */
     class Node {
@@ -18,9 +20,9 @@ namespace ast {
     class Statement: public Node {};
 
     class Block: public Statement {
-        StatementList& statments;
+        StatementList statments;
 
-        explicit Block(StatementList& statements): statments(statements) {};
+        explicit Block(StatementList statements): statments(std::move(statements)) {};
     };
 
 
@@ -29,10 +31,10 @@ namespace ast {
 
     class FunctionCall: public Expression {
     public:
-        Expression& func_expr;
-        ExpressionList& args;
+        std::unique_ptr<Expression> func_expr;
+        ExpressionList args;
 
-        FunctionCall(Expression& func_expr, ExpressionList& args): func_expr(func_expr), args(args) {};
+        FunctionCall(std::unique_ptr<Expression> func_expr, ExpressionList args): func_expr(std::move(func_expr)), args(std::move(args)) {};
     };
 
     class Identifier: public Expression {
@@ -43,9 +45,9 @@ namespace ast {
 
     class Assignment: public Expression {
     public:
-        Expression& lvalue;
-        Expression& rvalue;
-        Assignment(Expression& lvalue, Expression& rvalue): lvalue(lvalue), rvalue(rvalue) {};
+        std::unique_ptr<Expression> lvalue;
+        std::unique_ptr<Expression> rvalue;
+        Assignment(std::unique_ptr<Expression> lvalue, std::unique_ptr<Expression> rvalue): lvalue(std::move(lvalue)), rvalue(std::move(rvalue)) {};
     };
 
     class Literal: public Expression {};
