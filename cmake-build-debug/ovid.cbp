@@ -104,13 +104,25 @@
 				</MakeCommands>
 			</Target>
 		</Build>
-		<Unit filename="/home/edward/Documents/ovid/main.cpp">
+		<Unit filename="/home/edward/Documents/ovid/src/error.cpp">
 			<Option target="ovid"/>
 		</Unit>
-		<Unit filename="/home/edward/Documents/ovid/tokenizer.cpp">
+		<Unit filename="/home/edward/Documents/ovid/src/error.hpp">
 			<Option target="ovid"/>
 		</Unit>
-		<Unit filename="/home/edward/Documents/ovid/tokenizer.hpp">
+		<Unit filename="/home/edward/Documents/ovid/src/main.cpp">
+			<Option target="ovid"/>
+		</Unit>
+		<Unit filename="/home/edward/Documents/ovid/src/parser.cpp">
+			<Option target="ovid"/>
+		</Unit>
+		<Unit filename="/home/edward/Documents/ovid/src/parser.hpp">
+			<Option target="ovid"/>
+		</Unit>
+		<Unit filename="/home/edward/Documents/ovid/src/tokenizer.cpp">
+			<Option target="ovid"/>
+		</Unit>
+		<Unit filename="/home/edward/Documents/ovid/src/tokenizer.hpp">
 			<Option target="ovid"/>
 		</Unit>
 		<Unit filename="/home/edward/Documents/ovid/CMakeLists.txt">

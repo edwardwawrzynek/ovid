@@ -136,59 +136,113 @@ intrinsics_gen/fast:
 	$(MAKE) -f CMakeFiles/intrinsics_gen.dir/build.make CMakeFiles/intrinsics_gen.dir/build
 .PHONY : intrinsics_gen/fast
 
-main.o: main.cpp.o
+src/error.o: src/error.cpp.o
 
-.PHONY : main.o
-
-# target to build an object file
-main.cpp.o:
-	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/main.cpp.o
-.PHONY : main.cpp.o
-
-main.i: main.cpp.i
-
-.PHONY : main.i
-
-# target to preprocess a source file
-main.cpp.i:
-	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/main.cpp.i
-.PHONY : main.cpp.i
-
-main.s: main.cpp.s
-
-.PHONY : main.s
-
-# target to generate assembly for a file
-main.cpp.s:
-	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/main.cpp.s
-.PHONY : main.cpp.s
-
-tokenizer.o: tokenizer.cpp.o
-
-.PHONY : tokenizer.o
+.PHONY : src/error.o
 
 # target to build an object file
-tokenizer.cpp.o:
-	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/tokenizer.cpp.o
-.PHONY : tokenizer.cpp.o
+src/error.cpp.o:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/error.cpp.o
+.PHONY : src/error.cpp.o
 
-tokenizer.i: tokenizer.cpp.i
+src/error.i: src/error.cpp.i
 
-.PHONY : tokenizer.i
+.PHONY : src/error.i
 
 # target to preprocess a source file
-tokenizer.cpp.i:
-	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/tokenizer.cpp.i
-.PHONY : tokenizer.cpp.i
+src/error.cpp.i:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/error.cpp.i
+.PHONY : src/error.cpp.i
 
-tokenizer.s: tokenizer.cpp.s
+src/error.s: src/error.cpp.s
 
-.PHONY : tokenizer.s
+.PHONY : src/error.s
 
 # target to generate assembly for a file
-tokenizer.cpp.s:
-	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/tokenizer.cpp.s
-.PHONY : tokenizer.cpp.s
+src/error.cpp.s:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/error.cpp.s
+.PHONY : src/error.cpp.s
+
+src/main.o: src/main.cpp.o
+
+.PHONY : src/main.o
+
+# target to build an object file
+src/main.cpp.o:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/main.cpp.o
+.PHONY : src/main.cpp.o
+
+src/main.i: src/main.cpp.i
+
+.PHONY : src/main.i
+
+# target to preprocess a source file
+src/main.cpp.i:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/main.cpp.i
+.PHONY : src/main.cpp.i
+
+src/main.s: src/main.cpp.s
+
+.PHONY : src/main.s
+
+# target to generate assembly for a file
+src/main.cpp.s:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/main.cpp.s
+.PHONY : src/main.cpp.s
+
+src/parser.o: src/parser.cpp.o
+
+.PHONY : src/parser.o
+
+# target to build an object file
+src/parser.cpp.o:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/parser.cpp.o
+.PHONY : src/parser.cpp.o
+
+src/parser.i: src/parser.cpp.i
+
+.PHONY : src/parser.i
+
+# target to preprocess a source file
+src/parser.cpp.i:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/parser.cpp.i
+.PHONY : src/parser.cpp.i
+
+src/parser.s: src/parser.cpp.s
+
+.PHONY : src/parser.s
+
+# target to generate assembly for a file
+src/parser.cpp.s:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/parser.cpp.s
+.PHONY : src/parser.cpp.s
+
+src/tokenizer.o: src/tokenizer.cpp.o
+
+.PHONY : src/tokenizer.o
+
+# target to build an object file
+src/tokenizer.cpp.o:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/tokenizer.cpp.o
+.PHONY : src/tokenizer.cpp.o
+
+src/tokenizer.i: src/tokenizer.cpp.i
+
+.PHONY : src/tokenizer.i
+
+# target to preprocess a source file
+src/tokenizer.cpp.i:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/tokenizer.cpp.i
+.PHONY : src/tokenizer.cpp.i
+
+src/tokenizer.s: src/tokenizer.cpp.s
+
+.PHONY : src/tokenizer.s
+
+# target to generate assembly for a file
+src/tokenizer.cpp.s:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/tokenizer.cpp.s
+.PHONY : src/tokenizer.cpp.s
 
 # Help Target
 help:
@@ -200,12 +254,18 @@ help:
 	@echo "... ovid"
 	@echo "... edit_cache"
 	@echo "... intrinsics_gen"
-	@echo "... main.o"
-	@echo "... main.i"
-	@echo "... main.s"
-	@echo "... tokenizer.o"
-	@echo "... tokenizer.i"
-	@echo "... tokenizer.s"
+	@echo "... src/error.o"
+	@echo "... src/error.i"
+	@echo "... src/error.s"
+	@echo "... src/main.o"
+	@echo "... src/main.i"
+	@echo "... src/main.s"
+	@echo "... src/parser.o"
+	@echo "... src/parser.i"
+	@echo "... src/parser.s"
+	@echo "... src/tokenizer.o"
+	@echo "... src/tokenizer.i"
+	@echo "... src/tokenizer.s"
 .PHONY : help
 
 

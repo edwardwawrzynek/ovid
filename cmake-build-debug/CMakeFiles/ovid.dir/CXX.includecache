@@ -6,21 +6,27 @@
 
 #IncludeRegexTransform: 
 
-/home/edward/Documents/ovid/tokenizer.cpp
+/home/edward/Documents/ovid/src/error.cpp
+error.hpp
+/home/edward/Documents/ovid/src/error.hpp
+limits
+-
+
+/home/edward/Documents/ovid/src/error.hpp
+string
+-
+cstdio
+-
 iostream
--
-utility
--
-cstring
 -
 tokenizer.hpp
-/home/edward/Documents/ovid/tokenizer.hpp
+/home/edward/Documents/ovid/src/tokenizer.hpp
 
-/home/edward/Documents/ovid/tokenizer.hpp
-iostream
--
+/home/edward/Documents/ovid/src/tokenizer.hpp
 utility
 -
-cstring
+string
+-
+fstream
 -
 

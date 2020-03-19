@@ -57,42 +57,72 @@ include CMakeFiles/ovid.dir/progress.make
 # Include the compile flags for this target's objects.
 include CMakeFiles/ovid.dir/flags.make
 
-CMakeFiles/ovid.dir/main.cpp.o: CMakeFiles/ovid.dir/flags.make
-CMakeFiles/ovid.dir/main.cpp.o: ../main.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/ovid.dir/main.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/ovid.dir/main.cpp.o -c /home/edward/Documents/ovid/main.cpp
+CMakeFiles/ovid.dir/src/main.cpp.o: CMakeFiles/ovid.dir/flags.make
+CMakeFiles/ovid.dir/src/main.cpp.o: ../src/main.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/ovid.dir/src/main.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/ovid.dir/src/main.cpp.o -c /home/edward/Documents/ovid/src/main.cpp
 
-CMakeFiles/ovid.dir/main.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/ovid.dir/main.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/edward/Documents/ovid/main.cpp > CMakeFiles/ovid.dir/main.cpp.i
+CMakeFiles/ovid.dir/src/main.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/ovid.dir/src/main.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/edward/Documents/ovid/src/main.cpp > CMakeFiles/ovid.dir/src/main.cpp.i
 
-CMakeFiles/ovid.dir/main.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/ovid.dir/main.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/edward/Documents/ovid/main.cpp -o CMakeFiles/ovid.dir/main.cpp.s
+CMakeFiles/ovid.dir/src/main.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/ovid.dir/src/main.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/edward/Documents/ovid/src/main.cpp -o CMakeFiles/ovid.dir/src/main.cpp.s
 
-CMakeFiles/ovid.dir/tokenizer.cpp.o: CMakeFiles/ovid.dir/flags.make
-CMakeFiles/ovid.dir/tokenizer.cpp.o: ../tokenizer.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/ovid.dir/tokenizer.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/ovid.dir/tokenizer.cpp.o -c /home/edward/Documents/ovid/tokenizer.cpp
+CMakeFiles/ovid.dir/src/parser.cpp.o: CMakeFiles/ovid.dir/flags.make
+CMakeFiles/ovid.dir/src/parser.cpp.o: ../src/parser.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/ovid.dir/src/parser.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/ovid.dir/src/parser.cpp.o -c /home/edward/Documents/ovid/src/parser.cpp
 
-CMakeFiles/ovid.dir/tokenizer.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/ovid.dir/tokenizer.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/edward/Documents/ovid/tokenizer.cpp > CMakeFiles/ovid.dir/tokenizer.cpp.i
+CMakeFiles/ovid.dir/src/parser.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/ovid.dir/src/parser.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/edward/Documents/ovid/src/parser.cpp > CMakeFiles/ovid.dir/src/parser.cpp.i
 
-CMakeFiles/ovid.dir/tokenizer.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/ovid.dir/tokenizer.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/edward/Documents/ovid/tokenizer.cpp -o CMakeFiles/ovid.dir/tokenizer.cpp.s
+CMakeFiles/ovid.dir/src/parser.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/ovid.dir/src/parser.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/edward/Documents/ovid/src/parser.cpp -o CMakeFiles/ovid.dir/src/parser.cpp.s
+
+CMakeFiles/ovid.dir/src/tokenizer.cpp.o: CMakeFiles/ovid.dir/flags.make
+CMakeFiles/ovid.dir/src/tokenizer.cpp.o: ../src/tokenizer.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/ovid.dir/src/tokenizer.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/ovid.dir/src/tokenizer.cpp.o -c /home/edward/Documents/ovid/src/tokenizer.cpp
+
+CMakeFiles/ovid.dir/src/tokenizer.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/ovid.dir/src/tokenizer.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/edward/Documents/ovid/src/tokenizer.cpp > CMakeFiles/ovid.dir/src/tokenizer.cpp.i
+
+CMakeFiles/ovid.dir/src/tokenizer.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/ovid.dir/src/tokenizer.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/edward/Documents/ovid/src/tokenizer.cpp -o CMakeFiles/ovid.dir/src/tokenizer.cpp.s
+
+CMakeFiles/ovid.dir/src/error.cpp.o: CMakeFiles/ovid.dir/flags.make
+CMakeFiles/ovid.dir/src/error.cpp.o: ../src/error.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/ovid.dir/src/error.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/ovid.dir/src/error.cpp.o -c /home/edward/Documents/ovid/src/error.cpp
+
+CMakeFiles/ovid.dir/src/error.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/ovid.dir/src/error.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/edward/Documents/ovid/src/error.cpp > CMakeFiles/ovid.dir/src/error.cpp.i
+
+CMakeFiles/ovid.dir/src/error.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/ovid.dir/src/error.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/edward/Documents/ovid/src/error.cpp -o CMakeFiles/ovid.dir/src/error.cpp.s
 
 # Object files for target ovid
 ovid_OBJECTS = \
-"CMakeFiles/ovid.dir/main.cpp.o" \
-"CMakeFiles/ovid.dir/tokenizer.cpp.o"
+"CMakeFiles/ovid.dir/src/main.cpp.o" \
+"CMakeFiles/ovid.dir/src/parser.cpp.o" \
+"CMakeFiles/ovid.dir/src/tokenizer.cpp.o" \
+"CMakeFiles/ovid.dir/src/error.cpp.o"
 
 # External object files for target ovid
 ovid_EXTERNAL_OBJECTS =
 
-ovid: CMakeFiles/ovid.dir/main.cpp.o
-ovid: CMakeFiles/ovid.dir/tokenizer.cpp.o
+ovid: CMakeFiles/ovid.dir/src/main.cpp.o
+ovid: CMakeFiles/ovid.dir/src/parser.cpp.o
+ovid: CMakeFiles/ovid.dir/src/tokenizer.cpp.o
+ovid: CMakeFiles/ovid.dir/src/error.cpp.o
 ovid: CMakeFiles/ovid.dir/build.make
 ovid: /usr/lib/libLLVMX86CodeGen.a
 ovid: /usr/lib/libLLVMX86AsmParser.a
@@ -127,7 +157,7 @@ ovid: /usr/lib/libLLVMDebugInfoMSF.a
 ovid: /usr/lib/libLLVMSupport.a
 ovid: /usr/lib/libLLVMDemangle.a
 ovid: CMakeFiles/ovid.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX executable ovid"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX executable ovid"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/ovid.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
