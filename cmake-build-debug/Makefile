@@ -136,6 +136,33 @@ intrinsics_gen/fast:
 	$(MAKE) -f CMakeFiles/intrinsics_gen.dir/build.make CMakeFiles/intrinsics_gen.dir/build
 .PHONY : intrinsics_gen/fast
 
+src/ast.o: src/ast.cpp.o
+
+.PHONY : src/ast.o
+
+# target to build an object file
+src/ast.cpp.o:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/ast.cpp.o
+.PHONY : src/ast.cpp.o
+
+src/ast.i: src/ast.cpp.i
+
+.PHONY : src/ast.i
+
+# target to preprocess a source file
+src/ast.cpp.i:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/ast.cpp.i
+.PHONY : src/ast.cpp.i
+
+src/ast.s: src/ast.cpp.s
+
+.PHONY : src/ast.s
+
+# target to generate assembly for a file
+src/ast.cpp.s:
+	$(MAKE) -f CMakeFiles/ovid.dir/build.make CMakeFiles/ovid.dir/src/ast.cpp.s
+.PHONY : src/ast.cpp.s
+
 src/error.o: src/error.cpp.o
 
 .PHONY : src/error.o
@@ -254,6 +281,9 @@ help:
 	@echo "... ovid"
 	@echo "... edit_cache"
 	@echo "... intrinsics_gen"
+	@echo "... src/ast.o"
+	@echo "... src/ast.i"
+	@echo "... src/ast.s"
 	@echo "... src/error.o"
 	@echo "... src/error.i"
 	@echo "... src/error.s"

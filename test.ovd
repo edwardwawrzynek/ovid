@@ -1,4 +1,4 @@
 // test
-(1, 2, 3 + )
-// more testing
-hello &mut 4
+fn sum(a0 i32, a1 i32) mut i32 {
+    a0 + a1
+}

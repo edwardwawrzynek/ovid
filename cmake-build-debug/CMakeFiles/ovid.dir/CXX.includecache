@@ -6,11 +6,17 @@
 
 #IncludeRegexTransform: 
 
-/home/edward/Documents/ovid/src/error.cpp
-error.hpp
-/home/edward/Documents/ovid/src/error.hpp
-limits
+/home/edward/Documents/ovid/src/ast.hpp
+iostream
 -
+utility
+-
+vector
+-
+memory
+-
+tokenizer.hpp
+/home/edward/Documents/ovid/src/tokenizer.hpp
 
 /home/edward/Documents/ovid/src/error.hpp
 string
@@ -21,6 +27,30 @@ iostream
 -
 tokenizer.hpp
 /home/edward/Documents/ovid/src/tokenizer.hpp
+
+/home/edward/Documents/ovid/src/main.cpp
+iostream
+-
+cstdio
+-
+ast.hpp
+/home/edward/Documents/ovid/src/ast.hpp
+tokenizer.hpp
+/home/edward/Documents/ovid/src/tokenizer.hpp
+parser.hpp
+/home/edward/Documents/ovid/src/parser.hpp
+error.hpp
+/home/edward/Documents/ovid/src/error.hpp
+
+/home/edward/Documents/ovid/src/parser.hpp
+tokenizer.hpp
+/home/edward/Documents/ovid/src/tokenizer.hpp
+vector
+-
+memory
+-
+ast.hpp
+/home/edward/Documents/ovid/src/ast.hpp
 
 /home/edward/Documents/ovid/src/tokenizer.hpp
 utility

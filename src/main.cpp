@@ -3,18 +3,29 @@
 #include "ast.hpp"
 #include "tokenizer.hpp"
 #include "parser.hpp"
+#include "error.hpp"
 
 int main(int argc, char **argv) {
-    /*if(argc != 2) {
-        fprintf(stderr, "usage: ovid file.ovd");
+    if(argc != 2) {
+        std::cerr << "usage: ovid source.ovd\n";
         exit(1);
     }
-    fin = fopen(argv[1], "r");*/
-    auto filein = std::fstream("/home/edward/Documents/ovid/test.ovd");
-    auto lexer = ovid::Tokenizer("test.ovd", filein);
+    auto filein = std::fstream(argv[1]);
+    auto lexer = ovid::Tokenizer(argv[1], filein);
     lexer.nextToken();
     auto parser = ovid::Parser(lexer);
 
-    parser.parsePrimary();
+    do {
+        auto ast = parser.parseStatement();
+        if(!ast) break;
+    } while(!parser.isDoneParsing());
+
+    if(ovid::errorOccurred()) {
+        std::cout << "\x1b[1;31mcompilation failed\n\x1b[m";
+        return 1;
+    } else {
+        std::cout << "\x1b[1;32mCompilation succeeded\n\x1b[m";
+        return 0;
+    }
 
 }

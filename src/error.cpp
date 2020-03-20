@@ -2,9 +2,16 @@
 #include <limits>
 
 namespace ovid {
+
+    static bool didError = false;
+
     std::nullptr_t logError(const std::string& msg, SourceLocation location) {
-        std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":" << location.col << "\x1b[m: \x1b[31m" << msg << "\n\x1b[m";
+        didError = true;
+        std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":" << location.col << ": \x1b[31;1m" << msg << "\n\x1b[m";
+        location.file.clear();
         if(location.file) {
+            /* save location */
+            auto oldLoc = location.file.tellg();
             /* seek to line row - 1 */
             location.file.seekg(std::ios::beg);
             for(int i = 0; i < location.row - 1; ++i){
@@ -20,7 +27,15 @@ namespace ovid {
             }
             std::cout << "\x1b[1m^\x1b[m\n";
 
+            location.file.seekg(oldLoc);
+
+        } else {
+            std::cout << "[ Can't print source location ]\n";
         }
         return nullptr;
+    }
+
+    bool errorOccurred() {
+        return didError;
     }
 }

@@ -8,6 +8,7 @@
 
 namespace ovid {
     std::nullptr_t logError(const std::string& msg, SourceLocation location);
+    bool errorOccurred();
 }
 
 #endif

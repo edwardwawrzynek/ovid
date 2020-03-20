@@ -1,4 +1,5 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/ovid.dir/src/ast.cpp.o"
   "CMakeFiles/ovid.dir/src/error.cpp.o"
   "CMakeFiles/ovid.dir/src/main.cpp.o"
   "CMakeFiles/ovid.dir/src/parser.cpp.o"

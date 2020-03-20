@@ -1,4 +1,0 @@
-/home/edward/Documents/ovid/build/CMakeFiles/edit_cache.dir
-/home/edward/Documents/ovid/build/CMakeFiles/ovid.dir
-/home/edward/Documents/ovid/build/CMakeFiles/rebuild_cache.dir
-/home/edward/Documents/ovid/build/CMakeFiles/intrinsics_gen.dir

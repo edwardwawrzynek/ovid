@@ -104,6 +104,12 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="/home/edward/Documents/ovid/src/ast.cpp">
+			<Option target="ovid"/>
+		</Unit>
+		<Unit filename="/home/edward/Documents/ovid/src/ast.hpp">
+			<Option target="ovid"/>
+		</Unit>
 		<Unit filename="/home/edward/Documents/ovid/src/error.cpp">
 			<Option target="ovid"/>
 		</Unit>

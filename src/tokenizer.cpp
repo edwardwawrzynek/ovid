@@ -17,8 +17,11 @@ namespace ovid {
             return c;
         }
 
-        c = file.get();
+        else c = file.get();
+        if(file.eof()) c = EOF;
+
         pos_in_line++;
+
         if(c == '\n') {
             pos_in_line = 0;
             line++;
@@ -174,6 +177,10 @@ namespace ovid {
                         curToken.bool_literal = false;
                     } else if(curToken.ident == "mut") {
                         curToken.token = T_MUT;
+                    } else if(curToken.ident == "module") {
+                        curToken.token = T_MODULE;
+                    } else if(curToken.ident == "import") {
+                        curToken.token = T_IMPORT;
                     }
                 } else {
                     curToken.token = T_UNKNOWN;

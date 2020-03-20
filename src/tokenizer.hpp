@@ -31,6 +31,9 @@ namespace ovid {
         T_MUT = 15,
         T_COMMA = 16,
 
+        T_MODULE = 17,
+        T_IMPORT = 18,
+
         T_IDENT = -2,
         T_INTLITERAL = -3,
         T_FLOATLITERAL = -4,

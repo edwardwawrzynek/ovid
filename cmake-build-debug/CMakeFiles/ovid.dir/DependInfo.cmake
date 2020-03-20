@@ -4,6 +4,7 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
+  "/home/edward/Documents/ovid/src/ast.cpp" "/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles/ovid.dir/src/ast.cpp.o"
   "/home/edward/Documents/ovid/src/error.cpp" "/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles/ovid.dir/src/error.cpp.o"
   "/home/edward/Documents/ovid/src/main.cpp" "/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles/ovid.dir/src/main.cpp.o"
   "/home/edward/Documents/ovid/src/parser.cpp" "/home/edward/Documents/ovid/cmake-build-debug/CMakeFiles/ovid.dir/src/parser.cpp.o"
