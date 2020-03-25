@@ -34,6 +34,10 @@ namespace ovid {
         T_MODULE = 17,
         T_IMPORT = 18,
 
+        T_RETURN = 19,
+
+        T_SEMICOLON = 20,
+
         T_IDENT = -2,
         T_INTLITERAL = -3,
         T_FLOATLITERAL = -4,
@@ -43,11 +47,11 @@ namespace ovid {
 
     /* location in source code */
     struct SourceLocation {
-        const std::string filename;
+        std::string filename;
         int64_t col, row;
-        std::fstream& file; /* file may be null (if input isn't from a file, or is non seekable (like stdin) */
+        std::fstream* file; /* file may be null (if input isn't from a file, or is non seekable (like stdin) */
 
-        SourceLocation(const std::string filename, int64_t row, int64_t col, std::fstream& file): filename(filename), col(col), row(row), file(file) {};
+        SourceLocation(std::string filename, int64_t row, int64_t col, std::fstream* file): filename(filename), col(col), row(row), file(file) {};
     };
 
     struct Token {
@@ -75,17 +79,24 @@ namespace ovid {
         uint64_t line;
         /* current position in line */
         uint64_t pos_in_line;
-        std::fstream& file;
+        std::fstream* file;
 
     public:
-        Tokenizer(const std::string& filename, std::fstream& file): putback_char('\0'), comment_nesting_level(0), line(1), pos_in_line(0), file(file), curTokenLoc(filename, 1, 0, file) {};
+        Tokenizer(const std::string& filename, std::fstream* file): putback_char('\0'), comment_nesting_level(0), line(1), pos_in_line(0), file(file), curTokenLoc(filename, 1, 0, file), doTokenPutback(false), locPutback(filename, 1, 0, file) {};
         /* scan and read the next token */
         void nextToken();
+        /* peek ahead to the next token, but don't change the current token */
+        Token peekNextToken();
         /* last token read */
         Token curToken;
         /* location of beginning of curToken*/
         SourceLocation curTokenLoc;
+
     private:
+        /* putback token and tokenloc */
+        bool doTokenPutback;
+        Token tokenPutback;
+        SourceLocation locPutback;
         /* put back a character if we read to far */
         void putback(char c);
 

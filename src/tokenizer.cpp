@@ -17,8 +17,8 @@ namespace ovid {
             return c;
         }
 
-        else c = file.get();
-        if(file.eof()) c = EOF;
+        else c = file->get();
+        if(file->eof()) c = EOF;
 
         pos_in_line++;
 
@@ -36,7 +36,7 @@ namespace ovid {
 
         do {
             c = next();
-        } while(c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\f');
+        } while(c == ' ' || c == '\t' || c == '\r' || c == '\f');
 
         /* handle comments */
         if(c == '/') {
@@ -50,7 +50,7 @@ namespace ovid {
                     nC = next();
                     if(isDocComment) curToken.last_doc_comment += nC;
                 } while(nC != '\n');
-                return skip();
+                return '\n';
             } else if(nC == '*') {
                 comment_nesting_level++;
                 /* check for doc comment (/**) */
@@ -79,12 +79,30 @@ namespace ovid {
     void Tokenizer::nextToken() {
         int c;
 
+        if(doTokenPutback) {
+            curTokenLoc = locPutback;
+            curToken = tokenPutback;
+
+            doTokenPutback = false;
+
+            return;
+        }
+
         curToken.last_doc_comment_loc++;
 
         c = skip();
-
         curTokenLoc.col = pos_in_line;
         curTokenLoc.row = line;
+        /* if newline is present and last token could be the end of a statement, insert a semicolon
+         * otherwise, skip newline */
+        if(c == '\n') {
+            if(curToken.token == T_IDENT || curToken.token == T_INTLITERAL || curToken.token == T_FLOATLITERAL || curToken.token == T_CHARLITERAL || curToken.token == T_BOOLLITERAL || curToken.token == T_RETURN || curToken.token == T_RPAREN || curToken.token == T_RBRK) {
+                curToken.token = T_SEMICOLON;
+                return;
+            } else {
+                return nextToken();
+            }
+        }
 
         switch(c) {
             case EOF:
@@ -144,7 +162,9 @@ namespace ovid {
             case ',':
                 curToken.token = T_COMMA;
                 break;
-
+            case ';':
+                curToken.token = T_SEMICOLON;
+                break;
             default:
                 if(isdigit(c)) {
                     /* parse number */
@@ -181,13 +201,30 @@ namespace ovid {
                         curToken.token = T_MODULE;
                     } else if(curToken.ident == "import") {
                         curToken.token = T_IMPORT;
+                    } else if(curToken.ident == "return") {
+                        curToken.token = T_RETURN;
                     }
                 } else {
                     curToken.token = T_UNKNOWN;
                     curToken.char_literal = c;
                 }
         }
+    }
 
-        /* TODO: handle error on T_UNKNOWN */
+    Token Tokenizer::peekNextToken() {
+        Token bakToken = curToken;
+        SourceLocation locBak = curTokenLoc;
+
+        nextToken();
+        /* save token for returning on nextToken */
+        doTokenPutback = true;
+        tokenPutback = curToken;
+        locPutback = curTokenLoc;
+        Token res = curToken;
+        /* restore previous token */
+        curToken = bakToken;
+        curTokenLoc = locBak;
+
+        return res;
     }
 }

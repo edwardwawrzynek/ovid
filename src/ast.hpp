@@ -94,6 +94,12 @@ namespace ovid::ast {
 
         };
 
+        class ModuleDecl: public Statement {
+        public:
+            std::string name;
+
+            explicit ModuleDecl(std::string& name): name(name) {};
+        };
 
         /* ast expressions */
         class Expression : public Statement {

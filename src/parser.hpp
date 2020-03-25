@@ -13,7 +13,7 @@ namespace ovid {
     public:
         explicit Parser(Tokenizer& tokenizer): tokenizer(tokenizer) {};
 
-        std::vector<std::unique_ptr<ast::Node>> parseProgram();
+        std::vector<std::unique_ptr<ast::Statement>> parseProgram();
 
         std::unique_ptr<ast::IntLiteral> parseIntLiteral();
 
@@ -38,6 +38,10 @@ namespace ovid {
         std::unique_ptr<ast::FunctionPrototype> parseFunctionProto();
 
         std::unique_ptr<ast::Type> parseType();
+
+        std::unique_ptr<ast::Statement> parseVarDecl();
+
+        bool expectEndStatement();
     };
 }
 

@@ -17,8 +17,21 @@ namespace ovid {
         return tokenizer.curToken.token == T_EOF;
     }
 
-    std::vector<std::unique_ptr<ast::Node>> Parser::parseProgram() {
-        return std::vector<std::unique_ptr<ast::Node>>();
+    std::vector<std::unique_ptr<ast::Statement>> Parser::parseProgram() {
+        std::vector<std::unique_ptr<ast::Statement>> nodes;
+        if(tokenizer.curToken.token != T_MODULE) {
+            logError("Expected module declaration to begin program", tokenizer.curTokenLoc);
+        } else {
+            auto mod = parseModuleDecl();
+            if (mod) nodes.push_back(std::move(mod));
+            expectEndStatement();
+        }
+        do {
+            auto ast = parseStatement();
+            if(ast) nodes.push_back(std::move(ast));
+        } while(!isDoneParsing());
+
+        return nodes;
     }
 
     // intexpr ::= intliteral
@@ -87,6 +100,7 @@ namespace ovid {
                 return parseIntLiteral();
             default:
                 auto loc = tokenizer.curTokenLoc;
+                std::cout << tokenizer.curToken.token << "\n";
                 //consume token (the parse methods normally do this)
                 tokenizer.nextToken();
                 if(tokenizer.curToken.token == T_EOF) return logError("Unexpected EOF", loc);
@@ -191,14 +205,16 @@ namespace ovid {
     std::unique_ptr<ast::Statement> Parser::parseFunctionDecl() {
         // consume 'fn'
         tokenizer.nextToken();
+        // get function prototype
         auto proto = parseFunctionProto();
         if(!proto) return nullptr;
+        // parse body
         if(tokenizer.curToken.token != T_LBRK) return logError("Expected '{'", tokenizer.curTokenLoc);
         tokenizer.nextToken();
         ast::StatementList body;
         while(tokenizer.curToken.token != T_RBRK) {
             auto stat = parseStatement();
-            if(!stat) return nullptr;
+            if(!stat) return logError("expected '}' to end function body", tokenizer.curTokenLoc);
             body.push_back(std::move(stat));
         }
         tokenizer.nextToken();
@@ -208,17 +224,68 @@ namespace ovid {
     }
 
     std::unique_ptr<ast::Statement> Parser::parseModuleDecl() {
+        // consume 'module'
+        tokenizer.nextToken();
+        if(tokenizer.curToken.token != T_IDENT) return logError("Expected module name (identifier expected)", tokenizer.curTokenLoc);
+        auto name = tokenizer.curToken.ident;
+        tokenizer.nextToken();
+        return std::make_unique<ast::ModuleDecl>(name);
+    }
 
+    std::unique_ptr<ast::Statement> Parser::parseVarDecl() {
+        auto name = tokenizer.curToken.ident;
+        tokenizer.nextToken();
+        if(tokenizer.curToken.token != T_VARDECL) return logError("Expected := in variable declaration", tokenizer.curTokenLoc);
+        tokenizer.nextToken();
+        auto initialVal = parseExpr();
+
+        return std::make_unique<ast::VarDecl>(name, std::move(initialVal));
+    }
+
+    bool Parser::expectEndStatement() {
+        if(tokenizer.curToken.token == T_SEMICOLON) {
+            tokenizer.nextToken();
+            return true;
+        }
+        if(tokenizer.curToken.token == T_RBRK) {
+            return true;
+        }
+        logError("expected newline or ';' to mark end of statement", tokenizer.curTokenLoc);
+        return false;
     }
 
     std::unique_ptr<ast::Statement> Parser::parseStatement() {
         switch(tokenizer.curToken.token) {
-            case T_FN:
-                return parseFunctionDecl();
-            case T_MODULE:
-                return parseModuleDecl();
-            default:
-                return parseExpr();
+            case T_FN: {
+                auto res = parseFunctionDecl();
+                expectEndStatement();
+                return res;
+            }
+            case T_MODULE: {
+                auto loc = tokenizer.curTokenLoc;
+                tokenizer.nextToken();
+                return logError("Module declaration only allowed at beginning of a program", loc);
+            }
+            case T_IDENT: {
+                /* identifier followed by := is a variable declaration */
+                auto nextTok = tokenizer.peekNextToken();
+                if(nextTok.token != T_VARDECL) {
+                    auto res = parseExpr();
+                    expectEndStatement();
+                    return res;
+                }
+                auto res = parseVarDecl();
+                expectEndStatement();
+                return res;
+            }
+            case T_SEMICOLON:
+                tokenizer.nextToken();
+                return parseStatement();
+            default: {
+                auto res = parseExpr();
+                expectEndStatement();
+                return res;
+            }
         }
     }
 

@@ -11,14 +11,11 @@ int main(int argc, char **argv) {
         exit(1);
     }
     auto filein = std::fstream(argv[1]);
-    auto lexer = ovid::Tokenizer(argv[1], filein);
+    auto lexer = ovid::Tokenizer(argv[1], &filein);
     lexer.nextToken();
     auto parser = ovid::Parser(lexer);
 
-    do {
-        auto ast = parser.parseStatement();
-        if(!ast) break;
-    } while(!parser.isDoneParsing());
+    auto ast = parser.parseProgram();
 
     if(ovid::errorOccurred()) {
         std::cout << "\x1b[1;31mcompilation failed\n\x1b[m";

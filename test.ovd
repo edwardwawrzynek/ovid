@@ -1,4 +1,7 @@
+module test
+
 // test
 fn sum(a0 i32, a1 i32) mut i32 {
-    a0 + a1
+    a := (1 + 2)
+    b := 1 + 3
 }
