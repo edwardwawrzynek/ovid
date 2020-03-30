@@ -5,11 +5,10 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_definitions(-D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 
-
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(ovid src/main.cpp src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp)
-target_compile_options(ovid PRIVATE -Wall -Wextra)
+target_compile_options(ovid PRIVATE -Wall -Wextra -pedantic)
 
 #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/share/llvm/cmake")
 find_package(LLVM)

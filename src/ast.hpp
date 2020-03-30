@@ -20,7 +20,7 @@ namespace ovid::ast {
         public:
             virtual ~Type() {};
 
-            virtual Type* withoutmutability();
+            virtual Type* withoutMutability();
         };
 
         class BoolType: public Type {
@@ -47,7 +47,7 @@ namespace ovid::ast {
             std::unique_ptr<Type> type;
 
             MutType(std::unique_ptr<Type> type): type(std::move(type)) {};
-            Type* withoutmutability() override;
+            Type* withoutMutability() override;
         };
 
         class FunctionType: public Type {
@@ -94,11 +94,19 @@ namespace ovid::ast {
 
         };
 
+        class ScopeDecl: public Statement {
+        public:
+            std::vector<std::string> scope;
+            StatementList body;
+
+            ScopeDecl(std::vector<std::string> scope, StatementList body): scope(std::move(scope)), body(std::move(body)) {};
+        };
+
         class ModuleDecl: public Statement {
         public:
-            std::string name;
+            std::vector<std::string> name;
 
-            explicit ModuleDecl(std::string& name): name(name) {};
+            explicit ModuleDecl(std::vector<std::string> name): name(std::move(name)) {};
         };
 
         /* ast expressions */
@@ -116,9 +124,10 @@ namespace ovid::ast {
 
         class Identifier : public Expression {
         public:
+            std::vector<std::string> scope;
             std::string id;
 
-            Identifier(std::string &id) : id(id) {};
+            Identifier( std::string &id, std::vector<std::string> scope) : scope(std::move(scope)), id(id) {};
         };
 
         class OperatorSymbol : public Expression {

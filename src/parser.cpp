@@ -41,11 +41,19 @@ namespace ovid {
         return res;
     }
 
-    // identexpr ::= identifier
-    // funccallexpr ::= identifier '(' (expr ',') * expr ')'
+    // identexpr ::= identifier (':' identifier)*
+    // funccallexpr ::= identifier (':' identifier)* '(' (expr ',') * expr ')'
     std::unique_ptr<ast::Expression> Parser::parseIdentifier() {
-        auto ident = tokenizer.curToken.ident;
-        tokenizer.nextToken();
+        std::vector<std::string> scopes;
+        std::string ident;
+        while(true) {
+            ident = tokenizer.curToken.ident;
+            tokenizer.nextToken();
+            if(tokenizer.curToken.token == T_COLON) {
+                scopes.push_back(ident);
+                tokenizer.nextToken();
+            } else break;
+        }
         if(tokenizer.curToken.token == T_LPAREN) {
             std::vector<std::unique_ptr<ast::Expression>> args;
             do {
@@ -56,9 +64,9 @@ namespace ovid {
             } while(tokenizer.curToken.token == T_COMMA);
             if(tokenizer.curToken.token != T_RPAREN) return logError("Expected ',' or ')' in argument list", tokenizer.curTokenLoc);
             tokenizer.nextToken();
-            return std::make_unique<ast::FunctionCall>(std::make_unique<ast::Identifier>(ident), std::move(args));
+            return std::make_unique<ast::FunctionCall>(std::make_unique<ast::Identifier>(ident, std::move(scopes)), std::move(args));
         } else {
-            return std::make_unique<ast::Identifier>(ident);
+            return std::make_unique<ast::Identifier>(ident, std::move(scopes));
         }
     }
 
@@ -223,15 +231,45 @@ namespace ovid {
 
     }
 
+    // module ::= 'module' identifier (':' identifier)*
     std::unique_ptr<ast::Statement> Parser::parseModuleDecl() {
-        // consume 'module'
+        std::vector<std::string> names;
+        do {
+            // on first iteration, consume 'module'
+            tokenizer.nextToken();
+            if (tokenizer.curToken.token != T_IDENT)
+                return logError("Expected module name (identifier expected)", tokenizer.curTokenLoc);
+            names.push_back(tokenizer.curToken.ident);
+            tokenizer.nextToken();
+        } while (tokenizer.curToken.token == T_COLON);
+        return std::make_unique<ast::ModuleDecl>(std::move(names));
+    }
+    // scope ::= 'scope' identifier (':' identifier)* '{' statement* '}'
+    std::unique_ptr<ast::ScopeDecl> Parser::parseScopeDecl() {
+        std::vector<std::string> names;
+        ast::StatementList body;
+        do {
+            // on first iteration, consume 'scope'
+            tokenizer.nextToken();
+            if (tokenizer.curToken.token != T_IDENT)
+                return logError("Expected scope name (identifier expected)", tokenizer.curTokenLoc);
+            names.push_back(tokenizer.curToken.ident);
+            tokenizer.nextToken();
+        } while (tokenizer.curToken.token == T_COLON);
+
+        if(tokenizer.curToken.token != T_LBRK) return logError("expected '{' to begin scope body", tokenizer.curTokenLoc);
         tokenizer.nextToken();
-        if(tokenizer.curToken.token != T_IDENT) return logError("Expected module name (identifier expected)", tokenizer.curTokenLoc);
-        auto name = tokenizer.curToken.ident;
+
+        while(tokenizer.curToken.token != T_RBRK) {
+            auto stat = parseStatement();
+            body.push_back(std::move(stat));
+        }
         tokenizer.nextToken();
-        return std::make_unique<ast::ModuleDecl>(name);
+
+        return std::make_unique<ast::ScopeDecl>(std::move(names), std::move(body));
     }
 
+    // vardecl ::= identifier := expr
     std::unique_ptr<ast::Statement> Parser::parseVarDecl() {
         auto name = tokenizer.curToken.ident;
         tokenizer.nextToken();
@@ -265,6 +303,11 @@ namespace ovid {
                 auto loc = tokenizer.curTokenLoc;
                 tokenizer.nextToken();
                 return logError("Module declaration only allowed at beginning of a program", loc);
+            }
+            case T_SCOPE: {
+                auto res = parseScopeDecl();
+                expectEndStatement();
+                return res;
             }
             case T_IDENT: {
                 /* identifier followed by := is a variable declaration */

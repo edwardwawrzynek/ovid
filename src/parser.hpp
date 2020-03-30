@@ -42,6 +42,8 @@ namespace ovid {
         std::unique_ptr<ast::Statement> parseVarDecl();
 
         bool expectEndStatement();
+
+        std::unique_ptr<ast::ScopeDecl> parseScopeDecl();
     };
 }
 

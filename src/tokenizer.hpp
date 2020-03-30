@@ -37,6 +37,9 @@ namespace ovid {
         T_RETURN = 19,
 
         T_SEMICOLON = 20,
+        T_COLON = 21,
+
+        T_SCOPE = 22,
 
         T_IDENT = -2,
         T_INTLITERAL = -3,

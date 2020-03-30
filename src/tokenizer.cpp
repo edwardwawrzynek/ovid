@@ -17,8 +17,13 @@ namespace ovid {
             return c;
         }
 
-        else c = file->get();
-        if(file->eof()) c = EOF;
+        auto pEOF = file->eof();
+        c = file->get();
+        if(file->eof()) {
+            // emulate newline at EOF
+            if(!pEOF) c = '\n';
+            else c = EOF;
+        }
 
         pos_in_line++;
 
@@ -53,7 +58,7 @@ namespace ovid {
                 return '\n';
             } else if(nC == '*') {
                 comment_nesting_level++;
-                /* check for doc comment (/**) */
+                /* check for multi line doc comment */
                 nnC = next();
                 isDocComment = nnC == '*';
                 /* continue until nesting is at level 0 */
@@ -133,8 +138,7 @@ namespace ovid {
                     curToken.token = T_VARDECL;
                 } else {
                     putback(c);
-                    curToken.token = T_UNKNOWN;
-                    curToken.char_literal = c;
+                    curToken.token = T_COLON;
                 }
                 break;
             case '{':
@@ -203,6 +207,8 @@ namespace ovid {
                         curToken.token = T_IMPORT;
                     } else if(curToken.ident == "return") {
                         curToken.token = T_RETURN;
+                    } else if(curToken.ident == "scope") {
+                        curToken.token = T_SCOPE;
                     }
                 } else {
                     curToken.token = T_UNKNOWN;

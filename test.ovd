@@ -1,7 +1,12 @@
-module test
+module lang:ovid:ide:lsp:core
+
+scope plugins:c:keywords {
+    intType := 1
+    longType := 2
+}
 
 // test
 fn sum(a0 i32, a1 i32) mut i32 {
-    a := (1 + 2)
+    a := std:io:stdio:fd + 1
     b := 1 + 3
 }
