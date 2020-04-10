@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
     auto ast = parser.parseProgram();
 
     if(ovid::errorOccurred()) {
-        std::cout << "\x1b[1;31mcompilation failed\n\x1b[m";
+        std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";
         return 1;
     } else {
         std::cout << "\x1b[1;32mCompilation succeeded\n\x1b[m";

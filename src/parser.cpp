@@ -20,7 +20,7 @@ namespace ovid {
     std::vector<std::unique_ptr<ast::Statement>> Parser::parseProgram() {
         std::vector<std::unique_ptr<ast::Statement>> nodes;
         if(tokenizer.curToken.token != T_MODULE) {
-            logError("Expected module declaration to begin program", tokenizer.curTokenLoc);
+            logError("Expected module declaration to begin program", tokenizer.curTokenLoc, PARSE_ERROR);
         } else {
             auto mod = parseModuleDecl();
             if (mod) nodes.push_back(std::move(mod));
@@ -36,7 +36,7 @@ namespace ovid {
 
     // intexpr ::= intliteral
     std::unique_ptr<ast::IntLiteral> Parser::parseIntLiteral() {
-        auto res = std::make_unique<ast::IntLiteral>(tokenizer.curToken.int_literal);
+        auto res = std::make_unique<ast::IntLiteral>(tokenizer.curTokenLoc, tokenizer.curToken.int_literal);
         tokenizer.nextToken();
         return res;
     }
@@ -46,6 +46,7 @@ namespace ovid {
     std::unique_ptr<ast::Expression> Parser::parseIdentifier() {
         std::vector<std::string> scopes;
         std::string ident;
+        auto pos = tokenizer.curTokenLoc;
         while(true) {
             ident = tokenizer.curToken.ident;
             tokenizer.nextToken();
@@ -62,17 +63,19 @@ namespace ovid {
                 if(!expr) return nullptr;
                 args.push_back(std::move(expr));
             } while(tokenizer.curToken.token == T_COMMA);
-            if(tokenizer.curToken.token != T_RPAREN) return logError("Expected ',' or ')' in argument list", tokenizer.curTokenLoc);
+            if(tokenizer.curToken.token != T_RPAREN) return logError("Expected ',' or ')' in argument list", tokenizer.curTokenLoc, PARSE_ERROR);
             tokenizer.nextToken();
-            return std::make_unique<ast::FunctionCall>(std::make_unique<ast::Identifier>(ident, std::move(scopes)), std::move(args));
+            return std::make_unique<ast::FunctionCall>(pos, std::make_unique<ast::Identifier>(pos, ident, std::move(scopes)), std::move(args));
         } else {
-            return std::make_unique<ast::Identifier>(ident, std::move(scopes));
+            return std::make_unique<ast::Identifier>(pos, ident, std::move(scopes));
         }
     }
 
     // parenexpr ::= '(' expr ')'
     // tupleexpr ::= '(' (expr ',')+ expr ')'
     std::unique_ptr<ast::Expression> Parser::parseParenExpr() {
+        auto pos = tokenizer.curTokenLoc;
+
         tokenizer.nextToken(); // skip '('
         auto expr0 = parseExpr();
         if(!expr0) return nullptr;
@@ -81,7 +84,7 @@ namespace ovid {
             tokenizer.nextToken();
             return expr0;
         }
-        if (tokenizer.curToken.token != T_COMMA) return logError("Expected ')' or ',' ", tokenizer.curTokenLoc);
+        if (tokenizer.curToken.token != T_COMMA) return logError("Expected ')' or ',' ", tokenizer.curTokenLoc, PARSE_ERROR);
         std::vector<std::unique_ptr<ast::Expression>> tupleExprs;
         tupleExprs.push_back(std::move(expr0));
         // add each element to tuple
@@ -93,9 +96,9 @@ namespace ovid {
         } while (tokenizer.curToken.token == T_COMMA);
         if (tokenizer.curToken.token == T_RPAREN) {
             tokenizer.nextToken();
-            return std::make_unique<ast::Tuple>(std::move(tupleExprs));
+            return std::make_unique<ast::Tuple>(pos, std::move(tupleExprs));
         }
-        return logError("Expected ')' or ','", tokenizer.curTokenLoc);
+        return logError("Expected ')' or ','", tokenizer.curTokenLoc, PARSE_ERROR);
     }
 
     std::unique_ptr<ast::Expression> Parser::parsePrimary() {
@@ -108,11 +111,13 @@ namespace ovid {
                 return parseIntLiteral();
             default:
                 auto loc = tokenizer.curTokenLoc;
-                std::cout << tokenizer.curToken.token << "\n";
                 //consume token (the parse methods normally do this)
                 tokenizer.nextToken();
-                if(tokenizer.curToken.token == T_EOF) return logError("Unexpected EOF", loc);
-                else return logError("Unexpected token", loc);
+                if(tokenizer.curToken.token == T_EOF) {
+                    // TODO: bail out of parsing
+                    return logError("Unexpected EOF", loc, PARSE_ERROR);
+                }
+                else return logError("Unexpected token", loc, PARSE_ERROR);
         }
     }
 
@@ -126,11 +131,13 @@ namespace ovid {
 
     // binopright ::= ('op' primary) *
     std::unique_ptr<ast::Expression> Parser::parseBinOpRight(int exprPrec, std::unique_ptr<ast::Expression> leftExpr) {
+        auto startPos = leftExpr->loc;
         while(true) {
             /* find precedence of operator (if not operator, implicitly 0) */
             int tokPrec = opPrecedence[tokenizer.curToken.token];
             if(tokPrec < exprPrec) return leftExpr;
             auto op = tokenizer.curToken.token;
+            auto opPos = tokenizer.curTokenLoc;
             tokenizer.nextToken();
 
             auto rightExpr = parsePrimary();
@@ -145,12 +152,12 @@ namespace ovid {
             /* otherwise, leftExpr + rightExpr become next leftExpr */
             /* handle assignment expressions */
             if(op == T_ASSIGN) {
-                leftExpr = std::make_unique<ast::Assignment>(std::move(leftExpr), std::move(rightExpr));
+                leftExpr = std::make_unique<ast::Assignment>(startPos, std::move(leftExpr), std::move(rightExpr));
             } else {
                 ast::ExpressionList args;
                 args.push_back(std::move(leftExpr));
                 args.push_back(std::move(rightExpr));
-                leftExpr = std::make_unique<ast::FunctionCall>(std::make_unique<ast::OperatorSymbol>(op), std::move(args));
+                leftExpr = std::make_unique<ast::FunctionCall>(startPos, std::make_unique<ast::OperatorSymbol>(opPos, op), std::move(args));
             }
         }
 
@@ -163,7 +170,7 @@ namespace ovid {
             tokenizer.nextToken();
             return std::make_unique<ast::MutType>(parseType());
         }
-        if(tokenizer.curToken.token != T_IDENT) return logError("Expected a type expression", tokenizer.curTokenLoc);
+        if(tokenizer.curToken.token != T_IDENT) return logError("Expected a type expression", tokenizer.curTokenLoc, PARSE_ERROR);
         auto type = tokenizer.curToken.ident;
         auto loc = tokenizer.curTokenLoc;
         tokenizer.nextToken();
@@ -179,31 +186,31 @@ namespace ovid {
         if(type == "f32") return std::make_unique<ast::FloatType>(32);
         if(type == "f64") return std::make_unique<ast::FloatType>(64);
 
-        return logError("Invalid type expression", loc);
+        return logError("Invalid type expression", loc, PARSE_ERROR);
     }
 
     // functionproto ::= ident '(' (arg typeExpr ',')* arg typeExpr ')' typeExpr
     std::unique_ptr<ast::FunctionPrototype> Parser::parseFunctionProto() {
-        if(tokenizer.curToken.token != T_IDENT) return logError("Expected function name", tokenizer.curTokenLoc);
+        if(tokenizer.curToken.token != T_IDENT) return logError("Expected function name", tokenizer.curTokenLoc, PARSE_ERROR);
         std::string name = tokenizer.curToken.ident;
 
         // left paren
         tokenizer.nextToken();
-        if(tokenizer.curToken.token != T_LPAREN) return logError("Expected '('", tokenizer.curTokenLoc);
+        if(tokenizer.curToken.token != T_LPAREN) return logError("Expected '('", tokenizer.curTokenLoc, PARSE_ERROR);
         // args
         std::vector<std::string> argNames;
         std::vector<std::unique_ptr<ast::Type>> argTypes;
 
         do {
             tokenizer.nextToken();
-            if(tokenizer.curToken.token != T_IDENT) return logError("Expected argument name", tokenizer.curTokenLoc);
+            if(tokenizer.curToken.token != T_IDENT) return logError("Expected argument name", tokenizer.curTokenLoc, PARSE_ERROR);
             argNames.push_back(tokenizer.curToken.ident);
             tokenizer.nextToken();
             auto type = parseType();
             if(!type) return nullptr;
             argTypes.push_back(std::move(type));
         } while(tokenizer.curToken.token == T_COMMA);
-        if(tokenizer.curToken.token != T_RPAREN) return logError("Expected ')' or ',' in argument list", tokenizer.curTokenLoc);
+        if(tokenizer.curToken.token != T_RPAREN) return logError("Expected ')' or ',' in argument list", tokenizer.curTokenLoc, PARSE_ERROR);
         tokenizer.nextToken();
         auto retType = parseType();
 
@@ -211,53 +218,57 @@ namespace ovid {
     }
 
     std::unique_ptr<ast::Statement> Parser::parseFunctionDecl() {
+        auto pos = tokenizer.curTokenLoc;
         // consume 'fn'
         tokenizer.nextToken();
         // get function prototype
         auto proto = parseFunctionProto();
         if(!proto) return nullptr;
         // parse body
-        if(tokenizer.curToken.token != T_LBRK) return logError("Expected '{'", tokenizer.curTokenLoc);
+        if(tokenizer.curToken.token != T_LBRK) return logError("Expected '{'", tokenizer.curTokenLoc, PARSE_ERROR);
         tokenizer.nextToken();
         ast::StatementList body;
         while(tokenizer.curToken.token != T_RBRK) {
             auto stat = parseStatement();
-            if(!stat) return logError("expected '}' to end function body", tokenizer.curTokenLoc);
+            if(!stat) return logError("expected '}' to end function body", tokenizer.curTokenLoc, PARSE_ERROR);
             body.push_back(std::move(stat));
         }
         tokenizer.nextToken();
 
-        return std::make_unique<ast::FunctionDecl>(std::move(proto), std::move(body));
+        return std::make_unique<ast::FunctionDecl>(pos, std::move(proto), std::move(body));
 
     }
 
     // module ::= 'module' identifier (':' identifier)*
     std::unique_ptr<ast::Statement> Parser::parseModuleDecl() {
         std::vector<std::string> names;
+        auto pos = tokenizer.curTokenLoc;
         do {
             // on first iteration, consume 'module'
             tokenizer.nextToken();
             if (tokenizer.curToken.token != T_IDENT)
-                return logError("Expected module name (identifier expected)", tokenizer.curTokenLoc);
+                return logError("Expected module name (identifier expected)", tokenizer.curTokenLoc, PARSE_ERROR);
             names.push_back(tokenizer.curToken.ident);
             tokenizer.nextToken();
         } while (tokenizer.curToken.token == T_COLON);
-        return std::make_unique<ast::ModuleDecl>(std::move(names));
+        return std::make_unique<ast::ModuleDecl>(pos, std::move(names));
     }
     // scope ::= 'scope' identifier (':' identifier)* '{' statement* '}'
     std::unique_ptr<ast::ScopeDecl> Parser::parseScopeDecl() {
         std::vector<std::string> names;
         ast::StatementList body;
+
+        auto pos = tokenizer.curTokenLoc;
         do {
             // on first iteration, consume 'scope'
             tokenizer.nextToken();
             if (tokenizer.curToken.token != T_IDENT)
-                return logError("Expected scope name (identifier expected)", tokenizer.curTokenLoc);
+                return logError("Expected scope name (identifier expected)", tokenizer.curTokenLoc, PARSE_ERROR);
             names.push_back(tokenizer.curToken.ident);
             tokenizer.nextToken();
         } while (tokenizer.curToken.token == T_COLON);
 
-        if(tokenizer.curToken.token != T_LBRK) return logError("expected '{' to begin scope body", tokenizer.curTokenLoc);
+        if(tokenizer.curToken.token != T_LBRK) return logError("Expected '{' to begin scope body", tokenizer.curTokenLoc, PARSE_ERROR);
         tokenizer.nextToken();
 
         while(tokenizer.curToken.token != T_RBRK) {
@@ -266,18 +277,19 @@ namespace ovid {
         }
         tokenizer.nextToken();
 
-        return std::make_unique<ast::ScopeDecl>(std::move(names), std::move(body));
+        return std::make_unique<ast::ScopeDecl>(pos, std::move(names), std::move(body));
     }
 
     // vardecl ::= identifier := expr
     std::unique_ptr<ast::Statement> Parser::parseVarDecl() {
+        auto pos = tokenizer.curTokenLoc;
         auto name = tokenizer.curToken.ident;
         tokenizer.nextToken();
-        if(tokenizer.curToken.token != T_VARDECL) return logError("Expected := in variable declaration", tokenizer.curTokenLoc);
+        if(tokenizer.curToken.token != T_VARDECL) return logError("Expected := in variable declaration", tokenizer.curTokenLoc, PARSE_ERROR);
         tokenizer.nextToken();
         auto initialVal = parseExpr();
 
-        return std::make_unique<ast::VarDecl>(name, std::move(initialVal));
+        return std::make_unique<ast::VarDecl>(pos, name, std::move(initialVal));
     }
 
     bool Parser::expectEndStatement() {
@@ -288,7 +300,7 @@ namespace ovid {
         if(tokenizer.curToken.token == T_RBRK) {
             return true;
         }
-        logError("expected newline or ';' to mark end of statement", tokenizer.curTokenLoc);
+        logError("expected newline or ';' to mark end of statement", tokenizer.curTokenLoc, PARSE_ERROR);
         return false;
     }
 
@@ -302,7 +314,7 @@ namespace ovid {
             case T_MODULE: {
                 auto loc = tokenizer.curTokenLoc;
                 tokenizer.nextToken();
-                return logError("Module declaration only allowed at beginning of a program", loc);
+                return logError("Module declaration only allowed at beginning of a program", loc, PARSE_ERROR);
             }
             case T_SCOPE: {
                 auto res = parseScopeDecl();

@@ -70,11 +70,15 @@ namespace ovid::ast {
         /* base ast node */
         class Node {
         public:
+            SourceLocation loc;
+            explicit Node(SourceLocation& loc): loc(loc) {};
             virtual ~Node() {};
         };
 
         /* ast statements */
         class Statement : public Node {
+        public:
+            explicit Statement(SourceLocation& loc): Node(loc) {};
         };
 
         class VarDecl: public Statement {
@@ -82,7 +86,7 @@ namespace ovid::ast {
             std::string name;
             std::unique_ptr<Expression> initialValue;
 
-            VarDecl(std::string& name, std::unique_ptr<Expression> initialValue): name(name), initialValue(std::move(initialValue)) {};
+            VarDecl(SourceLocation& loc, std::string& name, std::unique_ptr<Expression> initialValue): Statement(loc), name(name), initialValue(std::move(initialValue)) {};
         };
 
         class FunctionDecl: public Statement {
@@ -90,7 +94,7 @@ namespace ovid::ast {
             std::unique_ptr<FunctionPrototype> proto;
             StatementList body;
 
-            FunctionDecl(std::unique_ptr<FunctionPrototype> proto, StatementList body): proto(std::move(proto)), body(std::move(body)) {};
+            FunctionDecl(SourceLocation& loc, std::unique_ptr<FunctionPrototype> proto, StatementList body): Statement(loc), proto(std::move(proto)), body(std::move(body)) {};
 
         };
 
@@ -99,18 +103,20 @@ namespace ovid::ast {
             std::vector<std::string> scope;
             StatementList body;
 
-            ScopeDecl(std::vector<std::string> scope, StatementList body): scope(std::move(scope)), body(std::move(body)) {};
+            ScopeDecl(SourceLocation& loc, std::vector<std::string> scope, StatementList body): Statement(loc), scope(std::move(scope)), body(std::move(body)) {};
         };
 
         class ModuleDecl: public Statement {
         public:
             std::vector<std::string> name;
 
-            explicit ModuleDecl(std::vector<std::string> name): name(std::move(name)) {};
+            ModuleDecl(SourceLocation& loc,std::vector<std::string> name): Statement(loc), name(std::move(name)) {};
         };
 
         /* ast expressions */
         class Expression : public Statement {
+        public:
+            explicit Expression(SourceLocation& loc): Statement(loc) {};
         };
 
         class FunctionCall : public Expression {
@@ -118,8 +124,7 @@ namespace ovid::ast {
             std::unique_ptr<Expression> funcExpr;
             ExpressionList args;
 
-            FunctionCall(std::unique_ptr<Expression> funcExpr, ExpressionList args) : funcExpr(std::move(funcExpr)),
-                                                                                      args(std::move(args)) {};
+            FunctionCall(SourceLocation& loc, std::unique_ptr<Expression> funcExpr, ExpressionList args): Expression(loc), funcExpr(std::move(funcExpr)), args(std::move(args)) {};
         };
 
         class Identifier : public Expression {
@@ -127,14 +132,14 @@ namespace ovid::ast {
             std::vector<std::string> scope;
             std::string id;
 
-            Identifier( std::string &id, std::vector<std::string> scope) : scope(std::move(scope)), id(id) {};
+            Identifier(SourceLocation& loc, std::string &id, std::vector<std::string> scope): Expression(loc), scope(std::move(scope)), id(id) {};
         };
 
         class OperatorSymbol : public Expression {
         public:
             TokenType op;
 
-            OperatorSymbol(TokenType op): op(op) {};
+            OperatorSymbol(SourceLocation& loc, TokenType op): Expression(loc), op(op) {};
         };
 
         class Assignment : public Expression {
@@ -142,25 +147,26 @@ namespace ovid::ast {
             std::unique_ptr<Expression> lvalue;
             std::unique_ptr<Expression> rvalue;
 
-            Assignment(std::unique_ptr<Expression> lvalue, std::unique_ptr<Expression> rvalue) : lvalue(
-                    std::move(lvalue)), rvalue(std::move(rvalue)) {};
+            Assignment(SourceLocation& loc, std::unique_ptr<Expression> lvalue, std::unique_ptr<Expression> rvalue): Expression(loc), lvalue(std::move(lvalue)), rvalue(std::move(rvalue)) {};
         };
 
         class Literal : public Expression {
+        public:
+            explicit Literal(SourceLocation& loc): Expression(loc) {};
         };
 
         class IntLiteral : public Literal {
         public:
             const long value;
 
-            IntLiteral(const long value) : value(value) {};
+            IntLiteral(SourceLocation& loc, const long value): Literal(loc), value(value) {};
         };
 
         class Tuple: public Expression {
         public:
             ExpressionList expressions;
 
-            explicit Tuple(ExpressionList expressions): expressions(std::move(expressions)) {};
+            explicit Tuple(SourceLocation& loc, ExpressionList expressions): Expression(loc), expressions(std::move(expressions)) {};
         };
     }
 

@@ -1,13 +1,34 @@
 #include "error.hpp"
+#include <cstdio>
 #include <limits>
+#include <iomanip>
 
 namespace ovid {
 
     static bool didError = false;
 
-    std::nullptr_t logError(const std::string& msg, SourceLocation location) {
+    enum ErrorPrintLevel {
+        PRINT_ERROR, PRINT_WARNING
+    };
+
+    static ErrorPrintLevel errorTypeToPrintLevel(ErrorType type) {
+        switch(type) {
+            case PARSE_ERROR: return PRINT_ERROR;
+            default: return PRINT_ERROR;
+        }
+    }
+
+    std::nullptr_t logError(const std::string& msg, SourceLocation location, ErrorType type) {
         didError = true;
-        std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":" << location.col << ": \x1b[31;1m" << msg << "\n\x1b[m";
+        auto printType = errorTypeToPrintLevel(type);
+        std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":" << location.col << ": ";
+        if(printType == PRINT_ERROR)
+            std::cout << "\x1b[1;31m";
+        else if(printType == PRINT_WARNING)
+            std::cout << "\x1b[1;33m";
+        std::cout << msg << "\x1b[m\n";
+
+        std::cout << "\x1b[1;34m" << std::setw(5) << location.row << " |\x1b[m ";
         location.file->clear();
         if(location.file) {
             /* save location */
@@ -20,12 +41,15 @@ namespace ovid {
 
             std::string line;
             getline(*location.file, line);
-            std::cout << line << "\n";
+            std::cout << line << "\n\x1b[1;34m      | \x1b[m";
             for(int i = 0; i < location.col - 1; i++) {
                 if(isspace(line[i])) std::cout << line[i];
                 else std::cout << ' ';
             }
-            std::cout << "\x1b[1m^\x1b[m\n";
+            if(printType == PRINT_ERROR)
+                std::cout << "\x1b[31;1m^\x1b[m\n";
+            else if(printType == PRINT_WARNING)
+                std::cout << "\x1b[33;1m^\x1b[m\n";
 
             location.file->seekg(oldLoc);
 

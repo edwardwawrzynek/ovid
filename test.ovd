@@ -7,6 +7,6 @@ scope plugins:c:keywords {
 
 // test
 fn sum(a0 i32, a1 i32) mut i32 {
-    a := std:io:stdio:fd + 1
+    a := std:io:stdio:fd + 1 + 2 * 5
     b := 1 + 3
 }
