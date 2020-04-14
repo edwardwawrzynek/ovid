@@ -17,7 +17,8 @@ namespace ovid {
         PARSE_ERROR
     };
 
-    std::nullptr_t logError(const std::string& msg, SourceLocation location, ErrorType type);
+    std::nullptr_t logError(const std::string &msg, SourceLocation location, ErrorType type);
+
     bool errorOccurred();
 }
 

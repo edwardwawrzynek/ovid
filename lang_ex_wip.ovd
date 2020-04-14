@@ -25,9 +25,9 @@ scope basic:vars {
     c := mut 1      // type mut i64
     // references (mutable and immutable)
     d := &1         // type &i64
-    e := &(mut 1)   // type & mut i64
-    f := &mut 1     // type &mut i64
-    g := &mut(mut 1) // type &mut mut i64
+    e := &mut 1   // type &mut i64
+    f := mut &1     // type mut &i64
+    g := mut &mut 1 // type mut &mut i64
 }
 
 /// a function that calculates the sum of two numbers

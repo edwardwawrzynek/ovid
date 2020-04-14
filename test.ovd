@@ -1,7 +1,7 @@
 module lang:ovid:ide:lsp:core
 
 scope plugins:c:keywords {
-    intType := 1
+    intType := 1 +
     longType := 2
 }
 

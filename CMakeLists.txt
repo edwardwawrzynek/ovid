@@ -7,7 +7,7 @@ add_definitions(-D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STD
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-add_executable(ovid src/main.cpp src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp)
+add_executable(ovid src/main.cpp src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp src/symbols.cpp)
 target_compile_options(ovid PRIVATE -Wall -Wextra -pedantic)
 
 #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/share/llvm/cmake")

@@ -6,7 +6,7 @@
 #include "error.hpp"
 
 int main(int argc, char **argv) {
-    if(argc != 2) {
+    if (argc != 2) {
         std::cerr << "usage: ovid source.ovd\n";
         exit(1);
     }
@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
 
     auto ast = parser.parseProgram();
 
-    if(ovid::errorOccurred()) {
+    if (ovid::errorOccurred()) {
         std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";
         return 1;
     } else {

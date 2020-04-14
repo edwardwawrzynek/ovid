@@ -11,7 +11,7 @@ namespace ovid {
         Tokenizer tokenizer;
 
     public:
-        explicit Parser(Tokenizer& tokenizer): tokenizer(tokenizer) {};
+        explicit Parser(Tokenizer &tokenizer) : tokenizer(tokenizer) {};
 
         std::vector<std::unique_ptr<ast::Statement>> parseProgram();
 
