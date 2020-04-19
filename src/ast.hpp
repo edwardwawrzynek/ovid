@@ -8,187 +8,190 @@
 #include "tokenizer.hpp"
 
 namespace ovid::ast {
-    class Expression;
+  class Expression;
 
-    class Statement;
+  class Statement;
 
-    typedef std::vector<std::unique_ptr<Expression>> ExpressionList;
-    typedef std::vector<std::unique_ptr<Statement>> StatementList;
+  typedef std::vector<std::unique_ptr<Expression>> ExpressionList;
+  typedef std::vector<std::unique_ptr<Statement>> StatementList;
 
-    /* ast types */
-    class Type {
-    public:
-        virtual ~Type() {};
+  /* ast types */
+  class Type {
+  public:
+    virtual ~Type() {};
 
-        virtual Type *withoutMutability();
-    };
+    virtual Type *withoutMutability();
+  };
 
-    class BoolType : public Type {
-    public:
-        BoolType() {};
-    };
+  class BoolType : public Type {
+  public:
+    BoolType() {};
+  };
 
-    class IntType : public Type {
-    public:
-        int size; // in bits
-        bool isUnsigned;
+  class IntType : public Type {
+  public:
+    int size; // in bits
+    bool isUnsigned;
 
-        IntType(int size, bool isUnsigned) : size(size), isUnsigned(isUnsigned) {};
-    };
+    IntType(int size, bool isUnsigned)
+        : size(size), isUnsigned(isUnsigned) {};
+  };
 
-    class FloatType : public Type {
-    public:
-        int size; // in bits
-        FloatType(int size) : size(size) {};
-    };
+  class FloatType : public Type {
+  public:
+    int size; // in bits
+    FloatType(int size)
+        : size(size) {};
+  };
 
-    class MutType : public Type {
-    public:
-        std::unique_ptr<Type> type;
+  class MutType : public Type {
+  public:
+    std::unique_ptr<Type> type;
 
-        MutType(std::unique_ptr<Type> type) : type(std::move(type)) {};
+    MutType(std::unique_ptr<Type> type)
+        : type(std::move(type)) {};
 
-        Type *withoutMutability() override;
-    };
+    Type *withoutMutability() override;
+  };
 
-    class FunctionType : public Type {
-    public:
-        std::vector<std::unique_ptr<Type>> argTypes;
-        std::unique_ptr<Type> retType;
+  class FunctionType : public Type {
+  public:
+    std::vector<std::unique_ptr<Type>> argTypes;
+    std::unique_ptr<Type> retType;
 
-        FunctionType(std::vector<std::unique_ptr<Type>> argTypes, std::unique_ptr<Type> retType) : argTypes(
-                std::move(argTypes)), retType(std::move(retType)) {};
-    };
+    FunctionType(std::vector<std::unique_ptr<Type>> argTypes, std::unique_ptr<Type> retType)
+        : argTypes(std::move(argTypes)), retType(std::move(retType)) {};
+  };
 
-    class FunctionPrototype {
-    public:
-        std::unique_ptr<FunctionType> type;
-        std::vector<std::string> argNames;
-        std::string name;
+  class FunctionPrototype {
+  public:
+    std::unique_ptr<FunctionType> type;
+    std::vector<std::string> argNames;
+    std::string name;
 
-        FunctionPrototype(std::unique_ptr<FunctionType> type, std::vector<std::string> argNames, std::string &name)
-                : type(std::move(type)), argNames(std::move(argNames)), name(name) {};
-    };
+    FunctionPrototype(std::unique_ptr<FunctionType> type, std::vector<std::string> argNames, std::string &name)
+        : type(std::move(type)), argNames(std::move(argNames)), name(name) {};
+  };
 
-    /* base ast node */
-    class Node {
-    public:
-        SourceLocation loc;
+  /* base ast node */
+  class Node {
+  public:
+    SourceLocation loc;
 
-        explicit Node(SourceLocation &loc) : loc(loc) {};
+    explicit Node(SourceLocation &loc) : loc(loc) {};
 
-        virtual ~Node() {};
-    };
+    virtual ~Node() {};
+  };
 
-    /* ast statements */
-    class Statement : public Node {
-    public:
-        explicit Statement(SourceLocation &loc) : Node(loc) {};
-    };
+  /* ast statements */
+  class Statement : public Node {
+  public:
+    explicit Statement(SourceLocation &loc) : Node(loc) {};
+  };
 
-    class VarDecl : public Statement {
-    public:
-        std::string name;
-        std::unique_ptr<Expression> initialValue;
+  class VarDecl : public Statement {
+  public:
+    std::string name;
+    std::unique_ptr<Expression> initialValue;
 
-        VarDecl(SourceLocation &loc, std::string &name, std::unique_ptr<Expression> initialValue) : Statement(loc),
-                                                                                                    name(name),
-                                                                                                    initialValue(
-                                                                                                            std::move(
-                                                                                                                    initialValue)) {};
-    };
+    VarDecl(SourceLocation &loc, std::string &name, std::unique_ptr<Expression> initialValue)
+        : Statement(loc),
+          name(name),
+          initialValue(
+              std::move(
+                  initialValue)) {};
+  };
 
-    class FunctionDecl : public Statement {
-    public:
-        std::unique_ptr<FunctionPrototype> proto;
-        StatementList body;
+  class FunctionDecl : public Statement {
+  public:
+    std::unique_ptr<FunctionPrototype> proto;
+    StatementList body;
 
-        FunctionDecl(SourceLocation &loc, std::unique_ptr<FunctionPrototype> proto, StatementList body) : Statement(
-                loc), proto(std::move(proto)), body(std::move(body)) {};
+    FunctionDecl(SourceLocation &loc, std::unique_ptr<FunctionPrototype> proto, StatementList body)
+        : Statement(loc), proto(std::move(proto)), body(std::move(body)) {};
 
-    };
+  };
 
-    class ScopeDecl : public Statement {
-    public:
-        std::vector<std::string> scope;
-        StatementList body;
+  class ModuleDecl : public Statement {
+  public:
+    std::vector<std::string> scope;
+    StatementList body;
 
-        ScopeDecl(SourceLocation &loc, std::vector<std::string> scope, StatementList body) : Statement(loc),
-                                                                                             scope(std::move(scope)),
-                                                                                             body(std::move(body)) {};
-    };
+    ModuleDecl(SourceLocation &loc, std::vector<std::string> scope, StatementList body)
+        : Statement(loc), scope(std::move(scope)), body(std::move(body)) {};
+  };
 
-    class ModuleDecl : public Statement {
-    public:
-        std::vector<std::string> name;
+  /* ast expressions */
+  class Expression : public Statement {
+  public:
+    explicit Expression(SourceLocation &loc)
+        : Statement(loc) {};
+  };
 
-        ModuleDecl(SourceLocation &loc, std::vector<std::string> name) : Statement(loc), name(std::move(name)) {};
-    };
+  class FunctionCall : public Expression {
+  public:
+    std::unique_ptr<Expression> funcExpr;
+    ExpressionList args;
 
-    /* ast expressions */
-    class Expression : public Statement {
-    public:
-        explicit Expression(SourceLocation &loc) : Statement(loc) {};
-    };
+    FunctionCall(SourceLocation &loc, std::unique_ptr<Expression> funcExpr, ExpressionList args)
+        : Expression(loc),
+          funcExpr(
+              std::move(
+                  funcExpr)),
+          args(std::move(
+              args)) {};
+  };
 
-    class FunctionCall : public Expression {
-    public:
-        std::unique_ptr<Expression> funcExpr;
-        ExpressionList args;
+  class Identifier : public Expression {
+  public:
+    std::vector<std::string> scope;
+    std::string id;
 
-        FunctionCall(SourceLocation &loc, std::unique_ptr<Expression> funcExpr, ExpressionList args) : Expression(loc),
-                                                                                                       funcExpr(
-                                                                                                               std::move(
-                                                                                                                       funcExpr)),
-                                                                                                       args(std::move(
-                                                                                                               args)) {};
-    };
+    Identifier(SourceLocation &loc, std::string &id, std::vector<std::string> scope)
+        : Expression(loc),
+          scope(std::move(scope)),
+          id(id) {};
+  };
 
-    class Identifier : public Expression {
-    public:
-        std::vector<std::string> scope;
-        std::string id;
+  class OperatorSymbol : public Expression {
+  public:
+    TokenType op;
 
-        Identifier(SourceLocation &loc, std::string &id, std::vector<std::string> scope) : Expression(loc),
-                                                                                           scope(std::move(scope)),
-                                                                                           id(id) {};
-    };
+    OperatorSymbol(SourceLocation &loc, TokenType op)
+        : Expression(loc), op(op) {};
+  };
 
-    class OperatorSymbol : public Expression {
-    public:
-        TokenType op;
+  class Assignment : public Expression {
+  public:
+    std::unique_ptr<Expression> lvalue;
+    std::unique_ptr<Expression> rvalue;
 
-        OperatorSymbol(SourceLocation &loc, TokenType op) : Expression(loc), op(op) {};
-    };
+    Assignment(SourceLocation &loc, std::unique_ptr<Expression> lvalue, std::unique_ptr<Expression> rvalue)
+        : Expression(loc), lvalue(std::move(lvalue)), rvalue(std::move(rvalue)) {};
+  };
 
-    class Assignment : public Expression {
-    public:
-        std::unique_ptr<Expression> lvalue;
-        std::unique_ptr<Expression> rvalue;
+  class Literal : public Expression {
+  public:
+    explicit Literal(SourceLocation &loc)
+        : Expression(loc) {};
+  };
 
-        Assignment(SourceLocation &loc, std::unique_ptr<Expression> lvalue, std::unique_ptr<Expression> rvalue)
-                : Expression(loc), lvalue(std::move(lvalue)), rvalue(std::move(rvalue)) {};
-    };
+  class IntLiteral : public Literal {
+  public:
+    const long value;
 
-    class Literal : public Expression {
-    public:
-        explicit Literal(SourceLocation &loc) : Expression(loc) {};
-    };
+    IntLiteral(SourceLocation &loc, const long value)
+        : Literal(loc), value(value) {};
+  };
 
-    class IntLiteral : public Literal {
-    public:
-        const long value;
+  class Tuple : public Expression {
+  public:
+    ExpressionList expressions;
 
-        IntLiteral(SourceLocation &loc, const long value) : Literal(loc), value(value) {};
-    };
-
-    class Tuple : public Expression {
-    public:
-        ExpressionList expressions;
-
-        explicit Tuple(SourceLocation &loc, ExpressionList expressions) : Expression(loc),
-                                                                          expressions(std::move(expressions)) {};
-    };
+    explicit Tuple(SourceLocation &loc, ExpressionList expressions)
+        : Expression(loc),
+          expressions(std::move(expressions)) {};
+  };
 }
 
 #endif

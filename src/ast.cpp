@@ -3,11 +3,11 @@
 
 namespace ovid::ast {
 
-    Type *ast::Type::withoutMutability() {
-        return this;
-    }
+  Type *ast::Type::withoutMutability() {
+    return this;
+  }
 
-    Type *ast::MutType::withoutMutability() {
-        return type.get();
-    }
+  Type *ast::MutType::withoutMutability() {
+    return type.get();
+  }
 }

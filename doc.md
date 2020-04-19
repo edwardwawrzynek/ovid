@@ -136,9 +136,49 @@ fn (self bool) hash() -> i64 {
 }
 ```
 
+# Type Expressions
 
+Type alias statement (name equality): `type NewName T`
 
+Type aliases require explicit conversions between types that would otherwise be equivalent.
 
+All types except aliases use structural equality -- types equal based their contents.
 
+Builtin types: `i8, i16, i32, i64, u8, u16, u32, u64, isize, usize, f32, f64, bool, char, str`
 
+Array types: `[LEN]T`
+
+Tuple type: `(T0, T1, T2, ..., TN)`
+
+Struct type: 
+```
+struct {
+    (pub)? f0 T0
+    (pub)? f1 T1
+    ...
+    (pub)? fn TN
+}
+```
+
+Interface type :
+```
+interface {
+    fn n(a,...) -> r
+    ...
+}
+```
+
+Union Interfaces: `I0 & I1`
+
+Enum type:
+```
+enum {
+    N0(T0),
+    N1(T1),
+    ...
+    NN(TN)
+}
+```
+
+Shorter enum: `T0 | T1`
 
