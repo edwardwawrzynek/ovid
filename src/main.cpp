@@ -4,7 +4,7 @@
 #include "tokenizer.hpp"
 #include "parser.hpp"
 #include "error.hpp"
-#include "symbols.hpp"
+
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -20,14 +20,19 @@ int main(int argc, char **argv) {
 
   auto s = ovid::SymbolTable<ovid::Symbol>();
 
-  auto scope = ovid::ScopeTable<ovid::Symbol>();
-  scope.addScopeTable("test_scope")->addScopeTable("nested");
-  std::vector<std::string> scopes;
-  //scopes.push_back("test_scope");
-  //scopes.push_back("nested");
-  scope.findSymbol(scopes, "testSymbol");
+  auto scope = std::make_shared<ovid::ScopeTable<ovid::Symbol>>();
+  scope->addScopeTable("test_scope")->addScopeTable("nested")->getDirectScopeTable().addSymbol("testSymbol", std::make_shared<ovid::Symbol>());
 
-  auto a = scope.getScopeTable(scopes);
+  std::vector<std::string> scopes;
+  scopes.push_back("test_scope");
+  scopes.push_back("nested");
+  scope->findSymbol(scopes, "testSymbol");
+
+  auto stack = ovid::ActiveScope<ovid::Symbol>();
+  stack.pushScope(scope);
+  //stack.popScope(scope);
+
+  auto a = stack.findSymbol(scopes, "testSymbol");
 
   auto ast = parser.parseProgram();
 

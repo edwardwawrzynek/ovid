@@ -6,6 +6,7 @@
 #include <vector>
 #include <memory>
 #include "tokenizer.hpp"
+#include "symbols.hpp"
 
 namespace ovid::ast {
   class Expression;
@@ -14,6 +15,20 @@ namespace ovid::ast {
 
   typedef std::vector<std::unique_ptr<Expression>> ExpressionList;
   typedef std::vector<std::unique_ptr<Statement>> StatementList;
+
+  /* a scoped block, containing statements as well as a variable symbol table
+   * generally used as the container for statement blocks in the ast
+   * scope ... {...} expressions are removed early in ast transformations and are represented in one file wide scope block
+   *
+   * This container is used for scopes inside of functions */
+  class ScopedBlock {
+    std::vector<std::unique_ptr<Statement>> statements;
+    // type aliases can't be declared inside functions
+    std::shared_ptr<ScopeTable<Symbol>> symbols;
+
+  public:
+    ScopedBlock(std::vector<std::unique_ptr<Statement>> statements): statements(std::move(statements)), symbols(std::make_shared<ScopeTable<Symbol>>()) {};
+  };
 
   /* ast types */
   class Type {
@@ -105,9 +120,9 @@ namespace ovid::ast {
   class FunctionDecl : public Statement {
   public:
     std::unique_ptr<FunctionPrototype> proto;
-    StatementList body;
+    ScopedBlock body;
 
-    FunctionDecl(SourceLocation &loc, std::unique_ptr<FunctionPrototype> proto, StatementList body)
+    FunctionDecl(SourceLocation &loc, std::unique_ptr<FunctionPrototype> proto, ScopedBlock body)
         : Statement(loc), proto(std::move(proto)), body(std::move(body)) {};
 
   };
@@ -115,6 +130,7 @@ namespace ovid::ast {
   class ModuleDecl : public Statement {
   public:
     std::vector<std::string> scope;
+    // not ScopedBlock because moduleDecl's are removed early and transformed into the global ScopedBlock
     StatementList body;
 
     ModuleDecl(SourceLocation &loc, std::vector<std::string> scope, StatementList body)

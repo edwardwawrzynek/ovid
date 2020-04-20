@@ -1,3 +1,6 @@
+#ifndef H_SYMBOLS_INCL
+#define H_SYMBOLS_INCL
+
 #include <vector>
 #include <map>
 #include <unordered_map>
@@ -6,6 +9,11 @@
 #include <functional>
 #include <cassert>
 #include "ast.hpp"
+
+// forward declaration needed
+namespace ovid::ast {
+  class Type;
+}
 
 namespace ovid {
   /**
@@ -48,8 +56,11 @@ namespace ovid {
     std::unordered_multimap<std::string, std::shared_ptr<T>> table;
 
   public:
+    // add a symbol to the table
     void addSymbol(const std::string& name, std::shared_ptr<T> symbol);
+    // find a symbol in the table. Expects only one symbol with the name exists
     std::shared_ptr<T> findSymbol(const std::string& name);
+    // find a symbol in the table, filtering by the predicate. Useful for overridden symbols
     std::shared_ptr<T> findSymbol(const std::string& name, std::function<bool(const T&)> predicate);
 
     SymbolTable(): table() {};
@@ -97,15 +108,21 @@ namespace ovid {
     std::unique_ptr<SymbolTable<T>> symbols;
     std::unordered_map<std::string, std::shared_ptr<ScopeTable<T>>> scopes;
   public:
-
+    // return the SymbolTable associated with this scope
     SymbolTable<T>& getDirectScopeTable();
 
+    // get a child symbol table with name scopes
     std::shared_ptr<ScopeTable<T>> getScopeTable(const std::vector<std::string>& scopes);
+
+    // add an empty scope with the given name
     std::shared_ptr<ScopeTable<T>> addScopeTable(const std::string& scope);
+    // add the given scope table with the given name
     std::shared_ptr<ScopeTable<T>> addScopeTable(const std::string& scope, std::shared_ptr<ScopeTable<T>> table);
 
-    std::shared_ptr<T> findSymbol(const std::vector<std::string>& scopes, const std::string& identifier);
-    std::shared_ptr<T> findSymbol(const std::vector<std::string>& scopes, const std::string& identifier, std::function<bool(const T&)> predicate);
+    //find a symbol with a scope and name. Expects only one symbol with the name and scope exists
+    std::shared_ptr<T> findSymbol(const std::vector<std::string>& scope_names, const std::string& identifier);
+    //find a symbol with a scope and name, filtering by the predicate. Useful for finding overrides
+    std::shared_ptr<T> findSymbol(const std::vector<std::string>& scope_name, const std::string& identifier, std::function<bool(const T&)> predicate);
 
     ScopeTable(): symbols(std::make_unique<SymbolTable<T>>()), scopes() {};
   };
@@ -140,39 +157,95 @@ namespace ovid {
   }
 
   template<class T>
-  std::shared_ptr<T> ScopeTable<T>::findSymbol(const std::vector<std::string> &scopes, const std::string &identifier) {
-    if(scopes.empty()) return symbols->findSymbol(identifier);
-    auto scope = getScopeTable(scopes);
+  std::shared_ptr<T> ScopeTable<T>::findSymbol(const std::vector<std::string> &scope_names, const std::string &identifier) {
+    if(scope_names.empty()) return symbols->findSymbol(identifier);
+    auto scope = getScopeTable(scope_names);
     if(scope == nullptr) return nullptr;
     return scope->symbols->findSymbol(identifier);
   }
 
   template<class T>
-  std::shared_ptr<T> ScopeTable<T>::findSymbol(const std::vector<std::string> &scopes, const std::string &identifier, std::function<bool(const T &)> predicate) {
-    if(scopes.empty()) return symbols->findSymbol(identifier, predicate);
-    auto scope = getScopeTable(scopes);
+  std::shared_ptr<T> ScopeTable<T>::findSymbol(const std::vector<std::string> &scope_name, const std::string &identifier, std::function<bool(const T &)> predicate) {
+    if(scope_name.empty()) return symbols->findSymbol(identifier, predicate);
+    auto scope = getScopeTable(scope_name);
     if(scope == nullptr) return nullptr;
     return scope->symbols->findSymbol(identifier, predicate);
   }
 
 
-  /* the active scopes and symbol tables */
+  /* the active scopes and symbol tables
+   * maintained as a stack -- global namespaces at bottom, local scopes at top */
   template <class T>
   class ActiveScope {
-    std::stack<std::shared_ptr<ScopeTable<T>>> scopes;
+    std::vector<std::shared_ptr<ScopeTable<T>>> scopes;
 
   public:
-    void pushScope(const std::shared_ptr<ScopeTable<T>>& scope);
-    void popScope(ScopeTable<T>& expected);
+    // push a scope onto the stack
+    void pushScope(std::shared_ptr<ScopeTable<T>> scope);
+    // remove the most recently push scope from the stack
+    void popScope();
+    // remove the most recently pushed scope from the stack, and assert it is the expected scope
+    void popScope(const std::shared_ptr<ScopeTable<T>>& expected);
 
-    std::optional<T&> findSymbol(const std::vector<std::string>& scopes, const std::string& identifier);
+    // search the scope top down for the first symbol with the given scope and name. Returns nullptr if not found
+    std::shared_ptr<T> findSymbol(const std::vector<std::string>& scope_names, const std::string& identifier);
+    // search the scope top down for the first symbol with the given scope, name, and predicate match. Returns nullptr if not found
+    std::shared_ptr<T> findSymbol(const std::vector<std::string>& scope_names, const std::string& identifier, std::function<bool(const T&)> predicate);
+
+    ActiveScope(): scopes() {};
   };
 
+  template<class T>
+  void ActiveScope<T>::pushScope(std::shared_ptr<ScopeTable<T>> scope) {
+    scopes.push_back(scope);
+  }
+
+  template<class T>
+  void ActiveScope<T>::popScope() {
+    scopes.pop_back();
+  }
+
+  template<class T>
+  void ActiveScope<T>::popScope(const std::shared_ptr<ScopeTable<T>>& expected) {
+    assert(scopes.back().get() == expected.get());
+    scopes.pop_back();
+  }
+
+  template<class T>
+  std::shared_ptr<T>
+  ActiveScope<T>::findSymbol(const std::vector<std::string>& scope_names, const std::string& identifier) {
+    for(size_t sindex = scopes.size(); sindex--;) {
+      auto& scope = scopes[sindex];
+
+      auto found = scope->findSymbol(scope_names, identifier);
+      if(found != nullptr) return found;
+    }
+
+    return nullptr;
+  }
+
+  template<class T>
+  std::shared_ptr<T>
+  ActiveScope<T>::findSymbol(const std::vector<std::string>& scope_names, const std::string& identifier, std::function<bool(const T &)> predicate) {
+    for(size_t sindex = scopes.size(); sindex--;) {
+      auto& scope = scopes[sindex];
+
+      auto found = scope->findSymbol(scope_names, identifier, predicate);
+      if(found != nullptr) return found;
+    }
+
+    return nullptr;
+  }
+
+  /* a container for the variable and symbol scope stacks */
   class ScopeManager {
   public:
     ActiveScope<Symbol> vars;
     ActiveScope<TypeAlias> types;
+
+    ScopeManager(): vars(), types() {};
   };
 
-
 }
+
+#endif
