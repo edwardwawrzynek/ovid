@@ -2,15 +2,8 @@ cmake_minimum_required(VERSION 3.15.3)
 project(ovid)
 set(CMAKE_CXX_STANDARD 17)
 
-
-add_definitions(-D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
-add_executable(ovid src/main.cpp src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp src/symbols.cpp)
-target_compile_options(ovid PRIVATE -Wall -Wextra -pedantic)
-
-#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/share/llvm/cmake")
+##################################
+# LLVM stuff
 find_package(LLVM)
 
 if( NOT LLVM_FOUND )
@@ -21,5 +14,51 @@ include_directories( ${LLVM_INCLUDE_DIRS} ".")
 link_directories( ${LLVM_LIBRARY_DIRS} )
 
 llvm_map_components_to_libnames(REQ_LLVM_LIBRARIES  native)
+
+##################################
+# Download and install GoogleTest
+
+include(ExternalProject)
+ExternalProject_Add(gtest
+        URL https://github.com/google/googletest/archive/release-1.10.0.zip
+        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
+        INSTALL_COMMAND ""
+        )
+ExternalProject_Get_Property(gtest source_dir binary_dir)
+
+################
+# Test files
+add_executable(runTests test/test.cpp)
+
+######################################
+# Configure the test to use GoogleTest
+#
+# If used often, could be made a macro.
+
+add_dependencies(runTests gtest)
+include_directories(${source_dir}/googletest/include)
+target_link_libraries(runTests ${binary_dir}/lib/libgtest.a ${binary_dir}/lib/libgtest_main.a pthread)
+target_link_libraries(runTests ${REQ_LLVM_LIBRARIES})
+
+##################################
+# Just make the test runnable with
+#   $ make test
+
+enable_testing()
+add_test(NAME    runTests
+        COMMAND runTests)
+
+##################################
+# Main build
+# Compiler options
+add_definitions(-D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+add_executable(ovid src/main.cpp src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp src/symbols.cpp)
+
+target_compile_options(ovid PRIVATE -Wall -Wextra -pedantic)
+
+#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/share/llvm/cmake")
 
 target_link_libraries(ovid ${REQ_LLVM_LIBRARIES})

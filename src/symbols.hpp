@@ -8,12 +8,7 @@
 #include <stack>
 #include <functional>
 #include <cassert>
-#include "ast.hpp"
 
-// forward declaration needed
-namespace ovid::ast {
-  class Type;
-}
 
 namespace ovid {
   /**
@@ -37,18 +32,6 @@ namespace ovid {
    * Imports:
    *    On an import, the proper header metadata (probably in binary header files or lib files) is located. It is loaded into the root namespace scope table under the appropriate scopes. If items were located without scopes, they are loaded into the root namespace symbol table.
    */
-  /* a symbol and it's metadata (type, etc) */
-  struct Symbol {
-  public:
-    /* type of a the symbol */
-    std::unique_ptr<ast::Type> type;
-    /* TODO: escape analysis metadata and other information loaded from headers */
-  };
-  /* a type alias and its metadata */
-  struct TypeAlias {
-  public:
-    std::unique_ptr<ast::Type> type;
-  };
 
   /* a hashtable of string -> symbols */
   template <class T>
@@ -236,15 +219,6 @@ namespace ovid {
 
     return nullptr;
   }
-
-  /* a container for the variable and symbol scope stacks */
-  class ScopeManager {
-  public:
-    ActiveScope<Symbol> vars;
-    ActiveScope<TypeAlias> types;
-
-    ScopeManager(): vars(), types() {};
-  };
 
 }
 

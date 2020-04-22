@@ -8,6 +8,26 @@
 #include "tokenizer.hpp"
 #include "symbols.hpp"
 
+// forward declare
+namespace ovid::ast {
+  class Type;
+}
+
+namespace ovid {
+  /* a symbol and it's metadata (type, etc) */
+  struct Symbol {
+  public:
+    /* type of a the symbol */
+    std::unique_ptr<ast::Type> type;
+    /* TODO: escape analysis metadata and other information loaded from headers */
+  };
+  /* a type alias and its metadata */
+  struct TypeAlias {
+  public:
+    std::unique_ptr<ast::Type> type;
+  };
+}
+
 namespace ovid::ast {
   class Expression;
 
