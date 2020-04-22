@@ -30,4 +30,4 @@ jobs:
     - name: Build CMake
       uses: ashutoshvarma/action-cmake-build@v1
       with:
-        run-tests: true 
+        run-test: true
