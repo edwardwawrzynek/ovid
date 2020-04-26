@@ -1,9 +1,10 @@
 #ifndef H_TOKENIZER_INCL
 #define H_TOKENIZER_INCL
 
-#include <utility>
-#include <string>
+#include "error.hpp"
 #include <fstream>
+#include <string>
+#include <utility>
 
 namespace ovid {
   enum TokenType {
@@ -44,17 +45,6 @@ namespace ovid {
     T_CHARLITERAL = -6,
   };
 
-  /* location in source code */
-  struct SourceLocation {
-    std::string filename;
-    int64_t col, row;
-    std::istream *file; /* file may be null (if input isn't from a file, or is non seekable (like stdin) */
-
-    SourceLocation(const std::string &filename, int64_t row, int64_t col, std::istream *file)
-      : filename(filename),
-        col(col), row(row),
-        file(file) {};
-  };
 
   struct Token {
     enum TokenType token;
@@ -82,16 +72,19 @@ namespace ovid {
     /* current position in line */
     uint64_t pos_in_line;
     std::istream *file;
+    ErrorManager &errorMan;
 
   public:
-    Tokenizer(const std::string &filename, std::istream *file) : putback_char('\0'),
-                                                                 comment_nesting_level(0),
-                                                                 line(1), pos_in_line(0),
-                                                                 file(file),
-                                                                 curTokenLoc(filename, 1, 0, file),
-                                                                 doTokenPutback(false),
-                                                                 locPutback(filename, 1, 0,
-                                                                            file) {};
+    Tokenizer(const std::string &filename, std::istream *file, ErrorManager &errorMan) :
+        putback_char('\0'),
+        comment_nesting_level(0),
+        line(1), pos_in_line(0),
+        file(file),
+        errorMan(errorMan),
+        curTokenLoc(filename, 1, 0, file),
+        doTokenPutback(false),
+        locPutback(filename, 1, 0, file),
+        parenLevel(0){};
 
     /* scan and read the next token */
     void nextToken();
@@ -110,6 +103,9 @@ namespace ovid {
     Token tokenPutback;
     SourceLocation locPutback;
 
+    /* level of parenthesis used to control semicolon insertion */
+    int parenLevel;
+
     /* put back a character if we read to far */
     void putback(char c);
 
@@ -121,6 +117,6 @@ namespace ovid {
 
     void parseNumber(char c);
   };
-}
+}// namespace ovid
 
 #endif

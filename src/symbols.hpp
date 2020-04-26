@@ -1,13 +1,13 @@
 #ifndef H_SYMBOLS_INCL
 #define H_SYMBOLS_INCL
 
-#include <vector>
+#include <cassert>
+#include <functional>
 #include <map>
-#include <unordered_map>
 #include <memory>
 #include <stack>
-#include <functional>
-#include <cassert>
+#include <unordered_map>
+#include <vector>
 
 
 namespace ovid {
@@ -49,7 +49,8 @@ namespace ovid {
     std::shared_ptr<T>
     findSymbol(const std::string &name, std::function<bool(const T &)> predicate);
 
-    SymbolTable() : table() {};
+    SymbolTable() :
+        table(){};
   };
 
   template<class T>
@@ -94,6 +95,7 @@ namespace ovid {
   class ScopeTable {
     std::unique_ptr<SymbolTable<T>> symbols;
     std::unordered_map<std::string, std::shared_ptr<ScopeTable<T>>> scopes;
+
   public:
     // return the SymbolTable associated with this scope
     SymbolTable<T> &getDirectScopeTable();
@@ -117,7 +119,8 @@ namespace ovid {
     findSymbol(const std::vector<std::string> &scope_name, const std::string &identifier,
                std::function<bool(const T &)> predicate);
 
-    ScopeTable() : symbols(std::make_unique<SymbolTable<T>>()), scopes() {};
+    ScopeTable() :
+        symbols(std::make_unique<SymbolTable<T>>()), scopes(){};
   };
 
   template<class T>
@@ -130,7 +133,7 @@ namespace ovid {
   ScopeTable<T>::getScopeTable(const std::vector<std::string> &scopes) {
     auto curTable = this->scopes;
     std::shared_ptr<ScopeTable<T>> childScope = nullptr;
-    for (auto &scope: scopes) {
+    for (auto &scope : scopes) {
       childScope = curTable[scope];
       if (childScope == nullptr) return nullptr;
       curTable = childScope->scopes;
@@ -198,7 +201,8 @@ namespace ovid {
     findSymbol(const std::vector<std::string> &scope_names, const std::string &identifier,
                std::function<bool(const T &)> predicate);
 
-    ActiveScope() : scopes() {};
+    ActiveScope() :
+        scopes(){};
   };
 
   template<class T>
@@ -246,6 +250,6 @@ namespace ovid {
     return nullptr;
   }
 
-}
+}// namespace ovid
 
 #endif

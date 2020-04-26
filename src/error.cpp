@@ -1,9 +1,9 @@
 #include "error.hpp"
-#include <limits>
 #include <iomanip>
+#include <limits>
 
 namespace ovid {
-  ErrorPrintLevel ErrorManager::errorTypeToPrintLevel(ErrorType type) {
+  ErrorPrintLevel PrintingErrorManager::errorTypeToPrintLevel(ErrorType type) {
     switch (type) {
       case ErrorType::ParseError:
         return ErrorPrintLevel::Error;
@@ -13,7 +13,7 @@ namespace ovid {
   }
 
   std::nullptr_t
-  ErrorManager::logError(const std::string &msg, SourceLocation location, ErrorType type) {
+  PrintingErrorManager::logError(const std::string &msg, SourceLocation location, ErrorType type) {
     didError = true;
     auto printType = errorTypeToPrintLevel(type);
     std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":" << location.col
@@ -41,7 +41,8 @@ namespace ovid {
       std::cout << line << "\n\x1b[1;34m      | \x1b[m";
       for (int i = 0; i < location.col - 1; i++) {
         if (isspace(line[i])) std::cout << line[i];
-        else std::cout << ' ';
+        else
+          std::cout << ' ';
       }
       if (printType == ErrorPrintLevel::Error)
         std::cout << "\x1b[31;1m^\x1b[m\n";
@@ -58,7 +59,23 @@ namespace ovid {
     return nullptr;
   }
 
-  bool ErrorManager::errorOccurred() {
+  bool PrintingErrorManager::errorOccurred() {
     return didError;
   }
-}
+
+  ErrorManager::~ErrorManager() {}
+
+  std::nullptr_t
+  TestErrorManager::logError(const std::string &msg, SourceLocation location, ErrorType type) {
+    errors.insert(type);
+    return nullptr;
+  }
+
+  bool TestErrorManager::errorOccurred() {
+    return !errors.empty();
+  }
+
+  bool TestErrorManager::errorOccurred(ErrorType type) {
+    return errors.contains(type);
+  }
+}// namespace ovid

@@ -5,12 +5,12 @@
 namespace ovid {
 
   /* note: precedences must start at > 1, as 1 is passed from primary and 0 is for invalid ops */
-  std::map<TokenType, int> opPrecedence = {
+  static std::map<TokenType, int> opPrecedence = {
     {T_ASSIGN, 20},
-    {T_ADD,    30},
-    {T_SUB,    30},
-    {T_STAR,   40},
-    {T_DIV,    40},
+    {T_ADD, 30},
+    {T_SUB, 30},
+    {T_STAR, 40},
+    {T_DIV, 40},
   };
 
   bool Parser::isDoneParsing() {
@@ -47,7 +47,8 @@ namespace ovid {
       if (tokenizer.curToken.token == T_COLON) {
         scopes.push_back(ident);
         tokenizer.nextToken();
-      } else break;
+      } else
+        break;
     }
     if (tokenizer.curToken.token == T_LPAREN) {
       std::vector<std::unique_ptr<ast::Expression>> args;
@@ -76,7 +77,7 @@ namespace ovid {
   std::unique_ptr<ast::Expression> Parser::parseParenExpr() {
     auto pos = tokenizer.curTokenLoc;
 
-    tokenizer.nextToken(); // skip '('
+    tokenizer.nextToken();// skip '('
     auto expr0 = parseExpr();
     if (!expr0) return nullptr;
     /* check for right paren or comma, indicating tuple */
@@ -118,7 +119,8 @@ namespace ovid {
         if (tokenizer.curToken.token == T_EOF) {
           // TODO: bail out of parsing
           return errorMan.logError("unexpected EOF", loc, ErrorType::ParseError);
-        } else return errorMan.logError("unexpected token", loc, ErrorType::ParseError);
+        } else
+          return errorMan.logError("unexpected token", loc, ErrorType::ParseError);
     }
   }
 
@@ -166,7 +168,6 @@ namespace ovid {
                                                        std::move(args));
       }
     }
-
   }
 
   // typeExpr ::= 'i8' | 'u8' | ... | 'string'
@@ -257,7 +258,6 @@ namespace ovid {
     tokenizer.nextToken();
 
     return std::make_unique<ast::FunctionDecl>(pos, std::move(proto), std::move(body));
-
   }
 
   // module ::= 'module' identifier (':' identifier)* '{' statement* '}'
@@ -352,4 +352,4 @@ namespace ovid {
     }
   }
 
-}
+}// namespace ovid

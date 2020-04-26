@@ -10,4 +10,4 @@ namespace ovid::ast {
   Type *ast::MutType::withoutMutability() {
     return type.get();
   }
-}
+}// namespace ovid::ast

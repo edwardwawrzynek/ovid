@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15.3)
 project(ovid)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 include_directories(src/)
 set(SOURCES src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp src/symbols.cpp)

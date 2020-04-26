@@ -1,11 +1,11 @@
 #ifndef H_PARSER_INCL
 #define H_PARSER_INCL
 
-#include "tokenizer.hpp"
-#include <vector>
-#include <memory>
 #include "ast.hpp"
 #include "error.hpp"
+#include "tokenizer.hpp"
+#include <memory>
+#include <vector>
 
 namespace ovid {
   class Parser {
@@ -13,8 +13,9 @@ namespace ovid {
     ErrorManager &errorMan;
 
   public:
-    explicit Parser(Tokenizer &tokenizer, ErrorManager &errorMan) : tokenizer(tokenizer),
-                                                                    errorMan(errorMan) {};
+    explicit Parser(Tokenizer &tokenizer, ErrorManager &errorMan) :
+        tokenizer(tokenizer),
+        errorMan(errorMan){};
 
     std::vector<std::unique_ptr<ast::Statement>> parseProgram();
 
@@ -47,6 +48,6 @@ namespace ovid {
 
     std::unique_ptr<ast::ModuleDecl> parseModuleDecl();
   };
-}
+}// namespace ovid
 
 #endif

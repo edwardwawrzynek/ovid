@@ -2,14 +2,17 @@
 
 #include <sstream>
 #include "tokenizer.hpp"
+#include "error.hpp"
 
 namespace ovid {
 
+  /* make sure all tokens are parsed correctly */
   TEST(TokenizerTest, Tokens) {
     std::istringstream input("+-*/ = == := fn {}()mut ,module import return;: hello 123 -23 -0xf0f"
                              " 0b110101 "
-                             "0.345 true false 'a' '\\n'");
-    Tokenizer tokenizer("test", &input);
+                             "0.345 -3. true false 'a' '\\n'");
+    auto testError = TestErrorManager();
+    Tokenizer tokenizer("test", &input, testError);
 
     tokenizer.nextToken();
     EXPECT_EQ(tokenizer.curToken.token, T_ADD);
@@ -67,10 +70,58 @@ namespace ovid {
     tokenizer.nextToken();
     EXPECT_EQ(tokenizer.curToken.token, T_FLOATLITERAL);
     EXPECT_EQ(tokenizer.curToken.float_literal, 0.345);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_FLOATLITERAL);
+    EXPECT_EQ(tokenizer.curToken.float_literal, -3.0);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_BOOLLITERAL);
+    EXPECT_EQ(tokenizer.curToken.bool_literal, true);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_BOOLLITERAL);
+    EXPECT_EQ(tokenizer.curToken.bool_literal, false);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_CHARLITERAL);
+    EXPECT_EQ(tokenizer.curToken.char_literal, 'a');
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_CHARLITERAL);
+    EXPECT_EQ(tokenizer.curToken.char_literal, '\n');
+
+    EXPECT_FALSE(testError.errorOccurred());
   }
 
-  TEST(SampleTest, Sub) {
-    EXPECT_EQ(1 - 1, 0);
-  }
+  /* make sure semicolons are inserted correctly */
+  TEST(SemicolonInsertion, Tokens) {
+    std::istringstream input("a := 1 +\n 3 + 4\n( 5\n + 1 )");
+    auto testError = TestErrorManager();
+    Tokenizer tokenizer("test", &input, testError);
 
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_IDENT);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_VARDECL);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_INTLITERAL);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_ADD);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_INTLITERAL);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_ADD);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_INTLITERAL);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_SEMICOLON);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_LPAREN);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_INTLITERAL);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_ADD);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_INTLITERAL);
+    tokenizer.nextToken();
+    EXPECT_EQ(tokenizer.curToken.token, T_RPAREN);
+
+    EXPECT_FALSE(testError.errorOccurred());
+  }
 }

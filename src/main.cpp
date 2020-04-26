@@ -1,9 +1,9 @@
-#include <iostream>
-#include <cstdio>
 #include "ast.hpp"
-#include "tokenizer.hpp"
-#include "parser.hpp"
 #include "error.hpp"
+#include "parser.hpp"
+#include "tokenizer.hpp"
+#include <cstdio>
+#include <iostream>
 
 
 int main(int argc, char **argv) {
@@ -13,17 +13,15 @@ int main(int argc, char **argv) {
   }
   auto filein = std::fstream(argv[1]);
 
-  auto errorMan = ovid::ErrorManager();
-  auto lexer = ovid::Tokenizer(argv[1], &filein);
+  auto errorMan = ovid::PrintingErrorManager();
+  auto lexer = ovid::Tokenizer(argv[1], &filein, errorMan);
   lexer.nextToken();
   auto parser = ovid::Parser(lexer, errorMan);
 
   auto s = ovid::SymbolTable<ovid::Symbol>();
 
   auto scope = std::make_shared<ovid::ScopeTable<ovid::Symbol>>();
-  scope->addScopeTable("test_scope")->addScopeTable("nested")->getDirectScopeTable().addSymbol(
-    "testSymbol",
-    std::make_shared<ovid::Symbol>());
+  scope->addScopeTable("test_scope")->addScopeTable("nested")->getDirectScopeTable().addSymbol("testSymbol", std::make_shared<ovid::Symbol>());
 
   std::vector<std::string> scopes;
   scopes.push_back("test_scope");
@@ -45,5 +43,4 @@ int main(int argc, char **argv) {
     std::cout << "\x1b[1;32mCompilation succeeded\n\x1b[m";
     return 0;
   }
-
 }

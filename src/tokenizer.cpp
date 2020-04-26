@@ -1,4 +1,5 @@
 #include <iostream>
+#include <map>
 
 #include "tokenizer.hpp"
 
@@ -22,7 +23,8 @@ namespace ovid {
     if (file->eof()) {
       // emulate newline at EOF
       if (!pEOF) c = '\n';
-      else c = EOF;
+      else
+        c = EOF;
     }
 
     pos_in_line++;
@@ -66,7 +68,8 @@ namespace ovid {
           nC = next();
           nnC = next();
           if (nC == '*' && nnC == '/') comment_nesting_level--;
-          else putback(nnC);
+          else
+            putback(nnC);
           if (isDocComment && comment_nesting_level != 0) curToken.last_doc_comment += nC;
         } while (comment_nesting_level > 0);
         if (isDocComment) curToken.last_doc_comment += "\n";
@@ -85,31 +88,63 @@ namespace ovid {
   /* parse a number (int or float literal) and put it into curToken
    * c is the first digit of the number*/
   void Tokenizer::parseNumber(char c) {
-    /* TODO: handle floats, hex, binary */
     curToken.int_literal = 0;
     curToken.token = T_INTLITERAL;
 
     int base = 10;
 
     /* check for hex, binary, or octal */
-    if(c == '0') {
+    if (c == '0') {
       char baseC = next();
-      if(baseC == 'x' || baseC == 'X') base = 16;
-      else if(baseC == 'o' || baseC == 'O') base = 8;
-      else if(baseC == 'b' || baseC == 'B') base = 2;
-      else putback(baseC);
+      if (baseC == 'x' || baseC == 'X') base = 16;
+      else if (baseC == 'o' || baseC == 'O')
+        base = 8;
+      else if (baseC == 'b' || baseC == 'B')
+        base = 2;
+      else
+        putback(baseC);
     }
 
     unsigned long cValue;
 
-    while((cValue = digits.find(tolower(c))) != std::string::npos) {
+    while ((cValue = digits.find(tolower(c))) != std::string::npos) {
       curToken.int_literal *= base;
       curToken.int_literal += cValue;
       c = next();
     }
 
+    /* if decimal point present, then parse floating point */
+    if (c == '.') {
+      if (base != 10) {
+        putback(c);
+        errorMan.logError("Floating point literals must be in base 10", curTokenLoc,
+                          ErrorType::ParseError);
+        return;
+      }
+      std::string decimal_part = "0.";
+      while (isdigit(c = next())) decimal_part.push_back(c);
+
+      /* TODO: handle exponent */
+
+      curToken.float_literal = ((double) curToken.int_literal) + std::stod(decimal_part);
+      curToken.token = T_FLOATLITERAL;
+    }
+
     putback(c);
   }
+
+  static std::map<char, char> charEscapeMap = {
+    {'a', '\a'},
+    {'b', '\b'},
+    {'f', '\f'},
+    {'n', '\n'},
+    {'r', '\r'},
+    {'t', '\t'},
+    {'v', '\v'},
+    {'\\', '\\'},
+    {'\'', '\''},
+    {'\"', '\"'},
+    {'?', '\?'}};
 
   /* scan and read the next token */
   void Tokenizer::nextToken() {
@@ -129,14 +164,15 @@ namespace ovid {
     c = skip();
     curTokenLoc.col = pos_in_line;
     curTokenLoc.row = line;
-    /* if newline is present and last token could be the end of a statement, insert a semicolon
+    /* if newline is present and last token could be the end of a statement, and parenthesis nesting is at level 0, insert a semicolon
      * otherwise, skip newline */
     if (c == '\n') {
-      if (curToken.token == T_IDENT || curToken.token == T_INTLITERAL ||
-          curToken.token == T_FLOATLITERAL ||
-          curToken.token == T_CHARLITERAL || curToken.token == T_BOOLLITERAL ||
-          curToken.token == T_RETURN ||
-          curToken.token == T_RPAREN || curToken.token == T_RBRK) {
+      if ((curToken.token == T_IDENT || curToken.token == T_INTLITERAL ||
+           curToken.token == T_FLOATLITERAL ||
+           curToken.token == T_CHARLITERAL || curToken.token == T_BOOLLITERAL ||
+           curToken.token == T_RETURN ||
+           curToken.token == T_RPAREN || curToken.token == T_RBRK) &&
+          parenLevel <= 0) {
         curToken.token = T_SEMICOLON;
         return;
       } else {
@@ -155,10 +191,11 @@ namespace ovid {
         break;
       case '-':
         curToken.token = T_SUB;
-        if(isdigit(c = next())) {
+        if (isdigit(c = next())) {
           parseNumber(c);
-          if(curToken.token == T_INTLITERAL) curToken.int_literal *= -1;
-          else if(curToken.token == T_FLOATLITERAL) curToken.float_literal *= -1;
+          if (curToken.token == T_INTLITERAL) curToken.int_literal *= -1;
+          else if (curToken.token == T_FLOATLITERAL)
+            curToken.float_literal *= -1;
         } else {
           putback(c);
         }
@@ -193,15 +230,31 @@ namespace ovid {
         break;
       case '(':
         curToken.token = T_LPAREN;
+        parenLevel++;
         break;
       case ')':
         curToken.token = T_RPAREN;
+        if (parenLevel > 0) parenLevel--;
         break;
       case ',':
         curToken.token = T_COMMA;
         break;
       case ';':
         curToken.token = T_SEMICOLON;
+        break;
+      case '\'':
+        curToken.token = T_CHARLITERAL;
+        c = next();
+        if (c == '\\') {
+          c = next();
+          /* TODO: octal, unicode, and hex escape codes */
+          char value = charEscapeMap[c];
+          if (value == '\0') errorMan.logError("Invalid escape character", curTokenLoc, ErrorType::ParseError);
+          curToken.char_literal = value;
+        } else {
+          curToken.char_literal = c;
+        }
+        if (next() != '\'') errorMan.logError("Expected ' to end character literal", curTokenLoc, ErrorType::ParseError);
         break;
       default:
         if (isdigit(c) || curToken.token == T_INTLITERAL) {
@@ -257,4 +310,4 @@ namespace ovid {
 
     return res;
   }
-}
+}// namespace ovid
