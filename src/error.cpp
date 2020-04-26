@@ -12,15 +12,17 @@ namespace ovid {
     }
   }
 
-  std::nullptr_t ErrorManager::logError(const std::string &msg, SourceLocation location, ErrorType type) {
+  std::nullptr_t
+  ErrorManager::logError(const std::string &msg, SourceLocation location, ErrorType type) {
     didError = true;
     auto printType = errorTypeToPrintLevel(type);
-    std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":" << location.col << ": ";
+    std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":" << location.col
+              << ": ";
     if (printType == ErrorPrintLevel::Error)
       std::cout << "\x1b[1;31merror: ";
     else if (printType == ErrorPrintLevel::Warning)
       std::cout << "\x1b[1;33mwarning: ";
-    else if(printType == ErrorPrintLevel::Note)
+    else if (printType == ErrorPrintLevel::Note)
       std::cout << "\x1b[1;36mnote: ";
 
     std::cout << msg << "\n\x1b[1;34m" << std::setw(5) << location.row << " |\x1b[m ";

@@ -13,7 +13,8 @@ namespace ovid {
     ErrorManager &errorMan;
 
   public:
-    explicit Parser(Tokenizer &tokenizer, ErrorManager &errorMan) : tokenizer(tokenizer), errorMan(errorMan) {};
+    explicit Parser(Tokenizer &tokenizer, ErrorManager &errorMan) : tokenizer(tokenizer),
+                                                                    errorMan(errorMan) {};
 
     std::vector<std::unique_ptr<ast::Statement>> parseProgram();
 
@@ -27,7 +28,8 @@ namespace ovid {
 
     std::unique_ptr<ast::Expression> parsePrimary();
 
-    std::unique_ptr<ast::Expression> parseBinOpRight(int exprPrec, std::unique_ptr<ast::Expression> leftExpr);
+    std::unique_ptr<ast::Expression>
+    parseBinOpRight(int exprPrec, std::unique_ptr<ast::Expression> leftExpr);
 
     std::unique_ptr<ast::Statement> parseStatement();
 

@@ -21,7 +21,9 @@ int main(int argc, char **argv) {
   auto s = ovid::SymbolTable<ovid::Symbol>();
 
   auto scope = std::make_shared<ovid::ScopeTable<ovid::Symbol>>();
-  scope->addScopeTable("test_scope")->addScopeTable("nested")->getDirectScopeTable().addSymbol("testSymbol", std::make_shared<ovid::Symbol>());
+  scope->addScopeTable("test_scope")->addScopeTable("nested")->getDirectScopeTable().addSymbol(
+    "testSymbol",
+    std::make_shared<ovid::Symbol>());
 
   std::vector<std::string> scopes;
   scopes.push_back("test_scope");

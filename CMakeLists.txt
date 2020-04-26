@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.15.3)
 project(ovid)
 set(CMAKE_CXX_STANDARD 17)
 
+include_directories(src/)
+set(SOURCES src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp src/symbols.cpp)
+set(DRIVER src/main.cpp)
+set(TESTS test/test.cpp)
+
 ##################################
 # LLVM stuff
 find_package(LLVM)
@@ -28,21 +33,21 @@ ExternalProject_Get_Property(gtest source_dir binary_dir)
 
 ################
 # Test files
-add_executable(runTests test/test.cpp)
+add_executable(runTests ${SOURCES} ${TESTS})
 
 ######################################
 # Configure the test to use GoogleTest
-#
-# If used often, could be made a macro.
 
 add_dependencies(runTests gtest)
 include_directories(${source_dir}/googletest/include)
 target_link_libraries(runTests ${binary_dir}/lib/libgtest.a ${binary_dir}/lib/libgtest_main.a pthread)
+
 target_link_libraries(runTests ${REQ_LLVM_LIBRARIES})
 
+target_compile_options(runTests PRIVATE -Wall -Wextra -pedantic)
+
 ##################################
-# Just make the test runnable with
-#   $ make test
+# make the test runnable with
 
 enable_testing()
 add_test(NAME    runTests
@@ -55,8 +60,9 @@ add_definitions(-D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STD
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-add_executable(ovid src/main.cpp src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp src/symbols.cpp)
 
+# Main executable
+add_executable(ovid ${SOURCES} ${DRIVER})
 target_compile_options(ovid PRIVATE -Wall -Wextra -pedantic)
 
 #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/share/llvm/cmake")

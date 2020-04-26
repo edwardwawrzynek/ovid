@@ -47,7 +47,9 @@ namespace ovid::ast {
     std::shared_ptr<ScopeTable<Symbol>> symbols;
 
   public:
-    ScopedBlock(std::vector<std::unique_ptr<Statement>> statements): statements(std::move(statements)), symbols(std::make_shared<ScopeTable<Symbol>>()) {};
+    ScopedBlock(std::vector<std::unique_ptr<Statement>> statements) : statements(
+      std::move(statements)), symbols(
+      std::make_shared<ScopeTable<Symbol>>()) {};
   };
 
   /* ast types */
@@ -69,14 +71,14 @@ namespace ovid::ast {
     bool isUnsigned;
 
     IntType(int size, bool isUnsigned)
-        : size(size), isUnsigned(isUnsigned) {};
+      : size(size), isUnsigned(isUnsigned) {};
   };
 
   class FloatType : public Type {
   public:
     int size; // in bits
     FloatType(int size)
-        : size(size) {};
+      : size(size) {};
   };
 
   class MutType : public Type {
@@ -84,7 +86,7 @@ namespace ovid::ast {
     std::unique_ptr<Type> type;
 
     MutType(std::unique_ptr<Type> type)
-        : type(std::move(type)) {};
+      : type(std::move(type)) {};
 
     Type *withoutMutability() override;
   };
@@ -95,7 +97,7 @@ namespace ovid::ast {
     std::unique_ptr<Type> retType;
 
     FunctionType(std::vector<std::unique_ptr<Type>> argTypes, std::unique_ptr<Type> retType)
-        : argTypes(std::move(argTypes)), retType(std::move(retType)) {};
+      : argTypes(std::move(argTypes)), retType(std::move(retType)) {};
   };
 
   class FunctionPrototype {
@@ -104,8 +106,9 @@ namespace ovid::ast {
     std::vector<std::string> argNames;
     std::string name;
 
-    FunctionPrototype(std::unique_ptr<FunctionType> type, std::vector<std::string> argNames, std::string &name)
-        : type(std::move(type)), argNames(std::move(argNames)), name(name) {};
+    FunctionPrototype(std::unique_ptr<FunctionType> type, std::vector<std::string> argNames,
+                      std::string &name)
+      : type(std::move(type)), argNames(std::move(argNames)), name(name) {};
   };
 
   /* base ast node */
@@ -130,11 +133,11 @@ namespace ovid::ast {
     std::unique_ptr<Expression> initialValue;
 
     VarDecl(SourceLocation &loc, std::string &name, std::unique_ptr<Expression> initialValue)
-        : Statement(loc),
-          name(name),
-          initialValue(
-              std::move(
-                  initialValue)) {};
+      : Statement(loc),
+        name(name),
+        initialValue(
+          std::move(
+            initialValue)) {};
   };
 
   class FunctionDecl : public Statement {
@@ -143,7 +146,7 @@ namespace ovid::ast {
     ScopedBlock body;
 
     FunctionDecl(SourceLocation &loc, std::unique_ptr<FunctionPrototype> proto, ScopedBlock body)
-        : Statement(loc), proto(std::move(proto)), body(std::move(body)) {};
+      : Statement(loc), proto(std::move(proto)), body(std::move(body)) {};
 
   };
 
@@ -154,14 +157,14 @@ namespace ovid::ast {
     StatementList body;
 
     ModuleDecl(SourceLocation &loc, std::vector<std::string> scope, StatementList body)
-        : Statement(loc), scope(std::move(scope)), body(std::move(body)) {};
+      : Statement(loc), scope(std::move(scope)), body(std::move(body)) {};
   };
 
   /* ast expressions */
   class Expression : public Statement {
   public:
     explicit Expression(SourceLocation &loc)
-        : Statement(loc) {};
+      : Statement(loc) {};
   };
 
   class FunctionCall : public Expression {
@@ -170,12 +173,12 @@ namespace ovid::ast {
     ExpressionList args;
 
     FunctionCall(SourceLocation &loc, std::unique_ptr<Expression> funcExpr, ExpressionList args)
-        : Expression(loc),
-          funcExpr(
-              std::move(
-                  funcExpr)),
-          args(std::move(
-              args)) {};
+      : Expression(loc),
+        funcExpr(
+          std::move(
+            funcExpr)),
+        args(std::move(
+          args)) {};
   };
 
   class Identifier : public Expression {
@@ -183,10 +186,10 @@ namespace ovid::ast {
     std::vector<std::string> scope;
     std::string id;
 
-    Identifier(SourceLocation &loc, std::string &id, std::vector<std::string> scope)
-        : Expression(loc),
-          scope(std::move(scope)),
-          id(id) {};
+    Identifier(SourceLocation &loc, const std::string &id, std::vector<std::string> scope)
+      : Expression(loc),
+        scope(std::move(scope)),
+        id(id) {};
   };
 
   class OperatorSymbol : public Expression {
@@ -194,7 +197,7 @@ namespace ovid::ast {
     TokenType op;
 
     OperatorSymbol(SourceLocation &loc, TokenType op)
-        : Expression(loc), op(op) {};
+      : Expression(loc), op(op) {};
   };
 
   class Assignment : public Expression {
@@ -202,14 +205,15 @@ namespace ovid::ast {
     std::unique_ptr<Expression> lvalue;
     std::unique_ptr<Expression> rvalue;
 
-    Assignment(SourceLocation &loc, std::unique_ptr<Expression> lvalue, std::unique_ptr<Expression> rvalue)
-        : Expression(loc), lvalue(std::move(lvalue)), rvalue(std::move(rvalue)) {};
+    Assignment(SourceLocation &loc, std::unique_ptr<Expression> lvalue,
+               std::unique_ptr<Expression> rvalue)
+      : Expression(loc), lvalue(std::move(lvalue)), rvalue(std::move(rvalue)) {};
   };
 
   class Literal : public Expression {
   public:
     explicit Literal(SourceLocation &loc)
-        : Expression(loc) {};
+      : Expression(loc) {};
   };
 
   class IntLiteral : public Literal {
@@ -217,7 +221,7 @@ namespace ovid::ast {
     const long value;
 
     IntLiteral(SourceLocation &loc, const long value)
-        : Literal(loc), value(value) {};
+      : Literal(loc), value(value) {};
   };
 
   class Tuple : public Expression {
@@ -225,8 +229,8 @@ namespace ovid::ast {
     ExpressionList expressions;
 
     explicit Tuple(SourceLocation &loc, ExpressionList expressions)
-        : Expression(loc),
-          expressions(std::move(expressions)) {};
+      : Expression(loc),
+        expressions(std::move(expressions)) {};
   };
 }
 
