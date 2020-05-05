@@ -15,28 +15,19 @@ int main(int argc, char **argv) {
   auto errorMan = ovid::PrintingErrorManager();
   auto lexer = ovid::Tokenizer(argv[1], &filein, errorMan);
   lexer.nextToken();
-  auto parser = ovid::Parser(lexer, errorMan);
 
-  auto s = ovid::SymbolTable<ovid::Symbol>();
+  auto scopes = ovid::ActiveScopes();
+  // add root scopes
+  scopes.names.pushScope(std::make_shared<ovid::ScopeTable<ovid::Symbol>>());
+  scopes.types.pushScope(std::make_shared<ovid::ScopeTable<ovid::TypeAlias>>());
 
-  auto scope = std::make_shared<ovid::ScopeTable<ovid::Symbol>>();
-  scope->addScopeTable("test_scope")
-      ->addScopeTable("nested")
-      ->getDirectScopeTable()
-      .addSymbol("testSymbol", std::make_shared<ovid::Symbol>());
+  auto parser = ovid::Parser(lexer, errorMan, scopes);
 
-  std::vector<std::string> scopes;
-  scopes.push_back("test_scope");
-  scopes.push_back("nested");
-  scope->findSymbol(scopes, "testSymbol");
+  std::vector<std::string> package;
+  // package.push_back("std");
+  // package.push_back("test");
 
-  auto stack = ovid::ActiveScope<ovid::Symbol>();
-  stack.pushScope(scope);
-  // stack.popScope(scope);
-
-  auto a = stack.findSymbol(scopes, "testSymbol");
-
-  auto ast = parser.parseProgram();
+  auto ast = parser.parseProgram(package);
 
   if (errorMan.errorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";

@@ -50,13 +50,22 @@ typedef std::vector<std::unique_ptr<Statement>> StatementList;
  * This container is used for scopes inside of functions */
 class ScopedBlock {
   std::vector<std::unique_ptr<Statement>> statements;
-  // type aliases can't be declared inside functions
+  // type aliases can't be declared inside functions, so only name table needed
   std::shared_ptr<ScopeTable<Symbol>> symbols;
 
 public:
   ScopedBlock(std::vector<std::unique_ptr<Statement>> statements)
       : statements(std::move(statements)),
         symbols(std::make_shared<ScopeTable<Symbol>>()){};
+
+  explicit ScopedBlock(std::shared_ptr<ScopeTable<Symbol>> symbols)
+      : statements(), symbols(std::move(symbols)){};
+
+  ScopedBlock(std::vector<std::unique_ptr<Statement>> statements,
+              std::shared_ptr<ScopeTable<Symbol>> symbols)
+      : statements(std::move(statements)), symbols(std::move(symbols)){};
+
+  void addStatement(std::unique_ptr<Statement> statement);
 };
 
 /* ast types */

@@ -5,19 +5,27 @@
 #include "error.hpp"
 #include "tokenizer.hpp"
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace ovid {
 struct ParserState {
   // if we are in a global declaration or inside a function
-  bool global_level;
+  bool is_global_level;
   // most recent scope containing block (what scope we are in)
-  ast::ScopedBlock *current_scope;
+  std::shared_ptr<ScopeTable<Symbol>> current_scope;
+  std::shared_ptr<ScopeTable<TypeAlias>> current_type_scope;
   // current module (including package) name
   std::vector<std::string> current_module;
 
-  ParserState()
-      : global_level(true), current_scope(nullptr), current_module(){};
+  ParserState(bool is_global_level,
+              std::shared_ptr<ScopeTable<Symbol>> current_scope,
+              std::shared_ptr<ScopeTable<TypeAlias>> current_type_scope,
+              std::vector<std::string> current_module)
+      : is_global_level(is_global_level),
+        current_scope(std::move(current_scope)),
+        current_type_scope(std::move(current_type_scope)),
+        current_module(std::move(current_module)){};
 };
 
 class Parser {
@@ -30,36 +38,39 @@ public:
                   ActiveScopes &scopes)
       : tokenizer(tokenizer), errorMan(errorMan), scopes(scopes){};
 
-  std::vector<std::unique_ptr<ast::Statement>> parseProgram();
+  std::vector<std::unique_ptr<ast::Statement>>
+  parseProgram(const std::vector<std::string> &packageName);
 
-  std::unique_ptr<ast::IntLiteral> parseIntLiteral();
+  std::unique_ptr<ast::IntLiteral> parseIntLiteral(const ParserState &state);
 
-  std::unique_ptr<ast::Expression> parseIdentifier();
+  std::unique_ptr<ast::Expression> parseIdentifier(const ParserState &state);
 
-  std::unique_ptr<ast::Expression> parseParenExpr();
+  std::unique_ptr<ast::Expression> parseParenExpr(const ParserState &state);
 
-  std::unique_ptr<ast::Expression> parseExpr();
+  std::unique_ptr<ast::Expression> parseExpr(const ParserState &state);
 
-  std::unique_ptr<ast::Expression> parsePrimary();
+  std::unique_ptr<ast::Expression> parsePrimary(const ParserState &state);
 
   std::unique_ptr<ast::Expression>
-  parseBinOpRight(int exprPrec, std::unique_ptr<ast::Expression> leftExpr);
+  parseBinOpRight(const ParserState &state, int exprPrec,
+                  std::unique_ptr<ast::Expression> leftExpr);
 
-  std::unique_ptr<ast::Statement> parseStatement();
+  std::unique_ptr<ast::Statement> parseStatement(const ParserState &state);
 
   bool isDoneParsing();
 
-  std::unique_ptr<ast::Statement> parseFunctionDecl();
+  std::unique_ptr<ast::Statement> parseFunctionDecl(const ParserState &state);
 
-  std::unique_ptr<ast::FunctionPrototype> parseFunctionProto();
+  std::unique_ptr<ast::FunctionPrototype>
+  parseFunctionProto(const ParserState &state);
 
-  std::unique_ptr<ast::Type> parseType();
+  std::unique_ptr<ast::Type> parseType(const ParserState &state);
 
-  std::unique_ptr<ast::Statement> parseVarDecl();
+  std::unique_ptr<ast::Statement> parseVarDecl(const ParserState &state);
 
   bool expectEndStatement();
 
-  std::unique_ptr<ast::ModuleDecl> parseModuleDecl();
+  std::unique_ptr<ast::ModuleDecl> parseModuleDecl(const ParserState &state);
 };
 } // namespace ovid
 

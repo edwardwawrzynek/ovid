@@ -132,6 +132,10 @@ public:
                                 const std::string &identifier,
                                 std::function<bool(const T &)> predicate);
 
+  // add a symbol, given scopes and a name
+  void addSymbol(const std::vector<std::string> &scope_name,
+                 const std::string &name, std::shared_ptr<T> symbol);
+
   ScopeTable() : symbols(std::make_unique<SymbolTable<T>>()), scopes(){};
 };
 
@@ -193,6 +197,17 @@ ScopeTable<T>::findSymbol(const std::vector<std::string> &scope_name,
   return scope->symbols->findSymbol(identifier, predicate);
 }
 
+template <class T>
+void ScopeTable<T>::addSymbol(const std::vector<std::string> &scope_name,
+                              const std::string &name,
+                              std::shared_ptr<T> symbol) {
+  if (scope_name.empty()) {
+    getDirectScopeTable().addSymbol(name, symbol);
+  } else {
+    getScopeTable(scope_name)->getDirectScopeTable().addSymbol(name, symbol);
+  }
+}
+
 /* the active scopes and symbol tables
  * maintained as a stack -- global namespaces at bottom, local scopes at top */
 template <class T> class ActiveScope {
@@ -219,6 +234,9 @@ public:
   std::shared_ptr<T> findSymbol(const std::vector<std::string> &scope_names,
                                 const std::string &identifier,
                                 std::function<bool(const T &)> predicate);
+
+  // get the root namespace scope (scope 0)
+  std::shared_ptr<ScopeTable<T>> getRootScope();
 
   ActiveScope() : scopes(){};
 };
@@ -265,6 +283,10 @@ ActiveScope<T>::findSymbol(const std::vector<std::string> &scope_names,
   }
 
   return nullptr;
+}
+template <class T>
+std::shared_ptr<ScopeTable<T>> ActiveScope<T>::getRootScope() {
+  return scopes[0];
 }
 
 } // namespace ovid

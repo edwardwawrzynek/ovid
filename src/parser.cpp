@@ -12,10 +12,14 @@ static std::map<TokenType, int> opPrecedence = {
 
 bool Parser::isDoneParsing() { return tokenizer.curToken.token == T_EOF; }
 
-std::vector<std::unique_ptr<ast::Statement>> Parser::parseProgram() {
+std::vector<std::unique_ptr<ast::Statement>>
+Parser::parseProgram(const std::vector<std::string> &packageName) {
   std::vector<std::unique_ptr<ast::Statement>> nodes;
+  // TODO: lookup scope by package name
+  ParserState state(true, scopes.names.getRootScope(),
+                    scopes.types.getRootScope(), packageName);
   do {
-    auto ast = parseStatement();
+    auto ast = parseStatement(state);
     if (ast)
       nodes.push_back(std::move(ast));
   } while (!isDoneParsing());
@@ -24,7 +28,8 @@ std::vector<std::unique_ptr<ast::Statement>> Parser::parseProgram() {
 }
 
 // intexpr ::= intliteral
-std::unique_ptr<ast::IntLiteral> Parser::parseIntLiteral() {
+std::unique_ptr<ast::IntLiteral>
+Parser::parseIntLiteral(const ParserState &state) {
   auto res = std::make_unique<ast::IntLiteral>(tokenizer.curTokenLoc,
                                                tokenizer.curToken.int_literal);
   tokenizer.nextToken();
@@ -33,15 +38,16 @@ std::unique_ptr<ast::IntLiteral> Parser::parseIntLiteral() {
 
 // identexpr ::= identifier (':' identifier)*
 // funccallexpr ::= identifier (':' identifier)* '(' (expr ',') * expr ')'
-std::unique_ptr<ast::Expression> Parser::parseIdentifier() {
-  std::vector<std::string> scopes;
+std::unique_ptr<ast::Expression>
+Parser::parseIdentifier(const ParserState &state) {
+  std::vector<std::string> varScopes;
   std::string ident;
   auto pos = tokenizer.curTokenLoc;
   while (true) {
     ident = tokenizer.curToken.ident;
     tokenizer.nextToken();
     if (tokenizer.curToken.token == T_COLON) {
-      scopes.push_back(ident);
+      varScopes.push_back(ident);
       tokenizer.nextToken();
     } else
       break;
@@ -50,7 +56,7 @@ std::unique_ptr<ast::Expression> Parser::parseIdentifier() {
     std::vector<std::unique_ptr<ast::Expression>> args;
     do {
       tokenizer.nextToken();
-      auto expr = parseExpr();
+      auto expr = parseExpr(state);
       if (!expr)
         return nullptr;
       args.push_back(std::move(expr));
@@ -60,20 +66,22 @@ std::unique_ptr<ast::Expression> Parser::parseIdentifier() {
                                tokenizer.curTokenLoc, ErrorType::ParseError);
     tokenizer.nextToken();
     return std::make_unique<ast::FunctionCall>(
-        pos, std::make_unique<ast::Identifier>(pos, ident, std::move(scopes)),
+        pos,
+        std::make_unique<ast::Identifier>(pos, ident, std::move(varScopes)),
         std::move(args));
   } else {
-    return std::make_unique<ast::Identifier>(pos, ident, std::move(scopes));
+    return std::make_unique<ast::Identifier>(pos, ident, std::move(varScopes));
   }
 }
 
 // parenexpr ::= '(' expr ')'
 // tupleexpr ::= '(' (expr ',')+ expr ')'
-std::unique_ptr<ast::Expression> Parser::parseParenExpr() {
+std::unique_ptr<ast::Expression>
+Parser::parseParenExpr(const ParserState &state) {
   auto pos = tokenizer.curTokenLoc;
 
   tokenizer.nextToken(); // skip '('
-  auto expr0 = parseExpr();
+  auto expr0 = parseExpr(state);
   if (!expr0)
     return nullptr;
   /* check for right paren or comma, indicating tuple */
@@ -89,7 +97,7 @@ std::unique_ptr<ast::Expression> Parser::parseParenExpr() {
   // add each element to tuple
   do {
     tokenizer.nextToken();
-    auto expr = parseExpr();
+    auto expr = parseExpr(state);
     if (!expr)
       return nullptr;
     tupleExprs.push_back(std::move(expr));
@@ -102,14 +110,15 @@ std::unique_ptr<ast::Expression> Parser::parseParenExpr() {
                            ErrorType::ParseError);
 }
 
-std::unique_ptr<ast::Expression> Parser::parsePrimary() {
+std::unique_ptr<ast::Expression>
+Parser::parsePrimary(const ParserState &state) {
   switch (tokenizer.curToken.token) {
   case T_IDENT:
-    return parseIdentifier();
+    return parseIdentifier(state);
   case T_LPAREN:
-    return parseParenExpr();
+    return parseParenExpr(state);
   case T_INTLITERAL:
-    return parseIntLiteral();
+    return parseIntLiteral(state);
   default:
     auto loc = tokenizer.curTokenLoc;
     // consume token (the parse methods normally do this)
@@ -123,17 +132,17 @@ std::unique_ptr<ast::Expression> Parser::parsePrimary() {
 }
 
 // expr ::= primary binoprhs
-std::unique_ptr<ast::Expression> Parser::parseExpr() {
-  auto leftExpr = parsePrimary();
+std::unique_ptr<ast::Expression> Parser::parseExpr(const ParserState &state) {
+  auto leftExpr = parsePrimary(state);
   if (!leftExpr)
     return nullptr;
 
-  return parseBinOpRight(1, std::move(leftExpr));
+  return parseBinOpRight(state, 1, std::move(leftExpr));
 }
 
 // binopright ::= ('op' primary) *
 std::unique_ptr<ast::Expression>
-Parser::parseBinOpRight(int exprPrec,
+Parser::parseBinOpRight(const ParserState &state, int exprPrec,
                         std::unique_ptr<ast::Expression> leftExpr) {
   auto startPos = leftExpr->loc;
   while (true) {
@@ -145,7 +154,7 @@ Parser::parseBinOpRight(int exprPrec,
     auto opPos = tokenizer.curTokenLoc;
     tokenizer.nextToken();
 
-    auto rightExpr = parsePrimary();
+    auto rightExpr = parsePrimary(state);
     if (!rightExpr)
       return nullptr;
 
@@ -153,7 +162,7 @@ Parser::parseBinOpRight(int exprPrec,
     /* if current op is less tightly bound than next, than rightExpr becomes
      * next operators leftExpr */
     if (tokPrec < nextPrec) {
-      rightExpr = parseBinOpRight(tokPrec + 1, std::move(rightExpr));
+      rightExpr = parseBinOpRight(state, tokPrec + 1, std::move(rightExpr));
       if (!rightExpr)
         return nullptr;
     }
@@ -175,10 +184,10 @@ Parser::parseBinOpRight(int exprPrec,
 
 // typeExpr ::= 'i8' | 'u8' | ... | 'string'
 // typeExpr ::= 'mut' typeExpr
-std::unique_ptr<ast::Type> Parser::parseType() {
+std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state) {
   if (tokenizer.curToken.token == T_MUT) {
     tokenizer.nextToken();
-    return std::make_unique<ast::MutType>(parseType());
+    return std::make_unique<ast::MutType>(parseType(state));
   }
   if (tokenizer.curToken.token != T_IDENT)
     return errorMan.logError("Expected a type expression",
@@ -214,7 +223,8 @@ std::unique_ptr<ast::Type> Parser::parseType() {
 }
 
 // functionproto ::= ident '(' (arg typeExpr ',')* arg typeExpr ')' typeExpr
-std::unique_ptr<ast::FunctionPrototype> Parser::parseFunctionProto() {
+std::unique_ptr<ast::FunctionPrototype>
+Parser::parseFunctionProto(const ParserState &state) {
   if (tokenizer.curToken.token != T_IDENT)
     return errorMan.logError("Expected function name", tokenizer.curTokenLoc,
                              ErrorType::ParseError);
@@ -236,7 +246,7 @@ std::unique_ptr<ast::FunctionPrototype> Parser::parseFunctionProto() {
                                ErrorType::ParseError);
     argNames.push_back(tokenizer.curToken.ident);
     tokenizer.nextToken();
-    auto type = parseType();
+    auto type = parseType(state);
     if (!type)
       return nullptr;
     argTypes.push_back(std::move(type));
@@ -245,7 +255,7 @@ std::unique_ptr<ast::FunctionPrototype> Parser::parseFunctionProto() {
     return errorMan.logError("Expected ')' or ',' in argument list",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   tokenizer.nextToken();
-  auto retType = parseType();
+  auto retType = parseType(state);
 
   return std::make_unique<ast::FunctionPrototype>(
       std::make_unique<ast::FunctionType>(std::move(argTypes),
@@ -253,12 +263,23 @@ std::unique_ptr<ast::FunctionPrototype> Parser::parseFunctionProto() {
       std::move(argNames), name);
 }
 
-std::unique_ptr<ast::Statement> Parser::parseFunctionDecl() {
+std::unique_ptr<ast::Statement>
+Parser::parseFunctionDecl(const ParserState &state) {
   auto pos = tokenizer.curTokenLoc;
+
+  // no nested functions
+  bool did_error = false;
+  if (!state.is_global_level) {
+    errorMan.logError("Functions cannot be nested in each other", pos,
+                      ErrorType::ParseError);
+    // wait to return so that rest of function is skipped
+    did_error = true;
+  }
+
   // consume 'fn'
   tokenizer.nextToken();
   // get function prototype
-  auto proto = parseFunctionProto();
+  auto proto = parseFunctionProto(state);
   if (!proto)
     return nullptr;
   // parse body
@@ -266,28 +287,39 @@ std::unique_ptr<ast::Statement> Parser::parseFunctionDecl() {
     return errorMan.logError("Expected '{'", tokenizer.curTokenLoc,
                              ErrorType::ParseError);
   tokenizer.nextToken();
-  ast::StatementList body;
+
+  auto symbolTable = std::make_shared<ScopeTable<Symbol>>();
+  ast::ScopedBlock body(symbolTable);
+  // the current type scope is copied, as function's can't contain type alias
+  // declarations inside them
+  ParserState bodyState(false, symbolTable, state.current_type_scope,
+                        state.current_module);
+
   while (tokenizer.curToken.token != T_RBRK) {
-    auto stat = parseStatement();
-    if (!stat)
+    auto stat = parseStatement(bodyState);
+    if (!stat && tokenizer.curToken.token != T_RBRK)
       return errorMan.logError("expected '}' to end function body",
                                tokenizer.curTokenLoc, ErrorType::ParseError);
-    body.push_back(std::move(stat));
+    body.addStatement(std::move(stat));
   }
   tokenizer.nextToken();
+
+  if (did_error)
+    return nullptr;
 
   return std::make_unique<ast::FunctionDecl>(pos, std::move(proto),
                                              std::move(body));
 }
 
 // module ::= 'module' identifier (':' identifier)* '{' statement* '}'
-std::unique_ptr<ast::ModuleDecl> Parser::parseModuleDecl() {
+std::unique_ptr<ast::ModuleDecl>
+Parser::parseModuleDecl(const ParserState &state) {
   std::vector<std::string> names;
   ast::StatementList body;
 
   auto pos = tokenizer.curTokenLoc;
   do {
-    // on first iteration, consume 'scope'
+    // on first iteration, consume 'module'
     tokenizer.nextToken();
     if (tokenizer.curToken.token != T_IDENT)
       return errorMan.logError("Expected scope name (identifier expected)",
@@ -301,8 +333,24 @@ std::unique_ptr<ast::ModuleDecl> Parser::parseModuleDecl() {
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   tokenizer.nextToken();
 
+  std::vector<std::string> newModule(state.current_module);
+  for (auto &name : names) {
+    newModule.push_back(name);
+  }
+  ParserState newState(true, state.current_scope, state.current_type_scope,
+                       newModule);
+
+  for (auto &name : names) {
+    newState.current_scope = newState.current_scope->addScopeTable(name);
+    newState.current_type_scope =
+        newState.current_type_scope->addScopeTable(name);
+  }
+
   while (tokenizer.curToken.token != T_RBRK) {
-    auto stat = parseStatement();
+    auto stat = parseStatement(newState);
+    if (!stat && tokenizer.curToken.token != T_RBRK)
+      errorMan.logError("expected '}' to end module declaration",
+                        tokenizer.curTokenLoc, ErrorType::ParseError);
     body.push_back(std::move(stat));
   }
   tokenizer.nextToken();
@@ -312,7 +360,7 @@ std::unique_ptr<ast::ModuleDecl> Parser::parseModuleDecl() {
 }
 
 // vardecl ::= identifier := expr
-std::unique_ptr<ast::Statement> Parser::parseVarDecl() {
+std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state) {
   auto pos = tokenizer.curTokenLoc;
   auto name = tokenizer.curToken.ident;
   tokenizer.nextToken();
@@ -320,11 +368,17 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl() {
     return errorMan.logError("Expected := in variable declaration",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   tokenizer.nextToken();
-  auto initialVal = parseExpr();
+  auto initialVal = parseExpr(state);
+
+  // add entry to symbol table
+  state.current_scope->getDirectScopeTable().addSymbol(
+      name, std::make_shared<Symbol>());
 
   return std::make_unique<ast::VarDecl>(pos, name, std::move(initialVal));
 }
 
+// error if end of statement (semicolon, which may have been automatically
+// inserted), or }
 bool Parser::expectEndStatement() {
   if (tokenizer.curToken.token == T_SEMICOLON) {
     tokenizer.nextToken();
@@ -338,15 +392,16 @@ bool Parser::expectEndStatement() {
   return false;
 }
 
-std::unique_ptr<ast::Statement> Parser::parseStatement() {
+std::unique_ptr<ast::Statement>
+Parser::parseStatement(const ParserState &state) {
   switch (tokenizer.curToken.token) {
   case T_FN: {
-    auto res = parseFunctionDecl();
+    auto res = parseFunctionDecl(state);
     expectEndStatement();
     return res;
   }
   case T_MODULE: {
-    auto res = parseModuleDecl();
+    auto res = parseModuleDecl(state);
     expectEndStatement();
     return res;
   }
@@ -354,19 +409,19 @@ std::unique_ptr<ast::Statement> Parser::parseStatement() {
     /* identifier followed by := is a variable declaration */
     auto nextTok = tokenizer.peekNextToken();
     if (nextTok.token != T_VARDECL) {
-      auto res = parseExpr();
+      auto res = parseExpr(state);
       expectEndStatement();
       return res;
     }
-    auto res = parseVarDecl();
+    auto res = parseVarDecl(state);
     expectEndStatement();
     return res;
   }
   case T_SEMICOLON:
     tokenizer.nextToken();
-    return parseStatement();
+    return parseStatement(state);
   default: {
-    auto res = parseExpr();
+    auto res = parseExpr(state);
     expectEndStatement();
     return res;
   }
