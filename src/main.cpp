@@ -5,7 +5,6 @@
 #include <cstdio>
 #include <iostream>
 
-
 int main(int argc, char **argv) {
   if (argc != 2) {
     std::cerr << "usage: ovid source.ovd\n";
@@ -21,7 +20,10 @@ int main(int argc, char **argv) {
   auto s = ovid::SymbolTable<ovid::Symbol>();
 
   auto scope = std::make_shared<ovid::ScopeTable<ovid::Symbol>>();
-  scope->addScopeTable("test_scope")->addScopeTable("nested")->getDirectScopeTable().addSymbol("testSymbol", std::make_shared<ovid::Symbol>());
+  scope->addScopeTable("test_scope")
+      ->addScopeTable("nested")
+      ->getDirectScopeTable()
+      .addSymbol("testSymbol", std::make_shared<ovid::Symbol>());
 
   std::vector<std::string> scopes;
   scopes.push_back("test_scope");
@@ -30,7 +32,7 @@ int main(int argc, char **argv) {
 
   auto stack = ovid::ActiveScope<ovid::Symbol>();
   stack.pushScope(scope);
-  //stack.popScope(scope);
+  // stack.popScope(scope);
 
   auto a = stack.findSymbol(scopes, "testSymbol");
 

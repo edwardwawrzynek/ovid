@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15.3)
 project(ovid)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 
 include_directories(src/)
 set(SOURCES src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp src/symbols.cpp)
@@ -44,7 +44,7 @@ target_link_libraries(runTests ${binary_dir}/lib/libgtest.a ${binary_dir}/lib/li
 
 target_link_libraries(runTests ${REQ_LLVM_LIBRARIES})
 
-target_compile_options(runTests PRIVATE -Wall -Wextra -pedantic)
+target_compile_options(runTests PRIVATE -Wall -Wextra -pedantic -g)
 
 ##################################
 # make the test runnable with
@@ -63,7 +63,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Main executable
 add_executable(ovid ${SOURCES} ${DRIVER})
-target_compile_options(ovid PRIVATE -Wall -Wextra -pedantic)
+target_compile_options(ovid PRIVATE -Wall -Wextra -pedantic -g)
 
 #set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/share/llvm/cmake")
 

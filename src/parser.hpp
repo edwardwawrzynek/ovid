@@ -8,46 +8,59 @@
 #include <vector>
 
 namespace ovid {
-  class Parser {
-    Tokenizer &tokenizer;
-    ErrorManager &errorMan;
+struct ParserState {
+  // if we are in a global declaration or inside a function
+  bool global_level;
+  // most recent scope containing block (what scope we are in)
+  ast::ScopedBlock *current_scope;
+  // current module (including package) name
+  std::vector<std::string> current_module;
 
-  public:
-    explicit Parser(Tokenizer &tokenizer, ErrorManager &errorMan) :
-        tokenizer(tokenizer),
-        errorMan(errorMan){};
+  ParserState()
+      : global_level(true), current_scope(nullptr), current_module(){};
+};
 
-    std::vector<std::unique_ptr<ast::Statement>> parseProgram();
+class Parser {
+  Tokenizer &tokenizer;
+  ErrorManager &errorMan;
+  ActiveScopes &scopes;
 
-    std::unique_ptr<ast::IntLiteral> parseIntLiteral();
+public:
+  explicit Parser(Tokenizer &tokenizer, ErrorManager &errorMan,
+                  ActiveScopes &scopes)
+      : tokenizer(tokenizer), errorMan(errorMan), scopes(scopes){};
 
-    std::unique_ptr<ast::Expression> parseIdentifier();
+  std::vector<std::unique_ptr<ast::Statement>> parseProgram();
 
-    std::unique_ptr<ast::Expression> parseParenExpr();
+  std::unique_ptr<ast::IntLiteral> parseIntLiteral();
 
-    std::unique_ptr<ast::Expression> parseExpr();
+  std::unique_ptr<ast::Expression> parseIdentifier();
 
-    std::unique_ptr<ast::Expression> parsePrimary();
+  std::unique_ptr<ast::Expression> parseParenExpr();
 
-    std::unique_ptr<ast::Expression>
-    parseBinOpRight(int exprPrec, std::unique_ptr<ast::Expression> leftExpr);
+  std::unique_ptr<ast::Expression> parseExpr();
 
-    std::unique_ptr<ast::Statement> parseStatement();
+  std::unique_ptr<ast::Expression> parsePrimary();
 
-    bool isDoneParsing();
+  std::unique_ptr<ast::Expression>
+  parseBinOpRight(int exprPrec, std::unique_ptr<ast::Expression> leftExpr);
 
-    std::unique_ptr<ast::Statement> parseFunctionDecl();
+  std::unique_ptr<ast::Statement> parseStatement();
 
-    std::unique_ptr<ast::FunctionPrototype> parseFunctionProto();
+  bool isDoneParsing();
 
-    std::unique_ptr<ast::Type> parseType();
+  std::unique_ptr<ast::Statement> parseFunctionDecl();
 
-    std::unique_ptr<ast::Statement> parseVarDecl();
+  std::unique_ptr<ast::FunctionPrototype> parseFunctionProto();
 
-    bool expectEndStatement();
+  std::unique_ptr<ast::Type> parseType();
 
-    std::unique_ptr<ast::ModuleDecl> parseModuleDecl();
-  };
-}// namespace ovid
+  std::unique_ptr<ast::Statement> parseVarDecl();
+
+  bool expectEndStatement();
+
+  std::unique_ptr<ast::ModuleDecl> parseModuleDecl();
+};
+} // namespace ovid
 
 #endif
