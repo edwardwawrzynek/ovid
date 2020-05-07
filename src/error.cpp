@@ -20,11 +20,11 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
   std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":"
             << location.col << ": ";
   if (printType == ErrorPrintLevel::Error)
-    std::cout << "\x1b[1;31merror: ";
+    std::cout << "\x1b[1;31merror ";
   else if (printType == ErrorPrintLevel::Warning)
-    std::cout << "\x1b[1;33mwarning: ";
+    std::cout << "\x1b[1;33mwarning ";
   else if (printType == ErrorPrintLevel::Note)
-    std::cout << "\x1b[1;36mnote: ";
+    std::cout << "\x1b[1;36mnote ";
 
   std::cout << msg << "\n\x1b[1;34m" << std::setw(5) << location.row
             << " |\x1b[m ";
@@ -48,11 +48,13 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
         std::cout << ' ';
     }
     if (printType == ErrorPrintLevel::Error)
-      std::cout << "\x1b[31;1m^\x1b[m\n";
+      std::cout << "\x1b[31;1m^";
     else if (printType == ErrorPrintLevel::Warning)
-      std::cout << "\x1b[33;1m^\x1b[m\n";
+      std::cout << "\x1b[33;1m^";
     else if (printType == ErrorPrintLevel::Note)
-      std::cout << "\x1b[36;1m^\x1b[m\n";
+      std::cout << "\x1b[36;1m^";
+
+    std::cout << "\x1b[m\n";
 
     location.file->seekg(oldLoc);
 
@@ -63,6 +65,17 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
 }
 
 bool PrintingErrorManager::errorOccurred() { return didError; }
+
+std::string PrintingErrorManager::errorTypeToCode(ErrorType type) {
+  switch (type) {
+  case ErrorType::ParseError:
+    return "parse_error";
+  case ErrorType::NestedFunctionError:
+    return "nested_functions";
+  default:
+    return "unidentified error";
+  }
+}
 
 ErrorManager::~ErrorManager() {}
 

@@ -9,9 +9,8 @@ module test:core {
     fn sum(a0 i32, a1 i32) mut i32 {
         a := std:io:stdio:fd + 1 + 2 * 5
         b := 1 + 3
-    }
-
-    fn nested(test i32) i32 {
-        a := 1
-    }
+        fn nested(test i32) i32 {
+            a := 1
+        }
+    } +
 }

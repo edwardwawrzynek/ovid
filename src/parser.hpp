@@ -15,17 +15,13 @@ struct ParserState {
   // most recent scope containing block (what scope we are in)
   std::shared_ptr<ScopeTable<Symbol>> current_scope;
   std::shared_ptr<ScopeTable<TypeAlias>> current_type_scope;
-  // current module (including package) name
-  std::vector<std::string> current_module;
 
   ParserState(bool is_global_level,
               std::shared_ptr<ScopeTable<Symbol>> current_scope,
-              std::shared_ptr<ScopeTable<TypeAlias>> current_type_scope,
-              std::vector<std::string> current_module)
+              std::shared_ptr<ScopeTable<TypeAlias>> current_type_scope)
       : is_global_level(is_global_level),
         current_scope(std::move(current_scope)),
-        current_type_scope(std::move(current_type_scope)),
-        current_module(std::move(current_module)){};
+        current_type_scope(std::move(current_type_scope)){};
 };
 
 class Parser {

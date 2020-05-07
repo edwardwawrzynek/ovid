@@ -17,7 +17,7 @@ Parser::parseProgram(const std::vector<std::string> &packageName) {
   std::vector<std::unique_ptr<ast::Statement>> nodes;
   // TODO: lookup scope by package name
   ParserState state(true, scopes.names.getRootScope(),
-                    scopes.types.getRootScope(), packageName);
+                    scopes.types.getRootScope());
   do {
     auto ast = parseStatement(state);
     if (ast)
@@ -271,7 +271,7 @@ Parser::parseFunctionDecl(const ParserState &state) {
   bool did_error = false;
   if (!state.is_global_level) {
     errorMan.logError("Functions cannot be nested in each other", pos,
-                      ErrorType::ParseError);
+                      ErrorType::NestedFunctionError);
     // wait to return so that rest of function is skipped
     did_error = true;
   }
@@ -292,8 +292,7 @@ Parser::parseFunctionDecl(const ParserState &state) {
   ast::ScopedBlock body(symbolTable);
   // the current type scope is copied, as function's can't contain type alias
   // declarations inside them
-  ParserState bodyState(false, symbolTable, state.current_type_scope,
-                        state.current_module);
+  ParserState bodyState(false, symbolTable, state.current_type_scope);
 
   while (tokenizer.curToken.token != T_RBRK) {
     auto stat = parseStatement(bodyState);
@@ -333,12 +332,7 @@ Parser::parseModuleDecl(const ParserState &state) {
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   tokenizer.nextToken();
 
-  std::vector<std::string> newModule(state.current_module);
-  for (auto &name : names) {
-    newModule.push_back(name);
-  }
-  ParserState newState(true, state.current_scope, state.current_type_scope,
-                       newModule);
+  ParserState newState(true, state.current_scope, state.current_type_scope);
 
   for (auto &name : names) {
     newState.current_scope = newState.current_scope->addScopeTable(name);

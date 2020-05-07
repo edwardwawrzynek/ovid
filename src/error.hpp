@@ -24,7 +24,7 @@ struct SourceLocation {
  * Fatal errors can be lumped into broad categories
  * Non fatal errors should be in more specific categories
  */
-enum class ErrorType { ParseError };
+enum class ErrorType { ParseError, NestedFunctionError };
 
 enum class ErrorPrintLevel { Error, Warning, Note };
 
@@ -42,6 +42,8 @@ private:
   bool didError;
 
   static ErrorPrintLevel errorTypeToPrintLevel(ErrorType type);
+
+  static std::string errorTypeToCode(ErrorType type);
 
 public:
   PrintingErrorManager() : didError(false){};

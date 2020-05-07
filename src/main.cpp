@@ -1,4 +1,5 @@
 #include "ast.hpp"
+#include "ast_visitor.hpp"
 #include "error.hpp"
 #include "parser.hpp"
 #include "tokenizer.hpp"
@@ -20,14 +21,19 @@ int main(int argc, char **argv) {
   // add root scopes
   scopes.names.pushScope(std::make_shared<ovid::ScopeTable<ovid::Symbol>>());
   scopes.types.pushScope(std::make_shared<ovid::ScopeTable<ovid::TypeAlias>>());
+  // add package namespaces
+  scopes.names.getRootScope()->addScopeTable("std")->addScopeTable("test");
 
   auto parser = ovid::Parser(lexer, errorMan, scopes);
 
   std::vector<std::string> package;
-  // package.push_back("std");
-  // package.push_back("test");
+  package.emplace_back("std");
+  package.emplace_back("test");
 
   auto ast = parser.parseProgram(package);
+
+  auto a = ovid::ast::BaseASTVisitor<int>(0);
+  a.visitNode(*ast[0]);
 
   if (errorMan.errorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";
