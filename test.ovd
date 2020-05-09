@@ -2,7 +2,7 @@ module test:core {
     var := 3
     module plugins {
         intType := 1
-        longType := 2
+        longType := (2 a)
     }
 
     // test

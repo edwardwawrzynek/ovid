@@ -1,8 +1,10 @@
 #include "gtest/gtest.h"
 
 #include "error.hpp"
+#include "symbols.hpp"
 #include "tokenizer.hpp"
 #include <sstream>
+#include <string>
 
 namespace ovid {
 
@@ -124,5 +126,28 @@ TEST(SemicolonInsertion, Tokens) {
   EXPECT_EQ(tokenizer.curToken.token, T_RPAREN);
 
   EXPECT_FALSE(testError.errorOccurred());
+}
+
+/* basic ScopeTable test (make sure namespace nesting works) */
+TEST(BasicScopeTable, Symbols) {
+  auto table = ScopeTable<int>();
+  table.addSymbol(std::vector<std::string>(), "test", std::make_shared<int>(1));
+  EXPECT_EQ(*table.findSymbol(std::vector<std::string>(), "test"), 1);
+
+  auto sscope = table.addScopeTable("scope");
+  sscope->addSymbol(std::vector<std::string>(), "test",
+                    std::make_shared<int>(2));
+  EXPECT_EQ(*table.findSymbol(std::vector<std::string>(1, "scope"), "test"), 2);
+  EXPECT_EQ(*table.findSymbol(std::vector<std::string>(), "test"), 1);
+
+  sscope->addSymbol(std::vector<std::string>(), "test2",
+                    std::make_shared<int>(3));
+  EXPECT_EQ(table.findSymbol(std::vector<std::string>(), "test2"), nullptr);
+
+  table.addSymbol(std::vector<std::string>(), "test",
+                  std::make_shared<int>(10));
+  EXPECT_EQ(*table.findSymbol(std::vector<std::string>(), "test",
+                              [](int sym) { return sym == 10; }),
+            10);
 }
 } // namespace ovid

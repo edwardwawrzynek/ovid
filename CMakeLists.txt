@@ -3,7 +3,7 @@ project(ovid)
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(src/)
-set(SOURCES src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp src/ast_visitor.cpp)
+set(SOURCES src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp src/resolve_pass.cpp)
 set(DRIVER src/main.cpp)
 set(TESTS test/test.cpp)
 

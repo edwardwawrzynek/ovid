@@ -20,11 +20,11 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
   std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":"
             << location.col << ": ";
   if (printType == ErrorPrintLevel::Error)
-    std::cout << "\x1b[1;31merror ";
+    std::cout << "\x1b[1;31merror: ";
   else if (printType == ErrorPrintLevel::Warning)
-    std::cout << "\x1b[1;33mwarning ";
+    std::cout << "\x1b[1;33mwarning: ";
   else if (printType == ErrorPrintLevel::Note)
-    std::cout << "\x1b[1;36mnote ";
+    std::cout << "\x1b[1;36mnote: ";
 
   std::cout << msg << "\n\x1b[1;34m" << std::setw(5) << location.row
             << " |\x1b[m ";

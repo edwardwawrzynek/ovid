@@ -2,6 +2,7 @@
 #include "ast_visitor.hpp"
 #include "error.hpp"
 #include "parser.hpp"
+#include "resolve_pass.hpp"
 #include "tokenizer.hpp"
 #include <cstdio>
 #include <iostream>
@@ -32,8 +33,8 @@ int main(int argc, char **argv) {
 
   auto ast = parser.parseProgram(package);
 
-  auto a = ovid::ast::BaseASTVisitor<int>(0);
-  a.visitNode(*ast[0]);
+  auto a = ovid::ast::ResolvePass(scopes, errorMan, package);
+  a.visitNode(*ast[0], ovid::ast::ResolvePassState());
 
   if (errorMan.errorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";

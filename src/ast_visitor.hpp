@@ -10,95 +10,111 @@
  * the base visitor maintains active scopes */
 namespace ovid::ast {
 
-template <class T> class BaseASTVisitor {
+template <class T, class S> class BaseASTVisitor {
   T defaultValue;
+
+  virtual T visitStatement(Statement &node, const S &state);
+  virtual T visitExpression(Expression &node, const S &state);
+  virtual T visitLiteral(Literal &node, const S &state);
+
+  virtual T visitVarDecl(VarDecl &node, const S &state);
+  virtual T visitFunctionDecl(FunctionDecl &node, const S &state);
+  virtual T visitModuleDecl(ModuleDecl &node, const S &state);
+
+  virtual T visitFunctionCall(FunctionCall &node, const S &state);
+  virtual T visitIdentifier(Identifier &node, const S &state);
+  virtual T visitOperatorSymbol(OperatorSymbol &node, const S &state);
+  virtual T visitAssignment(Assignment &node, const S &state);
+  virtual T visitIntLiteral(IntLiteral &node, const S &state);
+  virtual T visitTuple(Tuple &node, const S &state);
 
 public:
   explicit BaseASTVisitor(T defaultValue) : defaultValue(defaultValue){};
-  virtual T visitNode(Node &node);
+  virtual T visitNode(Node &node, const S &state);
 
-  virtual T visitStatement(Statement &node);
-  virtual T visitVarDecl(VarDecl &node);
-  virtual T visitFunctionDecl(FunctionDecl &node);
-  virtual T visitModuleDecl(ModuleDecl &node);
-
-  virtual T visitExpression(Expression &node);
-  virtual T visitFunctionCall(FunctionCall &node);
-  virtual T visitIdentifier(Identifier &node);
-  virtual T visitOperatorSymbol(OperatorSymbol &node);
-  virtual T visitAssignment(Assignment &node);
-  virtual T visitLiteral(Literal &node);
-  virtual T visitIntLiteral(IntLiteral &node);
-  virtual T visitTuple(Tuple &node);
+  virtual ~BaseASTVisitor() = default;
 };
 
-template <class T> T BaseASTVisitor<T>::visitNode(Node &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitNode(Node &node, const S &state) {
   if (dynamic_cast<Statement *>(&node) != nullptr) {
-    return visitStatement(dynamic_cast<Statement &>(node));
+    return visitStatement(dynamic_cast<Statement &>(node), state);
   } else if (dynamic_cast<Expression *>(&node) != nullptr) {
-    return visitStatement(dynamic_cast<Expression &>(node));
+    return visitExpression(dynamic_cast<Expression &>(node), state);
   }
   assert(false);
 }
 
-template <class T> T BaseASTVisitor<T>::visitStatement(Statement &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitStatement(Statement &node, const S &state) {
   if (dynamic_cast<VarDecl *>(&node) != nullptr) {
-    return visitVarDecl(dynamic_cast<VarDecl &>(node));
+    return visitVarDecl(dynamic_cast<VarDecl &>(node), state);
   } else if (dynamic_cast<FunctionDecl *>(&node) != nullptr) {
-    return visitFunctionDecl(dynamic_cast<FunctionDecl &>(node));
+    return visitFunctionDecl(dynamic_cast<FunctionDecl &>(node), state);
   } else if (dynamic_cast<ModuleDecl *>(&node)) {
-    return visitModuleDecl(dynamic_cast<ModuleDecl &>(node));
+    return visitModuleDecl(dynamic_cast<ModuleDecl &>(node), state);
   }
   assert(false);
 }
-template <class T> T BaseASTVisitor<T>::visitExpression(Expression &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitExpression(Expression &node, const S &state) {
   if (dynamic_cast<FunctionCall *>(&node) != nullptr) {
-    return visitFunctionCall(dynamic_cast<FunctionCall &>(node));
+    return visitFunctionCall(dynamic_cast<FunctionCall &>(node), state);
   } else if (dynamic_cast<Identifier *>(&node) != nullptr) {
-    return visitIdentifier(dynamic_cast<Identifier &>(node));
+    return visitIdentifier(dynamic_cast<Identifier &>(node), state);
   } else if (dynamic_cast<OperatorSymbol *>(&node) != nullptr) {
-    return visitOperatorSymbol(dynamic_cast<OperatorSymbol &>(node));
+    return visitOperatorSymbol(dynamic_cast<OperatorSymbol &>(node), state);
   } else if (dynamic_cast<Assignment *>(&node) != nullptr) {
-    return visitAssignment(dynamic_cast<Assignment &>(node));
+    return visitAssignment(dynamic_cast<Assignment &>(node), state);
   } else if (dynamic_cast<Literal *>(&node) != nullptr) {
-    return visitLiteral(dynamic_cast<Literal &>(node));
+    return visitLiteral(dynamic_cast<Literal &>(node), state);
   } else if (dynamic_cast<Tuple *>(&node) != nullptr) {
-    return visitTuple(dynamic_cast<Tuple &>(node));
+    return visitTuple(dynamic_cast<Tuple &>(node), state);
   }
   assert(false);
 }
-template <class T> T BaseASTVisitor<T>::visitLiteral(Literal &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitLiteral(Literal &node, const S &state) {
   if (dynamic_cast<IntLiteral *>(&node) != nullptr) {
-    return visitIntLiteral(dynamic_cast<IntLiteral &>(node));
+    return visitIntLiteral(dynamic_cast<IntLiteral &>(node), state);
   }
   assert(false);
 }
-template <class T> T BaseASTVisitor<T>::visitVarDecl(VarDecl &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitVarDecl(VarDecl &node, const S &state) {
   return defaultValue;
 }
-template <class T> T BaseASTVisitor<T>::visitFunctionDecl(FunctionDecl &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitFunctionDecl(FunctionDecl &node, const S &state) {
   return defaultValue;
 }
-template <class T> T BaseASTVisitor<T>::visitModuleDecl(ModuleDecl &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitModuleDecl(ModuleDecl &node, const S &state) {
   return defaultValue;
 }
-template <class T> T BaseASTVisitor<T>::visitFunctionCall(FunctionCall &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitFunctionCall(FunctionCall &node, const S &state) {
   return defaultValue;
 }
-template <class T> T BaseASTVisitor<T>::visitIdentifier(Identifier &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitIdentifier(Identifier &node, const S &state) {
   return defaultValue;
 }
-template <class T>
-T BaseASTVisitor<T>::visitOperatorSymbol(OperatorSymbol &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitOperatorSymbol(OperatorSymbol &node,
+                                            const S &state) {
   return defaultValue;
 }
-template <class T> T BaseASTVisitor<T>::visitAssignment(Assignment &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitAssignment(Assignment &node, const S &state) {
   return defaultValue;
 }
-template <class T> T BaseASTVisitor<T>::visitIntLiteral(IntLiteral &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitIntLiteral(IntLiteral &node, const S &state) {
   return defaultValue;
 }
-template <class T> T BaseASTVisitor<T>::visitTuple(Tuple &node) {
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitTuple(Tuple &node, const S &state) {
   return defaultValue;
 }
 

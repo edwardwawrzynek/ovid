@@ -28,9 +28,19 @@ public:
 };
 
 // name and type symbol tables
-struct ActiveScopes {
+class ActiveScopes {
+public:
   ActiveScope<Symbol> names;
   ActiveScope<TypeAlias> types;
+
+  // push a scope that is somewhere in the root table
+  void pushScopeByName(const std::vector<std::string> &module);
+  void pushScopeByName(const std::vector<std::string> &package,
+                       const std::vector<std::string> &module);
+
+  void popScopeByName(const std::vector<std::string> &module);
+  void popScopeByName(const std::vector<std::string> &package,
+                      const std::vector<std::string> &module);
 };
 } // namespace ovid
 
@@ -44,8 +54,8 @@ typedef std::vector<std::unique_ptr<Statement>> StatementList;
 
 /* a scoped block, containing statements as well as a variable symbol table
  * generally used as the container for statement blocks in the ast
- * module ... {...} expressions are removed early in ast transformations and are
- * represented in one file wide scope block
+ * module expressions don't have an associated scoped block -- instead, they are
+ * managed by the global scope table
  *
  * This container is used for scopes inside of functions */
 class ScopedBlock {
@@ -164,8 +174,6 @@ public:
 class ModuleDecl : public Statement {
 public:
   std::vector<std::string> scope;
-  // not ScopedBlock because moduleDecl's are removed early and transformed into
-  // the global ScopedBlock
   StatementList body;
 
   ModuleDecl(SourceLocation &loc, std::vector<std::string> scope,

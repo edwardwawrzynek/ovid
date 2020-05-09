@@ -238,6 +238,9 @@ public:
   // get the root namespace scope (scope 0)
   std::shared_ptr<ScopeTable<T>> getRootScope();
 
+  // get number of active scopes (for debugging)
+  int getNumActiveScopes();
+
   ActiveScope() : scopes(){};
 };
 
@@ -286,7 +289,11 @@ ActiveScope<T>::findSymbol(const std::vector<std::string> &scope_names,
 }
 template <class T>
 std::shared_ptr<ScopeTable<T>> ActiveScope<T>::getRootScope() {
+  assert(scopes.size() >= 1);
   return scopes[0];
+}
+template <class T> int ActiveScope<T>::getNumActiveScopes() {
+  return scopes.size();
 }
 
 } // namespace ovid
