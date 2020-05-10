@@ -158,18 +158,23 @@ TEST(BasicActiveScopesTest, Symbols) {
   package.emplace_back("s1");
   package.emplace_back("s2");
 
+  auto loc = SourceLocation("test", 0, 0, nullptr);
+
   auto scopes = ActiveScopes(package);
 
   scopes.types.getRootScope()->addScopeTable("test1")->addScopeTable("test2");
 
   auto table1 = scopes.names.getRootScope()->addScopeTable("test1");
-  table1->getDirectScopeTable().addSymbol("test", std::make_shared<Symbol>());
+  table1->getDirectScopeTable().addSymbol("test",
+                                          std::make_shared<Symbol>(loc));
 
   auto table2 = table1->addScopeTable("test2");
-  table2->getDirectScopeTable().addSymbol("test1", std::make_shared<Symbol>());
+  table2->getDirectScopeTable().addSymbol("test1",
+                                          std::make_shared<Symbol>(loc));
 
   auto table3 = table1->addScopeTable("test3");
-  table3->getDirectScopeTable().addSymbol("test3", std::make_shared<Symbol>());
+  table3->getDirectScopeTable().addSymbol("test3",
+                                          std::make_shared<Symbol>(loc));
 
   std::vector<std::string> mods;
   mods.emplace_back("test1");
@@ -200,6 +205,20 @@ TEST(ActiveScopesDeathTest, Symbols) {
 
   // test1:test2 isn't in scopes.names
   EXPECT_EXIT(scopes.pushComponentScopesByName(mods),
+              ::testing::KilledBySignal(SIGABRT), "");
+
+  scopes.names.getRootScope()->addScopeTable("test1")->addScopeTable("test2");
+  scopes.pushComponentScopesByName(mods);
+
+  scopes.names.pushScope(std::make_shared<ScopeTable<Symbol>>());
+  scopes.types.pushScope(std::make_shared<ScopeTable<TypeAlias>>());
+
+  // blank tables were pushed and not popped
+  EXPECT_EXIT(scopes.popComponentScopesByName(mods),
+              ::testing::KilledBySignal(SIGABRT), "");
+
+  // table already added
+  EXPECT_EXIT(scopes.names.getRootScope()->addScopeTable("test1"),
               ::testing::KilledBySignal(SIGABRT), "");
 }
 

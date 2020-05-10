@@ -34,7 +34,8 @@ class Parser {
   ActiveScopes &scopes;
   const std::vector<std::string> &package;
 
-  std::string getFullyScopedName(const std::string& name, const ParserState &state);
+  std::string getFullyScopedName(const std::string &name,
+                                 const ParserState &state);
 
   std::unique_ptr<ast::IntLiteral> parseIntLiteral(const ParserState &state);
 
@@ -68,8 +69,8 @@ class Parser {
   std::unique_ptr<ast::ModuleDecl> parseModuleDecl(const ParserState &state);
 
 public:
-  Parser(Tokenizer &tokenizer, ErrorManager &errorMan,
-                  ActiveScopes &scopes, const std::vector<std::string> &package);
+  Parser(Tokenizer &tokenizer, ErrorManager &errorMan, ActiveScopes &scopes,
+         const std::vector<std::string> &package);
 
   void removePushedPackageScope();
 

@@ -32,3 +32,4 @@ jobs:
       with:
         run-test: true
         ctest-options: -V
+        build-type: Debug

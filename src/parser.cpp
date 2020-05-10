@@ -12,15 +12,14 @@ static std::map<TokenType, int> opPrecedence = {
 
 bool Parser::isDoneParsing() const { return tokenizer.curToken.token == T_EOF; }
 
-std::vector<std::unique_ptr<ast::Node>>
-Parser::parseProgram() {
+std::vector<std::unique_ptr<ast::Node>> Parser::parseProgram() {
   std::vector<std::unique_ptr<ast::Node>> nodes;
   // lookup active scope by package name
   assert(scopes.names.getRootScope()->getScopeTable(package) != nullptr);
   assert(scopes.types.getRootScope()->getScopeTable(package) != nullptr);
-  ParserState state(
-      true, scopes.names.getRootScope()->getScopeTable(package),
-      scopes.types.getRootScope()->getScopeTable(package), package);
+  ParserState state(true, scopes.names.getRootScope()->getScopeTable(package),
+                    scopes.types.getRootScope()->getScopeTable(package),
+                    package);
   do {
     auto ast = parseStatement(state);
     if (ast)
@@ -305,7 +304,7 @@ Parser::parseFunctionDecl(const ParserState &state) {
     auto stat = parseStatement(bodyState);
     if (!stat && tokenizer.curToken.token != T_RBRK)
       errorMan.logError("expected '}' to end function body",
-                               tokenizer.curTokenLoc, ErrorType::ParseError);
+                        tokenizer.curTokenLoc, ErrorType::ParseError);
     body.addStatement(std::move(stat));
   }
   tokenizer.nextToken();
@@ -412,11 +411,13 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state) {
   } else {
     // check if name was shadowed
     auto shadowed = scopes.names.findSymbol(std::vector<std::string>(), name);
-    if(shadowed != nullptr) {
+    if (shadowed != nullptr) {
       auto scoped_name = getFullyScopedName(name, state);
 
       errorMan.logError(
-          string_format("declaration of `\x1b[1m%s\x1b[m` shadows previous declaration", scoped_name.c_str()),
+          string_format(
+              "declaration of `\x1b[1m%s\x1b[m` shadows previous declaration",
+              scoped_name.c_str()),
           pos, ErrorType::VarDeclareShadowed, false);
       errorMan.logError(
           string_format("shadowed definition of `\x1b[1m%s\x1b[m` here",
@@ -499,7 +500,8 @@ std::string Parser::getFullyScopedName(const std::string &name,
 }
 Parser::Parser(Tokenizer &tokenizer, ErrorManager &errorMan,
                ActiveScopes &scopes, const std::vector<std::string> &package)
-    : tokenizer(tokenizer), errorMan(errorMan), scopes(scopes), package(package) {
+    : tokenizer(tokenizer), errorMan(errorMan), scopes(scopes),
+      package(package) {
   // add package as scope table [1] in scope stack
   assert(scopes.names.getNumActiveScopes() == 1);
   assert(scopes.types.getNumActiveScopes() == 1);
