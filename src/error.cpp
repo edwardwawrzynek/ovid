@@ -1,20 +1,26 @@
 #include "error.hpp"
 #include <iomanip>
 #include <limits>
+#include <string>
 
 namespace ovid {
+
 ErrorPrintLevel PrintingErrorManager::errorTypeToPrintLevel(ErrorType type) {
   switch (type) {
-  case ErrorType::ParseError:
-    return ErrorPrintLevel::Error;
+  case ErrorType::Note:
+    return ErrorPrintLevel::Note;
+  case ErrorType::VarDeclareShadowed:
+    return ErrorPrintLevel::Warning;
   default:
+    // all fatal errors
     return ErrorPrintLevel::Error;
   }
 }
 
 std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
-                                              SourceLocation location,
-                                              ErrorType type) {
+                                              const SourceLocation &location,
+                                              ErrorType type,
+                                              bool emitNewline) {
   didError = true;
   auto printType = errorTypeToPrintLevel(type);
   std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":"
@@ -26,8 +32,9 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
   else if (printType == ErrorPrintLevel::Note)
     std::cout << "\x1b[1;36mnote: ";
 
-  std::cout << msg << "\n\x1b[1;34m" << std::setw(5) << location.row
-            << " |\x1b[m ";
+  std::cout << "\x1b[m";
+  std::cout << msg;
+  std::cout << "\n\x1b[1;34m" << std::setw(5) << location.row << " |\x1b[m ";
   location.file->clear();
   if (location.file) {
     /* save location */
@@ -61,7 +68,15 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
   } else {
     std::cout << "[ Can't print source location ]\n";
   }
+  if (emitNewline)
+    std::cout << "\n";
   return nullptr;
+}
+
+std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
+                                              const SourceLocation &location,
+                                              ErrorType type) {
+  return logError(msg, location, type, true);
 }
 
 bool PrintingErrorManager::errorOccurred() { return didError; }
@@ -80,9 +95,16 @@ std::string PrintingErrorManager::errorTypeToCode(ErrorType type) {
 ErrorManager::~ErrorManager() {}
 
 std::nullptr_t TestErrorManager::logError(const std::string &msg,
-                                          SourceLocation location,
+                                          const SourceLocation &location,
                                           ErrorType type) {
-  errors.insert(type);
+  return logError(msg, location, type, true);
+}
+std::nullptr_t TestErrorManager::logError(const std::string &msg,
+                                          const SourceLocation &location,
+                                          ErrorType type, bool emitNewline) {
+  if (type != ErrorType::Note) {
+    errors.insert(type);
+  }
   return nullptr;
 }
 

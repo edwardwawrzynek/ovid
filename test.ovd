@@ -1,10 +1,9 @@
 module test:core {
     var := 3
     module plugins {
-        intType := 1
+        var := 1
         longType := (2, a)
     }
-    var := 4
 
     // test
     fn sum(a0 i32, a1 i32) mut i32 {
@@ -13,9 +12,5 @@ module test:core {
         fn nested(test i32) i32 {
             a := 1
         }
-    }
-
-    module plugins {
-        a := 2
     }
 }

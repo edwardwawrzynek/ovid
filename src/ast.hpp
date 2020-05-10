@@ -17,14 +17,24 @@ namespace ovid {
 /* a symbol and it's metadata (type, etc) */
 struct Symbol {
 public:
+  // declaration or import location
+  SourceLocation decl_loc;
   /* type of a the symbol */
   std::unique_ptr<ast::Type> type;
   /* TODO: escape analysis metadata and other information loaded from headers */
+
+  explicit Symbol(SourceLocation decl_loc)
+      : decl_loc(std::move(decl_loc)), type(){};
 };
 /* a type alias and its metadata */
 struct TypeAlias {
 public:
+  // declaration or import location
+  SourceLocation decl_loc;
   std::unique_ptr<ast::Type> type;
+
+  explicit TypeAlias(SourceLocation decl_loc)
+      : decl_loc(std::move(decl_loc)), type(){};
 };
 
 // name and type symbol tables

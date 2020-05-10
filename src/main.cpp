@@ -23,9 +23,10 @@ int main(int argc, char **argv) {
   package.emplace_back("scope");
   auto scopes = ovid::ActiveScopes(package);
 
-  auto parser = ovid::Parser(lexer, errorMan, scopes);
+  auto parser = ovid::Parser(lexer, errorMan, scopes, package);
 
-  auto ast = parser.parseProgram(package);
+  auto ast = parser.parseProgram();
+  parser.removePushedPackageScope();
 
   auto resolvePass = ovid::ast::ResolvePass(scopes, errorMan, package);
   resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());

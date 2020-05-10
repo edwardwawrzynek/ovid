@@ -32,6 +32,9 @@ class Parser {
   Tokenizer &tokenizer;
   ErrorManager &errorMan;
   ActiveScopes &scopes;
+  const std::vector<std::string> &package;
+
+  std::string getFullyScopedName(const std::string& name, const ParserState &state);
 
   std::unique_ptr<ast::IntLiteral> parseIntLiteral(const ParserState &state);
 
@@ -49,7 +52,7 @@ class Parser {
 
   std::unique_ptr<ast::Statement> parseStatement(const ParserState &state);
 
-  bool isDoneParsing();
+  bool isDoneParsing() const;
 
   std::unique_ptr<ast::Statement> parseFunctionDecl(const ParserState &state);
 
@@ -65,12 +68,12 @@ class Parser {
   std::unique_ptr<ast::ModuleDecl> parseModuleDecl(const ParserState &state);
 
 public:
-  explicit Parser(Tokenizer &tokenizer, ErrorManager &errorMan,
-                  ActiveScopes &scopes)
-      : tokenizer(tokenizer), errorMan(errorMan), scopes(scopes){};
+  Parser(Tokenizer &tokenizer, ErrorManager &errorMan,
+                  ActiveScopes &scopes, const std::vector<std::string> &package);
 
-  std::vector<std::unique_ptr<ast::Node>>
-  parseProgram(const std::vector<std::string> &packageName);
+  void removePushedPackageScope();
+
+  std::vector<std::unique_ptr<ast::Node>> parseProgram();
 };
 } // namespace ovid
 

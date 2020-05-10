@@ -1,9 +1,9 @@
 #include "gtest/gtest.h"
 
+#include "ast.hpp"
 #include "error.hpp"
 #include "symbols.hpp"
 #include "tokenizer.hpp"
-#include "ast.hpp"
 #include <sstream>
 #include <string>
 
@@ -176,10 +176,15 @@ TEST(BasicActiveScopesTest, Symbols) {
   mods.emplace_back("test2");
   scopes.pushComponentScopesByName(mods);
 
-  EXPECT_NE(scopes.names.findSymbol(std::vector<std::string>(), "test"), nullptr);
-  EXPECT_NE(scopes.names.findSymbol(std::vector<std::string>(), "test1"), nullptr);
-  EXPECT_EQ(scopes.names.findSymbol(std::vector<std::string>(), "test3"), nullptr);
-  EXPECT_NE(scopes.names.findSymbol(std::vector<std::string>(1, "test3"), "test3"), nullptr);
+  EXPECT_NE(scopes.names.findSymbol(std::vector<std::string>(), "test"),
+            nullptr);
+  EXPECT_NE(scopes.names.findSymbol(std::vector<std::string>(), "test1"),
+            nullptr);
+  EXPECT_EQ(scopes.names.findSymbol(std::vector<std::string>(), "test3"),
+            nullptr);
+  EXPECT_NE(
+      scopes.names.findSymbol(std::vector<std::string>(1, "test3"), "test3"),
+      nullptr);
 }
 
 TEST(ActiveScopesDeathTest, Symbols) {
@@ -194,7 +199,8 @@ TEST(ActiveScopesDeathTest, Symbols) {
   mods.emplace_back("test2");
 
   // test1:test2 isn't in scopes.names
-  EXPECT_EXIT(scopes.pushComponentScopesByName(mods), ::testing::KilledBySignal(SIGABRT), "");
+  EXPECT_EXIT(scopes.pushComponentScopesByName(mods),
+              ::testing::KilledBySignal(SIGABRT), "");
 }
 
 } // namespace ovid

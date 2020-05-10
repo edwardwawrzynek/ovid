@@ -10,17 +10,17 @@ static std::map<TokenType, int> opPrecedence = {
     {T_ASSIGN, 20}, {T_ADD, 30}, {T_SUB, 30}, {T_STAR, 40}, {T_DIV, 40},
 };
 
-bool Parser::isDoneParsing() { return tokenizer.curToken.token == T_EOF; }
+bool Parser::isDoneParsing() const { return tokenizer.curToken.token == T_EOF; }
 
 std::vector<std::unique_ptr<ast::Node>>
-Parser::parseProgram(const std::vector<std::string> &packageName) {
+Parser::parseProgram() {
   std::vector<std::unique_ptr<ast::Node>> nodes;
   // lookup active scope by package name
-  assert(scopes.names.getRootScope()->getScopeTable(packageName) != nullptr);
-  assert(scopes.types.getRootScope()->getScopeTable(packageName) != nullptr);
+  assert(scopes.names.getRootScope()->getScopeTable(package) != nullptr);
+  assert(scopes.types.getRootScope()->getScopeTable(package) != nullptr);
   ParserState state(
-      true, scopes.names.getRootScope()->getScopeTable(packageName),
-      scopes.types.getRootScope()->getScopeTable(packageName), packageName);
+      true, scopes.names.getRootScope()->getScopeTable(package),
+      scopes.types.getRootScope()->getScopeTable(package), package);
   do {
     auto ast = parseStatement(state);
     if (ast)
@@ -273,7 +273,7 @@ Parser::parseFunctionDecl(const ParserState &state) {
   // no nested functions
   bool did_error = false;
   if (!state.is_global_level) {
-    errorMan.logError("Functions cannot be nested in each other", pos,
+    errorMan.logError("functions cannot be nested in each other", pos,
                       ErrorType::NestedFunctionError);
     // wait to return so that rest of function is skipped
     did_error = true;
@@ -285,9 +285,10 @@ Parser::parseFunctionDecl(const ParserState &state) {
   auto proto = parseFunctionProto(state);
   if (!proto)
     return nullptr;
+
   // parse body
   if (tokenizer.curToken.token != T_LBRK)
-    return errorMan.logError("Expected '{'", tokenizer.curTokenLoc,
+    return errorMan.logError("expected '{'", tokenizer.curTokenLoc,
                              ErrorType::ParseError);
   tokenizer.nextToken();
 
@@ -297,15 +298,19 @@ Parser::parseFunctionDecl(const ParserState &state) {
   // declarations inside them
   ParserState bodyState(false, symbolTable, state.current_type_scope,
                         state.current_module);
+  // add module scope to active scope stack
+  scopes.names.pushScope(state.current_scope);
 
   while (tokenizer.curToken.token != T_RBRK) {
     auto stat = parseStatement(bodyState);
     if (!stat && tokenizer.curToken.token != T_RBRK)
-      return errorMan.logError("expected '}' to end function body",
+      errorMan.logError("expected '}' to end function body",
                                tokenizer.curTokenLoc, ErrorType::ParseError);
     body.addStatement(std::move(stat));
   }
   tokenizer.nextToken();
+  // remove module scope to active scope stack
+  scopes.names.popScope(state.current_scope);
 
   if (did_error)
     return nullptr;
@@ -325,14 +330,14 @@ Parser::parseModuleDecl(const ParserState &state) {
     // on first iteration, consume 'module'
     tokenizer.nextToken();
     if (tokenizer.curToken.token != T_IDENT)
-      return errorMan.logError("Expected scope name (identifier expected)",
+      return errorMan.logError("expected scope name (identifier expected)",
                                tokenizer.curTokenLoc, ErrorType::ParseError);
     names.push_back(tokenizer.curToken.ident);
     tokenizer.nextToken();
   } while (tokenizer.curToken.token == T_COLON);
 
   if (tokenizer.curToken.token != T_LBRK)
-    return errorMan.logError("Expected '{' to begin scope body",
+    return errorMan.logError("expected '{' to begin scope body",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   tokenizer.nextToken();
 
@@ -362,6 +367,9 @@ Parser::parseModuleDecl(const ParserState &state) {
     newState.current_module.push_back(name);
   }
 
+  // add this module's scope to active scope stack
+  scopes.pushComponentScopesByName(newState.current_module);
+
   while (tokenizer.curToken.token != T_RBRK) {
     auto stat = parseStatement(newState);
     if (!stat && tokenizer.curToken.token != T_RBRK)
@@ -370,6 +378,9 @@ Parser::parseModuleDecl(const ParserState &state) {
     body.push_back(std::move(stat));
   }
   tokenizer.nextToken();
+
+  // remove this module's scope from the active scope stack
+  scopes.popComponentScopesByName(newState.current_module);
 
   return std::make_unique<ast::ModuleDecl>(pos, std::move(names),
                                            std::move(body));
@@ -381,14 +392,41 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state) {
   auto name = tokenizer.curToken.ident;
   tokenizer.nextToken();
   if (tokenizer.curToken.token != T_VARDECL)
-    return errorMan.logError("Expected := in variable declaration",
+    return errorMan.logError("expected := in variable declaration",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   tokenizer.nextToken();
   auto initialVal = parseExpr(state);
 
-  // add entry to symbol table
-  state.current_scope->getDirectScopeTable().addSymbol(
-      name, std::make_shared<Symbol>());
+  // make sure symbol wasn't already in table
+  auto existing = state.current_scope->getDirectScopeTable().findSymbol(name);
+  if (existing != nullptr) {
+    auto scoped_name = getFullyScopedName(name, state);
+
+    errorMan.logError(
+        string_format("redefinition of `\x1b[1m%s\x1b[m`", scoped_name.c_str()),
+        pos, ErrorType::DuplicateVarDeclare, false);
+    errorMan.logError(
+        string_format("previous definition of `\x1b[1m%s\x1b[m` here",
+                      scoped_name.c_str()),
+        existing->decl_loc, ErrorType::Note);
+  } else {
+    // check if name was shadowed
+    auto shadowed = scopes.names.findSymbol(std::vector<std::string>(), name);
+    if(shadowed != nullptr) {
+      auto scoped_name = getFullyScopedName(name, state);
+
+      errorMan.logError(
+          string_format("declaration of `\x1b[1m%s\x1b[m` shadows previous declaration", scoped_name.c_str()),
+          pos, ErrorType::VarDeclareShadowed, false);
+      errorMan.logError(
+          string_format("shadowed definition of `\x1b[1m%s\x1b[m` here",
+                        scoped_name.c_str()),
+          shadowed->decl_loc, ErrorType::Note);
+    }
+    // add entry to symbol table
+    state.current_scope->getDirectScopeTable().addSymbol(
+        name, std::make_shared<Symbol>(pos));
+  }
 
   return std::make_unique<ast::VarDecl>(pos, name, std::move(initialVal));
 }
@@ -442,6 +480,37 @@ Parser::parseStatement(const ParserState &state) {
     return res;
   }
   }
+}
+
+std::string Parser::getFullyScopedName(const std::string &name,
+                                       const ParserState &state) {
+  std::string scoped_name;
+  // if global, emit appropriate scope ids
+  if (state.is_global_level) {
+    for (auto &scope : state.current_module) {
+      scoped_name.append(scope);
+      scoped_name.push_back(':');
+    }
+    scoped_name.append(name);
+  } else {
+    scoped_name = name;
+  }
+  return scoped_name;
+}
+Parser::Parser(Tokenizer &tokenizer, ErrorManager &errorMan,
+               ActiveScopes &scopes, const std::vector<std::string> &package)
+    : tokenizer(tokenizer), errorMan(errorMan), scopes(scopes), package(package) {
+  // add package as scope table [1] in scope stack
+  assert(scopes.names.getNumActiveScopes() == 1);
+  assert(scopes.types.getNumActiveScopes() == 1);
+  scopes.pushComponentScopesByName(package);
+}
+
+void Parser::removePushedPackageScope() {
+  // remove the scopes that the constructor pushed
+  scopes.popComponentScopesByName(package);
+  assert(scopes.names.getNumActiveScopes() == 1);
+  assert(scopes.types.getNumActiveScopes() == 1);
 }
 
 } // namespace ovid
