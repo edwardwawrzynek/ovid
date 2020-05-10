@@ -15,27 +15,23 @@ struct ParserState {
   // most recent scope containing block (what scope we are in)
   std::shared_ptr<ScopeTable<Symbol>> current_scope;
   std::shared_ptr<ScopeTable<TypeAlias>> current_type_scope;
+  // what module we are in
+  std::vector<std::string> current_module;
 
   ParserState(bool is_global_level,
               std::shared_ptr<ScopeTable<Symbol>> current_scope,
-              std::shared_ptr<ScopeTable<TypeAlias>> current_type_scope)
+              std::shared_ptr<ScopeTable<TypeAlias>> current_type_scope,
+              std::vector<std::string> current_module)
       : is_global_level(is_global_level),
         current_scope(std::move(current_scope)),
-        current_type_scope(std::move(current_type_scope)){};
+        current_type_scope(std::move(current_type_scope)),
+        current_module(std::move(current_module)){};
 };
 
 class Parser {
   Tokenizer &tokenizer;
   ErrorManager &errorMan;
   ActiveScopes &scopes;
-
-public:
-  explicit Parser(Tokenizer &tokenizer, ErrorManager &errorMan,
-                  ActiveScopes &scopes)
-      : tokenizer(tokenizer), errorMan(errorMan), scopes(scopes){};
-
-  std::vector<std::unique_ptr<ast::Statement>>
-  parseProgram(const std::vector<std::string> &packageName);
 
   std::unique_ptr<ast::IntLiteral> parseIntLiteral(const ParserState &state);
 
@@ -67,6 +63,14 @@ public:
   bool expectEndStatement();
 
   std::unique_ptr<ast::ModuleDecl> parseModuleDecl(const ParserState &state);
+
+public:
+  explicit Parser(Tokenizer &tokenizer, ErrorManager &errorMan,
+                  ActiveScopes &scopes)
+      : tokenizer(tokenizer), errorMan(errorMan), scopes(scopes){};
+
+  std::vector<std::unique_ptr<ast::Node>>
+  parseProgram(const std::vector<std::string> &packageName);
 };
 } // namespace ovid
 

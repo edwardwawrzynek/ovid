@@ -31,6 +31,8 @@ template <class T, class S> class BaseASTVisitor {
 public:
   explicit BaseASTVisitor(T defaultValue) : defaultValue(defaultValue){};
   virtual T visitNode(Node &node, const S &state);
+  virtual std::vector<T>
+  visitNodes(const std::vector<std::unique_ptr<Node>> &nodes, const S &state);
 
   virtual ~BaseASTVisitor() = default;
 };
@@ -39,8 +41,6 @@ template <class T, class S>
 T BaseASTVisitor<T, S>::visitNode(Node &node, const S &state) {
   if (dynamic_cast<Statement *>(&node) != nullptr) {
     return visitStatement(dynamic_cast<Statement &>(node), state);
-  } else if (dynamic_cast<Expression *>(&node) != nullptr) {
-    return visitExpression(dynamic_cast<Expression &>(node), state);
   }
   assert(false);
 }
@@ -53,6 +53,8 @@ T BaseASTVisitor<T, S>::visitStatement(Statement &node, const S &state) {
     return visitFunctionDecl(dynamic_cast<FunctionDecl &>(node), state);
   } else if (dynamic_cast<ModuleDecl *>(&node)) {
     return visitModuleDecl(dynamic_cast<ModuleDecl &>(node), state);
+  } else if (dynamic_cast<Expression *>(&node) != nullptr) {
+    return visitExpression(dynamic_cast<Expression &>(node), state);
   }
   assert(false);
 }
@@ -116,6 +118,17 @@ T BaseASTVisitor<T, S>::visitIntLiteral(IntLiteral &node, const S &state) {
 template <class T, class S>
 T BaseASTVisitor<T, S>::visitTuple(Tuple &node, const S &state) {
   return defaultValue;
+}
+template <class T, class S>
+std::vector<T> BaseASTVisitor<T, S>::visitNodes(
+    const std::vector<std::unique_ptr<Node>> &nodes, const S &state) {
+  std::vector<T> res;
+
+  for (auto &n : nodes) {
+    res.push_back(visitNode(*n, state));
+  }
+
+  return res;
 }
 
 } // namespace ovid::ast

@@ -9,6 +9,7 @@
  * entries in the symbol tables
  * TODO: Additionally, it fully resolves all of the record type's internals, so
  * that they can be fully specified
+ * TODO: simplify some syntactical sugar
  */
 
 namespace ovid::ast {
@@ -20,6 +21,7 @@ class ResolvePass : public BaseASTVisitor<int, ResolvePassState> {
   ErrorManager &errorMan;
   ActiveScopes &scopes;
   const std::vector<std::string> &package;
+  std::vector<std::string> current_module;
 
   int visitVarDecl(VarDecl &node, const ResolvePassState &state) override;
   int visitFunctionDecl(FunctionDecl &node,
@@ -39,7 +41,7 @@ public:
   ResolvePass(ActiveScopes &scopes, ErrorManager &errorMan,
               const std::vector<std::string> &package);
 
-  ~ResolvePass() override;
+  void removePushedPackageScope();
 };
 
 } // namespace ovid::ast

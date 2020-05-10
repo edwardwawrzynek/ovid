@@ -12,12 +12,15 @@ static std::map<TokenType, int> opPrecedence = {
 
 bool Parser::isDoneParsing() { return tokenizer.curToken.token == T_EOF; }
 
-std::vector<std::unique_ptr<ast::Statement>>
+std::vector<std::unique_ptr<ast::Node>>
 Parser::parseProgram(const std::vector<std::string> &packageName) {
-  std::vector<std::unique_ptr<ast::Statement>> nodes;
-  // TODO: lookup scope by package name
-  ParserState state(true, scopes.names.getRootScope(),
-                    scopes.types.getRootScope());
+  std::vector<std::unique_ptr<ast::Node>> nodes;
+  // lookup active scope by package name
+  assert(scopes.names.getRootScope()->getScopeTable(packageName) != nullptr);
+  assert(scopes.types.getRootScope()->getScopeTable(packageName) != nullptr);
+  ParserState state(
+      true, scopes.names.getRootScope()->getScopeTable(packageName),
+      scopes.types.getRootScope()->getScopeTable(packageName), packageName);
   do {
     auto ast = parseStatement(state);
     if (ast)
@@ -292,7 +295,8 @@ Parser::parseFunctionDecl(const ParserState &state) {
   ast::ScopedBlock body(symbolTable);
   // the current type scope is copied, as function's can't contain type alias
   // declarations inside them
-  ParserState bodyState(false, symbolTable, state.current_type_scope);
+  ParserState bodyState(false, symbolTable, state.current_type_scope,
+                        state.current_module);
 
   while (tokenizer.curToken.token != T_RBRK) {
     auto stat = parseStatement(bodyState);
@@ -332,12 +336,30 @@ Parser::parseModuleDecl(const ParserState &state) {
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   tokenizer.nextToken();
 
-  ParserState newState(true, state.current_scope, state.current_type_scope);
+  ParserState newState(true, state.current_scope, state.current_type_scope,
+                       state.current_module);
 
   for (auto &name : names) {
-    newState.current_scope = newState.current_scope->addScopeTable(name);
-    newState.current_type_scope =
-        newState.current_type_scope->addScopeTable(name);
+    // if it doesn't exist already, add module table
+    auto existingNamesTable = newState.current_scope->getScopeTable(name);
+    auto existingTypesTable = newState.current_type_scope->getScopeTable(name);
+
+    // name and type hierarchies should match
+    assert((existingNamesTable == nullptr) == (existingTypesTable == nullptr));
+
+    if (existingNamesTable == nullptr) {
+      newState.current_scope = newState.current_scope->addScopeTable(name);
+    } else {
+      newState.current_scope = existingNamesTable;
+    }
+    if (existingTypesTable == nullptr) {
+      newState.current_type_scope =
+          newState.current_type_scope->addScopeTable(name);
+    } else {
+      newState.current_type_scope = existingTypesTable;
+    }
+
+    newState.current_module.push_back(name);
   }
 
   while (tokenizer.curToken.token != T_RBRK) {

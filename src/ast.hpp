@@ -34,13 +34,12 @@ public:
   ActiveScope<TypeAlias> types;
 
   // push a scope that is somewhere in the root table
-  void pushScopeByName(const std::vector<std::string> &module);
-  void pushScopeByName(const std::vector<std::string> &package,
-                       const std::vector<std::string> &module);
+  void pushComponentScopesByName(const std::vector<std::string> &module);
 
-  void popScopeByName(const std::vector<std::string> &module);
-  void popScopeByName(const std::vector<std::string> &package,
-                      const std::vector<std::string> &module);
+  // pop a scope that has been added and is somewhere in the root table
+  void popComponentScopesByName(const std::vector<std::string> &module);
+
+  ActiveScopes(const std::vector<std::string> &packageName);
 };
 } // namespace ovid
 

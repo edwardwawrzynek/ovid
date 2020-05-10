@@ -13,44 +13,35 @@ void ScopedBlock::addStatement(std::unique_ptr<Statement> statement) {
 } // namespace ovid::ast
 
 namespace ovid {
-void ActiveScopes::pushScopeByName(const std::vector<std::string> &package,
-                                   const std::vector<std::string> &module) {
-  assert(names.getRootScope()->getScopeTable(package)->getScopeTable(module) !=
-         nullptr);
-  assert(types.getRootScope()->getScopeTable(package)->getScopeTable(module) !=
-         nullptr);
+void ActiveScopes::pushComponentScopesByName(
+    const std::vector<std::string> &module) {
+  auto nTable =
+      names.pushComponentScopesByNameFromRoot(module, names.getRootScope());
+  auto tTable =
+      types.pushComponentScopesByNameFromRoot(module, types.getRootScope());
 
-  names.pushScope(
-      names.getRootScope()->getScopeTable(package)->getScopeTable(module));
-  types.pushScope(
-      types.getRootScope()->getScopeTable(package)->getScopeTable(module));
+  assert(nTable != nullptr);
+  assert(tTable != nullptr);
 }
 
-void ActiveScopes::pushScopeByName(const std::vector<std::string> &module) {
-  assert(names.getRootScope()->getScopeTable(module) != nullptr);
-  assert(types.getRootScope()->getScopeTable(module) != nullptr);
-  names.pushScope(names.getRootScope()->getScopeTable(module));
-  types.pushScope(types.getRootScope()->getScopeTable(module));
+void ActiveScopes::popComponentScopesByName(
+    const std::vector<std::string> &module) {
+  names.popComponentScopesByNameFromRoot(module, names.getRootScope());
+  types.popComponentScopesByNameFromRoot(module, types.getRootScope());
 }
 
-void ActiveScopes::popScopeByName(const std::vector<std::string> &package,
-                                  const std::vector<std::string> &module) {
-  assert(names.getRootScope()->getScopeTable(package)->getScopeTable(module) !=
-         nullptr);
-  assert(types.getRootScope()->getScopeTable(package)->getScopeTable(module) !=
-         nullptr);
+ActiveScopes::ActiveScopes(const std::vector<std::string> &packageName)
+    : names(), types() {
+  // add root scopes
+  names.pushScope(std::make_shared<ovid::ScopeTable<ovid::Symbol>>());
+  types.pushScope(std::make_shared<ovid::ScopeTable<ovid::TypeAlias>>());
 
-  names.popScope(
-      names.getRootScope()->getScopeTable(package)->getScopeTable(module));
-  types.popScope(
-      types.getRootScope()->getScopeTable(package)->getScopeTable(module));
-}
-
-void ActiveScopes::popScopeByName(const std::vector<std::string> &module) {
-  assert(names.getRootScope()->getScopeTable(module) != nullptr);
-  assert(types.getRootScope()->getScopeTable(module) != nullptr);
-
-  names.popScope(names.getRootScope()->getScopeTable(module));
-  types.popScope(types.getRootScope()->getScopeTable(module));
+  // add package scopes
+  auto curNameScope = names.getRootScope();
+  auto curTypeScope = types.getRootScope();
+  for (auto &scope : packageName) {
+    curNameScope = curNameScope->addScopeTable(scope);
+    curTypeScope = curTypeScope->addScopeTable(scope);
+  }
 }
 } // namespace ovid

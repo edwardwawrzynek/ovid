@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <functional>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <stack>
@@ -114,6 +115,8 @@ public:
   std::shared_ptr<ScopeTable<T>>
   getScopeTable(const std::vector<std::string> &scopes);
 
+  std::shared_ptr<ScopeTable<T>> getScopeTable(const std::string &scope);
+
   // add an empty scope with the given name
   std::shared_ptr<ScopeTable<T>> addScopeTable(const std::string &scope);
 
@@ -141,6 +144,12 @@ public:
 
 template <class T> SymbolTable<T> &ScopeTable<T>::getDirectScopeTable() {
   return *symbols;
+}
+
+template <class T>
+std::shared_ptr<ScopeTable<T>>
+ScopeTable<T>::getScopeTable(const std::string &scope) {
+  return this->scopes[scope];
 }
 
 template <class T>
@@ -235,6 +244,16 @@ public:
                                 const std::string &identifier,
                                 std::function<bool(const T &)> predicate);
 
+  // add a set of scope to the stack by a set of nested scope names based on a
+  // root scope
+  std::shared_ptr<ScopeTable<T>>
+  pushComponentScopesByNameFromRoot(const std::vector<std::string> &scopes,
+                                    const std::shared_ptr<ScopeTable<T>> &root);
+
+  void
+  popComponentScopesByNameFromRoot(const std::vector<std::string> &scopes,
+                                   const std::shared_ptr<ScopeTable<T>> &root);
+
   // get the root namespace scope (scope 0)
   std::shared_ptr<ScopeTable<T>> getRootScope();
 
@@ -287,6 +306,7 @@ ActiveScope<T>::findSymbol(const std::vector<std::string> &scope_names,
 
   return nullptr;
 }
+
 template <class T>
 std::shared_ptr<ScopeTable<T>> ActiveScope<T>::getRootScope() {
   assert(scopes.size() >= 1);
@@ -294,6 +314,38 @@ std::shared_ptr<ScopeTable<T>> ActiveScope<T>::getRootScope() {
 }
 template <class T> int ActiveScope<T>::getNumActiveScopes() {
   return scopes.size();
+}
+
+template <class T>
+std::shared_ptr<ScopeTable<T>>
+ActiveScope<T>::pushComponentScopesByNameFromRoot(
+    const std::vector<std::string> &scopes,
+    const std::shared_ptr<ScopeTable<T>> &root) {
+  // iterate through scopes and push
+  auto curTable = root;
+
+  for (auto &scope : scopes) {
+    auto newTable = curTable->getScopeTable(scope);
+    if (newTable == nullptr)
+      return nullptr;
+    pushScope(newTable);
+    curTable = newTable;
+  }
+
+  return curTable;
+}
+
+template <class T>
+void ActiveScope<T>::popComponentScopesByNameFromRoot(
+    const std::vector<std::string> &scopes,
+    const std::shared_ptr<ScopeTable<T>> &root) {
+
+  std::vector<std::string> mScopes(scopes);
+  // iterate backwards through scopes and pop
+  while (mScopes.size() > 0) {
+    popScope(root->getScopeTable(mScopes));
+    mScopes.pop_back();
+  }
 }
 
 } // namespace ovid

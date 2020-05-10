@@ -18,29 +18,24 @@ int main(int argc, char **argv) {
   auto lexer = ovid::Tokenizer(argv[1], &filein, errorMan);
   lexer.nextToken();
 
-  auto scopes = ovid::ActiveScopes();
-  // add root scopes
-  scopes.names.pushScope(std::make_shared<ovid::ScopeTable<ovid::Symbol>>());
-  scopes.types.pushScope(std::make_shared<ovid::ScopeTable<ovid::TypeAlias>>());
-  // add package namespaces
-  scopes.names.getRootScope()->addScopeTable("std")->addScopeTable("test");
+  std::vector<std::string> package;
+  package.emplace_back("std");
+  package.emplace_back("scope");
+  auto scopes = ovid::ActiveScopes(package);
 
   auto parser = ovid::Parser(lexer, errorMan, scopes);
 
-  std::vector<std::string> package;
-  package.emplace_back("std");
-  package.emplace_back("test");
-
   auto ast = parser.parseProgram(package);
 
-  auto a = ovid::ast::ResolvePass(scopes, errorMan, package);
-  a.visitNode(*ast[0], ovid::ast::ResolvePassState());
+  auto resolvePass = ovid::ast::ResolvePass(scopes, errorMan, package);
+  resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());
+  resolvePass.removePushedPackageScope();
 
   if (errorMan.errorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";
     return 1;
   } else {
-    std::cout << "\x1b[1;32mCompilation succeeded\n\x1b[m";
+    std::cout << "\x1b[1;32mcompilation succeeded\n\x1b[m";
     return 0;
   }
 }

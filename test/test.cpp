@@ -3,6 +3,7 @@
 #include "error.hpp"
 #include "symbols.hpp"
 #include "tokenizer.hpp"
+#include "ast.hpp"
 #include <sstream>
 #include <string>
 
@@ -150,4 +151,50 @@ TEST(BasicScopeTable, Symbols) {
                               [](int sym) { return sym == 10; }),
             10);
 }
+
+/* basic AciveScopes test (make sure nested + shadowed symbols work) */
+TEST(BasicActiveScopesTest, Symbols) {
+  std::vector<std::string> package;
+  package.emplace_back("s1");
+  package.emplace_back("s2");
+
+  auto scopes = ActiveScopes(package);
+
+  scopes.types.getRootScope()->addScopeTable("test1")->addScopeTable("test2");
+
+  auto table1 = scopes.names.getRootScope()->addScopeTable("test1");
+  table1->getDirectScopeTable().addSymbol("test", std::make_shared<Symbol>());
+
+  auto table2 = table1->addScopeTable("test2");
+  table2->getDirectScopeTable().addSymbol("test1", std::make_shared<Symbol>());
+
+  auto table3 = table1->addScopeTable("test3");
+  table3->getDirectScopeTable().addSymbol("test3", std::make_shared<Symbol>());
+
+  std::vector<std::string> mods;
+  mods.emplace_back("test1");
+  mods.emplace_back("test2");
+  scopes.pushComponentScopesByName(mods);
+
+  EXPECT_NE(scopes.names.findSymbol(std::vector<std::string>(), "test"), nullptr);
+  EXPECT_NE(scopes.names.findSymbol(std::vector<std::string>(), "test1"), nullptr);
+  EXPECT_EQ(scopes.names.findSymbol(std::vector<std::string>(), "test3"), nullptr);
+  EXPECT_NE(scopes.names.findSymbol(std::vector<std::string>(1, "test3"), "test3"), nullptr);
+}
+
+TEST(ActiveScopesDeathTest, Symbols) {
+  std::vector<std::string> package;
+  package.emplace_back("s1");
+  package.emplace_back("s2");
+
+  auto scopes = ActiveScopes(package);
+  scopes.types.getRootScope()->addScopeTable("test1")->addScopeTable("test2");
+  std::vector<std::string> mods;
+  mods.emplace_back("test1");
+  mods.emplace_back("test2");
+
+  // test1:test2 isn't in scopes.names
+  EXPECT_EXIT(scopes.pushComponentScopesByName(mods), ::testing::KilledBySignal(SIGABRT), "");
+}
+
 } // namespace ovid
