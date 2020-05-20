@@ -23,18 +23,18 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
                                               bool emitNewline) {
   didError = true;
   auto printType = errorTypeToPrintLevel(type);
-  std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":"
+  std::cerr << "\x1b[1m" << location.filename << ":" << location.row << ":"
             << location.col << ": ";
   if (printType == ErrorPrintLevel::Error)
-    std::cout << "\x1b[1;31merror: ";
+    std::cerr << "\x1b[1;31merror: ";
   else if (printType == ErrorPrintLevel::Warning)
-    std::cout << "\x1b[1;33mwarning: ";
+    std::cerr << "\x1b[1;33mwarning: ";
   else if (printType == ErrorPrintLevel::Note)
-    std::cout << "\x1b[1;36mnote: ";
+    std::cerr << "\x1b[1;36mnote: ";
 
-  std::cout << "\x1b[m";
-  std::cout << msg;
-  std::cout << "\n" << std::setw(5) << location.row << " |\x1b[m ";
+  std::cerr << "\x1b[m";
+  std::cerr << msg;
+  std::cerr << "\n" << std::setw(5) << location.row << " |\x1b[m ";
   location.file->clear();
   if (location.file) {
     /* save location */
@@ -47,29 +47,29 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
 
     std::string line;
     getline(*location.file, line);
-    std::cout << line << "\n      | \x1b[m";
+    std::cerr << line << "\n      | \x1b[m";
     for (int i = 0; i < location.col - 1; i++) {
       if (isspace(line[i]))
-        std::cout << line[i];
+        std::cerr << line[i];
       else
-        std::cout << ' ';
+        std::cerr << ' ';
     }
     if (printType == ErrorPrintLevel::Error)
-      std::cout << "\x1b[31;1m^";
+      std::cerr << "\x1b[31;1m^";
     else if (printType == ErrorPrintLevel::Warning)
-      std::cout << "\x1b[33;1m^";
+      std::cerr << "\x1b[33;1m^";
     else if (printType == ErrorPrintLevel::Note)
-      std::cout << "\x1b[36;1m^";
+      std::cerr << "\x1b[36;1m^";
 
-    std::cout << "\x1b[m\n";
+    std::cerr << "\x1b[m\n";
 
     location.file->seekg(oldLoc);
 
   } else {
-    std::cout << "[ Can't print source location ]\n";
+    std::cerr << "[ Can't print source location ]\n";
   }
   if (emitNewline)
-    std::cout << "\n";
+    std::cerr << "\n";
   return nullptr;
 }
 
@@ -102,16 +102,39 @@ std::nullptr_t TestErrorManager::logError(const std::string &msg,
 std::nullptr_t TestErrorManager::logError(const std::string &msg,
                                           const SourceLocation &location,
                                           ErrorType type, bool emitNewline) {
-  if (type != ErrorType::Note) {
-    errors.insert(type);
-  }
+  errors.emplace_back(type, msg, location.row, location.col);
   return nullptr;
 }
 
 bool TestErrorManager::errorOccurred() { return !errors.empty(); }
 
 bool TestErrorManager::errorOccurred(ErrorType type) {
-  return errors.count(type) > 0;
+  for(auto &e: errors) {
+    if(e.type == type)
+      return true;
+  }
+
+  return false;
+}
+
+std::vector<TestErrorRecord> TestErrorManager::getErrors() {
+  return errors;
+}
+
+std::string TestErrorManager::clearEscapeCodes(const std::string &msg) {
+  std::string res;
+
+  bool in_code = false;
+  for(auto &c: msg) {
+    if(c == '\x1b') { in_code = true;
+    }
+
+    if(!in_code) { res.push_back(c); }
+
+    if(in_code && c == 'm') { in_code = false; }
+  }
+
+  return res;
 }
 
 // convert a set of scopes and a name to a printable string

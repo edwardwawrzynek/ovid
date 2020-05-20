@@ -16,7 +16,6 @@ int main(int argc, char **argv) {
 
   auto errorMan = ovid::PrintingErrorManager();
   auto lexer = ovid::Tokenizer(argv[1], &filein, errorMan);
-  lexer.nextToken();
 
   std::vector<std::string> package;
   package.emplace_back("std");

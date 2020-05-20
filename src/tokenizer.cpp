@@ -315,4 +315,14 @@ Token Tokenizer::peekNextToken() {
 
   return res;
 }
+Tokenizer::Tokenizer(const std::string &filename, std::istream *file,
+                     ErrorManager &errorMan)
+
+  : putback_char('\0'), comment_nesting_level(0), line(1), pos_in_line(0),
+      file(file), errorMan(errorMan), curTokenLoc(filename, 1, 0, file),
+      doTokenPutback(false), locPutback(filename, 1, 0, file),
+      parenLevel(0){
+  nextToken();
+}
+
 } // namespace ovid

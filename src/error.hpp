@@ -40,6 +40,7 @@ struct SourceLocation {
  * Non fatal errors should be in more specific categories
  */
 enum class ErrorType {
+  NONE,
   Note,
   ParseError,
   NestedFunctionError,
@@ -86,9 +87,19 @@ public:
   ~PrintingErrorManager() override = default;
 };
 
+struct TestErrorRecord {
+  ErrorType type;
+  std::string message;
+  int row, col;
+
+  TestErrorRecord(ErrorType type,
+  const std::string& message,
+  int row, int col): type(type), message(message), row(row), col(col) {};
+};
+
 class TestErrorManager : public ErrorManager {
 private:
-  std::set<ErrorType> errors;
+  std::vector<TestErrorRecord> errors;
 
 public:
   std::nullptr_t logError(const std::string &msg,
@@ -100,6 +111,11 @@ public:
   bool errorOccurred() override;
 
   bool errorOccurred(ErrorType type);
+
+  std::vector<TestErrorRecord> getErrors();
+
+  // remove ANSI CSI escape codes from messages
+  std::string clearEscapeCodes(const std::string& msg);
 
   ~TestErrorManager() override = default;
 

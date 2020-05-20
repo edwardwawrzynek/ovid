@@ -1,2 +1,11 @@
 // __ovid_compiler_test
-//__mode:   compilea
+//__mode:           "compile"
+//__ignore_errors:
+
+module ovidc:test:test0 {
+    var := 1
+    fn sum(a i32, b i32) i32 {
+        a + b
+    }
+    var := 2 // __error: "redefinition of `ovidc_test:ovidc:test:test0:var`"
+}
