@@ -16,7 +16,7 @@ namespace ovid::ast {
 
 class ResolvePassState {};
 
-// the resolution pass doesn't have a type, it just modifies the ast
+// the resolution pass doesn't have a type, it just modifies the ast, so int is used as a stand in
 class ResolvePass : public BaseASTVisitor<int, ResolvePassState> {
   ErrorManager &errorMan;
   ActiveScopes &scopes;

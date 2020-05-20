@@ -348,6 +348,9 @@ void ActiveScope<T>::popComponentScopesByNameFromRoot(
   }
 }
 
+// convert a set of scopes and a name to a printable string
+std::string scopesAndNameToString(const std::vector<std::string> & scopes, const std::string & name);
+
 } // namespace ovid
 
 #endif

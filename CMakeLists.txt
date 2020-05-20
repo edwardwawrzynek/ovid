@@ -2,10 +2,17 @@ cmake_minimum_required(VERSION 3.15.3)
 project(ovid)
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(src/)
+include_directories(src/ test/)
 set(SOURCES src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp src/resolve_pass.cpp)
 set(DRIVER src/main.cpp)
-set(TESTS test/test.cpp)
+set(UNIT_TESTS test/test.cpp)
+set(TEST_FRAMEWORK test/tester.cpp)
+
+##################################
+# Compiler options
+add_definitions(-D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+set(CCFLAGS -Wall -Wextra -pedantic -g)
 
 ##################################
 # LLVM stuff
@@ -32,39 +39,32 @@ ExternalProject_Add(gtest
 ExternalProject_Get_Property(gtest source_dir binary_dir)
 
 ################
-# Test files
-add_executable(runTests ${SOURCES} ${TESTS})
+# Unit test files
+add_executable(runUnitTests ${SOURCES} ${UNIT_TESTS})
 
-######################################
-# Configure the test to use GoogleTest
-
-add_dependencies(runTests gtest)
+add_dependencies(runUnitTests gtest)
 include_directories(${source_dir}/googletest/include)
-target_link_libraries(runTests ${binary_dir}/lib/libgtest.a ${binary_dir}/lib/libgtest_main.a pthread)
+target_link_libraries(runUnitTests ${binary_dir}/lib/libgtest.a ${binary_dir}/lib/libgtest_main.a pthread)
 
-target_link_libraries(runTests ${REQ_LLVM_LIBRARIES})
+target_link_libraries(runUnitTests ${REQ_LLVM_LIBRARIES})
 
-target_compile_options(runTests PRIVATE -Wall -Wextra -pedantic -g)
-
-##################################
-# make the test runnable with
+target_compile_options(runUnitTests PRIVATE ${CCFLAGS})
 
 enable_testing()
-add_test(NAME    runTests
+add_test(NAME    runUnitTests
+        COMMAND runUnitTests)
+
+##################################
+# custom test framework
+
+add_executable(runTests ${SOURCES} ${TEST_FRAMEWORK})
+target_compile_options(runTests PRIVATE ${CCFLAGS})
+add_test(NAME runTests
         COMMAND runTests)
 
 ##################################
 # Main build
-# Compiler options
-add_definitions(-D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
-
 # Main executable
 add_executable(ovid ${SOURCES} ${DRIVER})
-target_compile_options(ovid PRIVATE -Wall -Wextra -pedantic -g)
-
-#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/local/share/llvm/cmake")
-
+target_compile_options(ovid PRIVATE ${CCFLAGS})
 target_link_libraries(ovid ${REQ_LLVM_LIBRARIES})

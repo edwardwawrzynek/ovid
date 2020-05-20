@@ -7,6 +7,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace ovid {
 
@@ -43,7 +44,8 @@ enum class ErrorType {
   ParseError,
   NestedFunctionError,
   DuplicateVarDeclare,
-  VarDeclareShadowed
+  VarDeclareShadowed,
+  UndeclaredIdentifier
 };
 
 enum class ErrorPrintLevel { Error, Warning, Note };
@@ -103,6 +105,9 @@ public:
 
   TestErrorManager() : errors(){};
 };
+
+// convert a set of scopes and a name to a printable string
+std::string scopesAndNameToString(const std::vector<std::string> & scopes, const std::string & name);
 } // namespace ovid
 
 #endif

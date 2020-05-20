@@ -1,16 +1,12 @@
 module test:core {
-    var := 3
     module plugins {
+        longType := var
         var := 1
-        longType := (2, a)
     }
 
     // test
     fn sum(a0 i32, a1 i32) mut i32 {
-        a := std:io:stdio:fd + 1 + 2 * 5
+        a := b
         b := 1 + 3
-        fn nested(test i32) i32 {
-            a := 1
-        }
     }
 }

@@ -19,7 +19,6 @@ void ActiveScopes::pushComponentScopesByName(
       names.pushComponentScopesByNameFromRoot(module, names.getRootScope());
   auto tTable =
       types.pushComponentScopesByNameFromRoot(module, types.getRootScope());
-
   assert(nTable != nullptr);
   assert(tTable != nullptr);
 }

@@ -34,7 +34,7 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
 
   std::cout << "\x1b[m";
   std::cout << msg;
-  std::cout << "\n\x1b[1;34m" << std::setw(5) << location.row << " |\x1b[m ";
+  std::cout << "\n" << std::setw(5) << location.row << " |\x1b[m ";
   location.file->clear();
   if (location.file) {
     /* save location */
@@ -47,7 +47,7 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
 
     std::string line;
     getline(*location.file, line);
-    std::cout << line << "\n\x1b[1;34m      | \x1b[m";
+    std::cout << line << "\n      | \x1b[m";
     for (int i = 0; i < location.col - 1; i++) {
       if (isspace(line[i]))
         std::cout << line[i];
@@ -113,4 +113,18 @@ bool TestErrorManager::errorOccurred() { return !errors.empty(); }
 bool TestErrorManager::errorOccurred(ErrorType type) {
   return errors.count(type) > 0;
 }
+
+// convert a set of scopes and a name to a printable string
+std::string scopesAndNameToString(const std::vector<std::string> & scopes, const std::string & name) {
+  std::string res;
+
+  for(auto &scope: scopes) {
+    res.append(scope);
+    res.push_back(':');
+  }
+  res.append(name);
+
+  return res;
+}
+
 } // namespace ovid

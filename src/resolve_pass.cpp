@@ -2,11 +2,32 @@
 
 namespace ovid::ast {
 
-int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {}
+int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
+  visitNode(*node.initialValue, state);
+  // lookup variable being declared, and mark as declared (only after inital
+  // value visited)
+  auto declaredSym =
+      scopes.names.findSymbol(std::vector<std::string>(), node.name);
+  assert(declaredSym != nullptr);
+  declaredSym->resolve_pass_declared_yet = true;
+
+  return 0;
+}
 
 int ResolvePass::visitFunctionDecl(FunctionDecl &node,
                                    const ResolvePassState &state) {
   // add this function's scope to the active scope stack
+  scopes.names.pushScope(node.body.symbols);
+
+  for (auto &child : node.body.statements) {
+    if (child != nullptr)
+      visitNode(*child, state);
+  }
+
+  // pop function's scope
+  scopes.names.popScope(node.body.symbols);
+
+  return 0;
 }
 
 int ResolvePass::visitModuleDecl(ModuleDecl &node,
@@ -28,13 +49,28 @@ int ResolvePass::visitModuleDecl(ModuleDecl &node,
   for (auto &scope : node.scope) {
     current_module.pop_back();
   }
+
+  return 0;
 }
 
 int ResolvePass::visitFunctionCall(FunctionCall &node,
                                    const ResolvePassState &state) {}
 
 int ResolvePass::visitIdentifier(Identifier &node,
-                                 const ResolvePassState &state) {}
+                                 const ResolvePassState &state) {
+  // only lookup declared identifiers
+  auto sym =
+      scopes.names.findSymbol(node.scope, node.id, [](const Symbol &s) -> bool {
+        return s.resolve_pass_declared_yet;
+      });
+
+  if(sym == nullptr) {
+    auto name = scopesAndNameToString(node.scope, node.id);
+    errorMan.logError(string_format("use of undeclared identifier `\x1b[1m%s\x1b[m`", name.c_str()), node.loc, ErrorType::UndeclaredIdentifier);
+  }
+
+  // TODO: somehow change node to refer to sym instead of scope/id strings (variant?)
+}
 
 int ResolvePass::visitOperatorSymbol(OperatorSymbol &node,
                                      const ResolvePassState &state) {}

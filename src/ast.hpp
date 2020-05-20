@@ -21,10 +21,18 @@ public:
   SourceLocation decl_loc;
   /* type of a the symbol */
   std::unique_ptr<ast::Type> type;
+  // if the declaration point has been reached in resolve_pass
+  // used to disallow using a local before declaration
+  // functions and globals are set declared when created
+  bool resolve_pass_declared_yet;
   /* TODO: escape analysis metadata and other information loaded from headers */
 
+  Symbol(SourceLocation decl_loc, bool resolve_pass_declared_yet)
+      : decl_loc(std::move(decl_loc)), type(), resolve_pass_declared_yet(resolve_pass_declared_yet) {};
+
   explicit Symbol(SourceLocation decl_loc)
-      : decl_loc(std::move(decl_loc)), type(){};
+      : decl_loc(std::move(decl_loc)), type(), resolve_pass_declared_yet(false) {};
+
 };
 /* a type alias and its metadata */
 struct TypeAlias {
@@ -49,7 +57,7 @@ public:
   // pop a scope that has been added and is somewhere in the root table
   void popComponentScopesByName(const std::vector<std::string> &module);
 
-  ActiveScopes(const std::vector<std::string> &packageName);
+  explicit ActiveScopes(const std::vector<std::string> &packageName);
 };
 } // namespace ovid
 
@@ -68,11 +76,11 @@ typedef std::vector<std::unique_ptr<Statement>> StatementList;
  *
  * This container is used for scopes inside of functions */
 class ScopedBlock {
+public:
   std::vector<std::unique_ptr<Statement>> statements;
   // type aliases can't be declared inside functions, so only name table needed
   std::shared_ptr<ScopeTable<Symbol>> symbols;
 
-public:
   ScopedBlock(std::vector<std::unique_ptr<Statement>> statements)
       : statements(std::move(statements)),
         symbols(std::make_shared<ScopeTable<Symbol>>()){};

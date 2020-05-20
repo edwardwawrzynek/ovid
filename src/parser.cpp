@@ -1,6 +1,8 @@
 #include "parser.hpp"
-#include "error.hpp"
+
 #include <map>
+
+#include "error.hpp"
 
 namespace ovid {
 
@@ -420,13 +422,16 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state) {
               scoped_name.c_str()),
           pos, ErrorType::VarDeclareShadowed, false);
       errorMan.logError(
-          string_format("shadowed definition of `\x1b[1m%s\x1b[m` here",
+          string_format("shadowed declaration of `\x1b[1m%s\x1b[m` here",
                         scoped_name.c_str()),
           shadowed->decl_loc, ErrorType::Note);
     }
     // add entry to symbol table
+
+    // if at global level, set the symbol to be valid before it's declaration for resolve pass
+    auto sym = std::make_shared<Symbol>(pos, state.is_global_level);
     state.current_scope->getDirectScopeTable().addSymbol(
-        name, std::make_shared<Symbol>(pos));
+        name, sym);
   }
 
   return std::make_unique<ast::VarDecl>(pos, name, std::move(initialVal));
