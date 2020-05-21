@@ -9,7 +9,7 @@
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    std::cerr << "usage: ovid source.ovd\n";
+    std::cout << "usage: ovid source.ovd\n";
     exit(1);
   }
   auto filein = std::fstream(argv[1]);

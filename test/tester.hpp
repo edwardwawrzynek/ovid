@@ -81,4 +81,7 @@ public:
   // actually test a program (0 for success, non zero on test failure)
   int run();
 };
+
+// run test instances on all files in a directory
+int testDirectory(const std::string& dirPath);
 }

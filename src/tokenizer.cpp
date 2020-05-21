@@ -198,6 +198,11 @@ void Tokenizer::nextToken() {
         curToken.float_literal *= -1;
     } else {
       putback(c);
+      if((c = next()) == '>') {
+        curToken.token = T_RIGHT_ARROW;
+      } else {
+        putback(c);
+      }
     }
     break;
   case '*':
@@ -271,7 +276,7 @@ void Tokenizer::nextToken() {
       do {
         curToken.ident += c;
         c = next();
-      } while (isalnum(c));
+      } while (isalnum(c) || c == '_');
       putback(c);
 
       /* check for keywords */

@@ -1,0 +1,12 @@
+// __ovid_compiler_test
+//__mode: compile
+//__ignore_errors:
+
+module test {
+    fn test(a i32, b i32) -> i32 {
+        test2(a) + b
+        fn test2(c i32) -> i32 { // __error: "functions cannot be nested in each other"
+            c
+        }
+    }
+}

@@ -38,6 +38,8 @@ enum TokenType {
   T_SEMICOLON = 20,
   T_COLON = 21,
 
+  T_RIGHT_ARROW = 22, /* ->, not => */
+
   T_IDENT = -2,
   T_INTLITERAL = -3,
   T_FLOATLITERAL = -4,

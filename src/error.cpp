@@ -23,18 +23,18 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
                                               bool emitNewline) {
   didError = true;
   auto printType = errorTypeToPrintLevel(type);
-  std::cerr << "\x1b[1m" << location.filename << ":" << location.row << ":"
+  std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":"
             << location.col << ": ";
   if (printType == ErrorPrintLevel::Error)
-    std::cerr << "\x1b[1;31merror: ";
+    std::cout << "\x1b[1;31merror: ";
   else if (printType == ErrorPrintLevel::Warning)
-    std::cerr << "\x1b[1;33mwarning: ";
+    std::cout << "\x1b[1;33mwarning: ";
   else if (printType == ErrorPrintLevel::Note)
-    std::cerr << "\x1b[1;36mnote: ";
+    std::cout << "\x1b[1;36mnote: ";
 
-  std::cerr << "\x1b[m";
-  std::cerr << msg;
-  std::cerr << "\n" << std::setw(5) << location.row << " |\x1b[m ";
+  std::cout << "\x1b[m";
+  std::cout << msg;
+  std::cout << "\n" << std::setw(5) << location.row << " |\x1b[m ";
   location.file->clear();
   if (location.file) {
     /* save location */
@@ -47,29 +47,29 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
 
     std::string line;
     getline(*location.file, line);
-    std::cerr << line << "\n      | \x1b[m";
+    std::cout << line << "\n      | \x1b[m";
     for (int i = 0; i < location.col - 1; i++) {
       if (isspace(line[i]))
-        std::cerr << line[i];
+        std::cout << line[i];
       else
-        std::cerr << ' ';
+        std::cout << ' ';
     }
     if (printType == ErrorPrintLevel::Error)
-      std::cerr << "\x1b[31;1m^";
+      std::cout << "\x1b[31;1m^";
     else if (printType == ErrorPrintLevel::Warning)
-      std::cerr << "\x1b[33;1m^";
+      std::cout << "\x1b[33;1m^";
     else if (printType == ErrorPrintLevel::Note)
-      std::cerr << "\x1b[36;1m^";
+      std::cout << "\x1b[36;1m^";
 
-    std::cerr << "\x1b[m\n";
+    std::cout << "\x1b[m\n";
 
     location.file->seekg(oldLoc);
 
   } else {
-    std::cerr << "[ Can't print source location ]\n";
+    std::cout << "[ Can't print source location ]\n";
   }
   if (emitNewline)
-    std::cerr << "\n";
+    std::cout << "\n";
   return nullptr;
 }
 

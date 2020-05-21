@@ -18,7 +18,6 @@ TEST(TokenizerTest, Tokens) {
   auto testError = TestErrorManager();
   Tokenizer tokenizer("test", &input, testError);
 
-  //tokenizer.nextToken();
   EXPECT_EQ(tokenizer.curToken.token, T_ADD);
   tokenizer.nextToken();
   EXPECT_EQ(tokenizer.curToken.token, T_SUB);
@@ -99,7 +98,6 @@ TEST(SemicolonInsertion, Tokens) {
   auto testError = TestErrorManager();
   Tokenizer tokenizer("test", &input, testError);
 
-  //tokenizer.nextToken();
   EXPECT_EQ(tokenizer.curToken.token, T_IDENT);
   tokenizer.nextToken();
   EXPECT_EQ(tokenizer.curToken.token, T_VARDECL);

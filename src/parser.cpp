@@ -17,10 +17,20 @@ bool Parser::isDoneParsing() const { return tokenizer.curToken.token == T_EOF; }
 std::vector<std::unique_ptr<ast::Node>> Parser::parseProgram() {
   std::vector<std::unique_ptr<ast::Node>> nodes;
   // lookup active scope by package name
-  assert(scopes.names.getRootScope()->getScopeTable(package) != nullptr);
-  assert(scopes.types.getRootScope()->getScopeTable(package) != nullptr);
-  ParserState state(true, scopes.names.getRootScope()->getScopeTable(package),
-                    scopes.types.getRootScope()->getScopeTable(package),
+  std::shared_ptr<ScopeTable<Symbol>> packageNameScope;
+  std::shared_ptr<ScopeTable<TypeAlias>> packageTypeScope;
+
+  if(package.empty()) {
+    packageNameScope = scopes.names.getRootScope();
+    packageTypeScope = scopes.types.getRootScope();
+  } else {
+    packageNameScope = scopes.names.getRootScope()->getScopeTable(package);
+    packageTypeScope = scopes.types.getRootScope()->getScopeTable(package);
+    assert(packageNameScope != nullptr && packageTypeScope != nullptr);
+  }
+
+  ParserState state(true, packageNameScope,
+                    packageTypeScope,
                     package);
   do {
     auto ast = parseStatement(state);
@@ -226,7 +236,7 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state) {
                            ErrorType::ParseError);
 }
 
-// functionproto ::= ident '(' (arg typeExpr ',')* arg typeExpr ')' typeExpr
+// functionproto ::= ident '(' (arg typeExpr ',')* arg typeExpr ')' '->' typeExpr
 std::unique_ptr<ast::FunctionPrototype>
 Parser::parseFunctionProto(const ParserState &state) {
   if (tokenizer.curToken.token != T_IDENT)
@@ -245,19 +255,29 @@ Parser::parseFunctionProto(const ParserState &state) {
 
   do {
     tokenizer.nextToken();
+    // if no arguments, break
+    if(tokenizer.curToken.token == T_RPAREN) break;
+
+    // read argument name
     if (tokenizer.curToken.token != T_IDENT)
       return errorMan.logError("Expected argument name", tokenizer.curTokenLoc,
                                ErrorType::ParseError);
     argNames.push_back(tokenizer.curToken.ident);
     tokenizer.nextToken();
+    // read types
     auto type = parseType(state);
     if (!type)
       return nullptr;
     argTypes.push_back(std::move(type));
   } while (tokenizer.curToken.token == T_COMMA);
+
   if (tokenizer.curToken.token != T_RPAREN)
     return errorMan.logError("Expected ')' or ',' in argument list",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
+  tokenizer.nextToken();
+  if(tokenizer.curToken.token != T_RIGHT_ARROW) {
+    return errorMan.logError("expected '->' after function argument list", tokenizer.curTokenLoc, ErrorType::ParseError);
+  }
   tokenizer.nextToken();
   auto retType = parseType(state);
 
@@ -418,7 +438,7 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state) {
 
       errorMan.logError(
           string_format(
-              "declaration of `\x1b[1m%s\x1b[m` shadows previous declaration",
+              "declaration of `\x1b[1m%s\x1b[m` shadows higher declaration",
               scoped_name.c_str()),
           pos, ErrorType::VarDeclareShadowed, false);
       errorMan.logError(
@@ -503,6 +523,7 @@ std::string Parser::getFullyScopedName(const std::string &name,
   }
   return scoped_name;
 }
+
 Parser::Parser(Tokenizer &tokenizer, ErrorManager &errorMan,
                ActiveScopes &scopes, const std::vector<std::string> &package)
     : tokenizer(tokenizer), errorMan(errorMan), scopes(scopes),

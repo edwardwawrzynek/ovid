@@ -7,7 +7,8 @@
 #include <cstdio>
 #include <iostream>
 #include <map>
-#include <cstring>
+#include <filesystem>
+#include <cstdlib>
 
 namespace ovid::tester {
 /* convert an error type string (eg :ParseError) to the appropriate ErrorType enum */
@@ -42,10 +43,10 @@ std::string TesterInstance::errorTypeToString(ErrorType type) {
 }
 
 void TesterInstance::doError(const std::string &message) {
-  std::cerr << "Ovid compiler test framework:\n";
-std::cerr << "A pre-compile error occurred in file " << filename << " before " << line << ":" << pos_in_line << ":\n\n";
-  std::cerr << message << "\n\n";
-  std::cerr << "Hint: this is probably due to a test program with malformed test annotation comments.\n";
+  std::cout << "Ovid compiler test framework:\n";
+std::cout << "A pre-compile error occurred in file " << filename << " before " << line << ":" << pos_in_line << ":\n\n";
+  std::cout << message << "\n\n";
+  std::cout << "Hint: this is probably due to a test program with malformed test annotation comments.\n";
   // TODO: only stop this test instance
   exit(1);
 }
@@ -220,7 +221,6 @@ int TesterInstance::run() {
   auto errorMan = ovid::TestErrorManager();
   auto lexer = ovid::Tokenizer(filename, &file, errorMan);
   std::vector<std::string> package;
-  package.emplace_back("ovidc_test");
   auto scopes = ovid::ActiveScopes(package);
   auto parser = ovid::Parser(lexer, errorMan, scopes, package);
   auto ast = parser.parseProgram();
@@ -262,7 +262,7 @@ int TesterInstance::run() {
     if(isExpected)
       continue;
 
-    std::cerr << "compile " << filename << ": an unexpected error occurred:\n";
+    std::cout << "compile " << filename << ": an unexpected error occurred:\n";
     // pretty print error
     auto loc = SourceLocation(filename, error.row, error.col, &file);
     ppErrorMan.logError(error.message, loc, error.type);
@@ -273,15 +273,15 @@ int TesterInstance::run() {
   for(int i = 0; i < expectedErrors.size(); i++) {
     auto &expected = expectedErrors[i];
     if(!foundExpected[i]) {
-      std::cerr << "an annotated error did not occur in test\nexpected error ";
+      std::cout << "an annotated error did not occur in test\nexpected error ";
       if(expected.type != ErrorType::NONE) {
-        std::cerr << errorTypeToString(expected.type);
+        std::cout << errorTypeToString(expected.type);
       }
       else {
-        std::cerr << "\"" << expected.message << "\"";
+        std::cout << "\"" << expected.message << "\"";
       }
 
-      std::cerr << " to occur on line " << expected.row << ", no such error occurred";
+      std::cout << " to occur on line " << expected.row << ", no such error occurred\n\n";
 
       failed = 1;
     }
@@ -297,11 +297,50 @@ void TesterInstance::putback(int c) {
   file.putback(c);
 }
 
+// run test instances on all files in a directory
+int testDirectory(const std::string& dirPath) {
+  int failed = 0;
+
+  std::cout << "\x1b[1m[ .... ]\x1b[m Starting the Ovid Compiler Test Framework on testsuite " << dirPath << "\n";
+
+  int numTests = 0;
+  for(auto& entry: std::filesystem::directory_iterator(dirPath)) {
+    numTests++;
+  }
+
+  std::cout << "         " << numTests << " tests to run\n\n";
+
+  for(auto& entry: std::filesystem::directory_iterator(dirPath)) {
+    std::cout << "\x1b[1m[ .... ]\x1b[m " << entry.path().string() << ": beginning test\n";
+
+    auto tester = TesterInstance(entry.path().string());
+    tester.readHeader();
+    auto res = tester.run();
+    if(res == 0) {
+      std::cout << "\x1b[1m[  \x1b[32mOK\x1b[0;1m  ]\x1b[m";
+    } else {
+      failed++;
+      std::cout << "\x1b[1m[ \x1b[31mFAIL\x1b[0;1m ]\x1b[m";
+    }
+
+    std::cout << " " << entry.path().string() << ": test " << ((res == 0) ? "passed" : "failed") << "\n\n";
+  }
+
+  if(failed > 0) {
+    std::cout << "\x1b[1m[ \x1b[31mFAIL\x1b[0;1m ]\x1b[m " << failed << "/" << numTests << " tests failed\n";
+  } else {
+    std::cout << "\x1b[1m[  \x1b[32mOK\x1b[0;1m  ]\x1b[m " << numTests << "/" << numTests << " tests passed\n";
+  }
+
+  return failed > 0 ? 1 : 0;
+}
+
 }
 
 int main() {
-  auto tester = ovid::tester::TesterInstance("../test/tests/test0.ovd");
-
-  tester.readHeader();
-  exit(tester.run());
+  const char* env_path = std::getenv("OVIDC_TESTSUITE_PATH");
+  if(env_path == nullptr) {
+    return ovid::tester::testDirectory("../test/tests");
+  }
+  return ovid::tester::testDirectory(env_path);
 }

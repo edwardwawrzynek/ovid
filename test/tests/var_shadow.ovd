@@ -1,0 +1,20 @@
+// __ovid_compiler_test
+//__mode: compile
+//__ignore_errors:
+
+module test0 {
+    /* this shadows the a declared at root scope */
+    a := 1 // __error: "declaration of `test0:a` shadows higher declaration"
+
+    module test1 {
+        a := 2 // __error: "declaration of `test0:test1:a` shadows higher declaration"
+        b := 1
+    }
+
+    fn test() -> i32 {
+        b := 2
+        a := 2 // __error: "declaration of `a` shadows higher declaration"
+    }
+}
+
+a := 3
