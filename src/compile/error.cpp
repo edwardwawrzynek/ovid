@@ -109,45 +109,57 @@ std::nullptr_t TestErrorManager::logError(const std::string &msg,
 bool TestErrorManager::errorOccurred() { return !errors.empty(); }
 
 bool TestErrorManager::errorOccurred(ErrorType type) {
-  for(auto &e: errors) {
-    if(e.type == type)
+  for (auto &e : errors) {
+    if (e.type == type)
       return true;
   }
 
   return false;
 }
 
-std::vector<TestErrorRecord> TestErrorManager::getErrors() {
-  return errors;
-}
+std::vector<TestErrorRecord> TestErrorManager::getErrors() { return errors; }
 
 std::string TestErrorManager::clearEscapeCodes(const std::string &msg) {
   std::string res;
 
   bool in_code = false;
-  for(auto &c: msg) {
-    if(c == '\x1b') { in_code = true;
+  for (auto &c : msg) {
+    if (c == '\x1b') {
+      in_code = true;
     }
 
-    if(!in_code) { res.push_back(c); }
+    if (!in_code) {
+      res.push_back(c);
+    }
 
-    if(in_code && c == 'm') { in_code = false; }
+    if (in_code && c == 'm') {
+      in_code = false;
+    }
   }
 
   return res;
 }
 
 // convert a set of scopes and a name to a printable string
-std::string scopesAndNameToString(const std::vector<std::string> & scopes, const std::string & name) {
+std::string scopesAndNameToString(const std::vector<std::string> &scopes,
+                                  const std::string &name, bool is_global) {
+  if (!is_global)
+    return name;
+
   std::string res;
 
-  for(auto &scope: scopes) {
+  for (auto &scope : scopes) {
     res.append(scope);
     res.push_back(':');
   }
   res.append(name);
 
   return res;
+}
+
+std::string scopesAndNameToString(const std::vector<std::string> &scopes,
+                                  const std::string &name) {
+  return scopesAndNameToString(scopes, name, true);
 }
 
 } // namespace ovid

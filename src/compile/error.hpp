@@ -92,9 +92,8 @@ struct TestErrorRecord {
   std::string message;
   int row, col;
 
-  TestErrorRecord(ErrorType type,
-  const std::string& message,
-  int row, int col): type(type), message(message), row(row), col(col) {};
+  TestErrorRecord(ErrorType type, const std::string &message, int row, int col)
+      : type(type), message(message), row(row), col(col){};
 };
 
 class TestErrorManager : public ErrorManager {
@@ -115,7 +114,7 @@ public:
   std::vector<TestErrorRecord> getErrors();
 
   // remove ANSI CSI escape codes from messages
-  std::string clearEscapeCodes(const std::string& msg);
+  std::string clearEscapeCodes(const std::string &msg);
 
   ~TestErrorManager() override = default;
 
@@ -123,7 +122,11 @@ public:
 };
 
 // convert a set of scopes and a name to a printable string
-std::string scopesAndNameToString(const std::vector<std::string> & scopes, const std::string & name);
+std::string scopesAndNameToString(const std::vector<std::string> &scopes,
+                                  const std::string &name);
+
+std::string scopesAndNameToString(const std::vector<std::string> &scopes,
+                                  const std::string &name, bool is_global);
 } // namespace ovid
 
 #endif

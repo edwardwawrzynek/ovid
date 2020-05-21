@@ -1,25 +1,30 @@
 #include "error.hpp"
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 /** Test framework for the ovid compiler:
- * the framework allows the compiler's behavior to be verified on test ovid programs
+ * the framework allows the compiler's behavior to be verified on test ovid
+ * programs
  *
  * Each program in the test framework must star with the header:
  * //__ovid_compiler_test
  * //__mode: xxx (one of compile, run, run_check_output)
- * //__ignore_errors: x y z ... (a list of error types, such as :ParseError, etc)
+ * //__ignore_errors: x y z ... (a list of error types, such as :ParseError,
+ * etc)
  *
  * Modes:
- * compile - just compile the program. If the compiler aborts, test fails. If the compiler raises an error not in the __ignore_errors list, and that error isn't expected (see below), test fails
- * run - same as compile, but makes sure program runs without aborting
- * run_check_output - same as run, but makes sure program output matches output specified in file TODO
+ * compile - just compile the program. If the compiler aborts, test fails. If
+ * the compiler raises an error not in the __ignore_errors list, and that error
+ * isn't expected (see below), test fails run - same as compile, but makes sure
+ * program runs without aborting run_check_output - same as run, but makes sure
+ * program output matches output specified in file TODO
  *
  * Expecting errors:
  * tests can be annotated to indicate expected errors, such as:
  *      var := a + b // __error: :UndeclaredIdentifier :UndeclaredIdentifier
  *  or:
- *      var := a + n // __error: "use of undeclared identifier `a`" "use of undeclared identifier `b`:
+ *      var := a + n // __error: "use of undeclared identifier `a`" "use of
+ * undeclared identifier `b`:
  */
 
 namespace ovid::tester {
@@ -27,11 +32,10 @@ namespace ovid::tester {
  * Types of test to perform
  * Compile - just compile the program and verify errors
  * Run - Compile + run output and make sure it doesn't abort
- * RunCheckOutput - Run + check output from run matches expected output in file TODO
+ * RunCheckOutput - Run + check output from run matches expected output in file
+ * TODO
  */
-enum class TestMode {
-  Compile, Run, RunCheckOutput
-};
+enum class TestMode { Compile, Run, RunCheckOutput };
 
 class TesterInstance {
 
@@ -60,8 +64,8 @@ class TesterInstance {
 
   void putback(int c);
 
-  // read a token (section of characters, followed by space, or section in quotes)
-  // won't read across newlines
+  // read a token (section of characters, followed by space, or section in
+  // quotes) won't read across newlines
   std::string readToken();
 
   // read to a comment (//), and stop after it
@@ -69,11 +73,11 @@ class TesterInstance {
   int readToComment();
 
   /* emit a fatal error (not a test failure, something else -- deformed config,
- * etc) */
-  void doError(const std::string & message);
+   * etc) */
+  void doError(const std::string &message);
 
 public:
-  TesterInstance(const std::string & filename);
+  TesterInstance(const std::string &filename);
 
   // read in header information (check magic header, read mode)
   void readHeader();
@@ -83,5 +87,5 @@ public:
 };
 
 // run test instances on all files in a directory
-int testDirectory(const std::string& dirPath);
-}
+int testDirectory(const std::string &dirPath);
+} // namespace ovid::tester

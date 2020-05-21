@@ -58,7 +58,8 @@ class Parser {
   std::unique_ptr<ast::Statement> parseFunctionDecl(const ParserState &state);
 
   std::unique_ptr<ast::FunctionPrototype>
-  parseFunctionProto(const ParserState &state, std::vector<SourceLocation> *argLocs);
+  parseFunctionProto(const ParserState &state,
+                     std::vector<SourceLocation> *argLocs);
 
   std::unique_ptr<ast::Type> parseType(const ParserState &state);
 

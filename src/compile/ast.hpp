@@ -28,11 +28,12 @@ public:
   /* TODO: escape analysis metadata and other information loaded from headers */
 
   Symbol(SourceLocation decl_loc, bool resolve_pass_declared_yet)
-      : decl_loc(std::move(decl_loc)), type(), resolve_pass_declared_yet(resolve_pass_declared_yet) {};
+      : decl_loc(std::move(decl_loc)), type(),
+        resolve_pass_declared_yet(resolve_pass_declared_yet){};
 
   explicit Symbol(SourceLocation decl_loc)
-      : decl_loc(std::move(decl_loc)), type(), resolve_pass_declared_yet(false) {};
-
+      : decl_loc(std::move(decl_loc)), type(),
+        resolve_pass_declared_yet(false){};
 };
 /* a type alias and its metadata */
 struct TypeAlias {

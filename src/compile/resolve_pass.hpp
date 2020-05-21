@@ -16,12 +16,14 @@ namespace ovid::ast {
 
 class ResolvePassState {};
 
-// the resolution pass doesn't have a type, it just modifies the ast, so int is used as a stand in
+// the resolution pass doesn't have a type, it just modifies the ast, so int is
+// used as a stand in
 class ResolvePass : public BaseASTVisitor<int, ResolvePassState> {
   ErrorManager &errorMan;
   ActiveScopes &scopes;
   const std::vector<std::string> &package;
   std::vector<std::string> current_module;
+  bool is_in_global;
 
   int visitVarDecl(VarDecl &node, const ResolvePassState &state) override;
   int visitFunctionDecl(FunctionDecl &node,
@@ -36,6 +38,13 @@ class ResolvePass : public BaseASTVisitor<int, ResolvePassState> {
   int visitAssignment(Assignment &node, const ResolvePassState &state) override;
   int visitIntLiteral(IntLiteral &node, const ResolvePassState &state) override;
   int visitTuple(Tuple &node, const ResolvePassState &state) override;
+
+  // check if a variable in the current scope is shadowed, and print an error if
+  // it is name is the name of the variable, predicate is passed to
+  // ActiveScope.findSymbol
+  bool checkShadowed(const SourceLocation &pos, const std::string &name,
+                     std::function<bool(const Symbol &)> predicate,
+                     bool is_arg);
 
 public:
   ResolvePass(ActiveScopes &scopes, ErrorManager &errorMan,

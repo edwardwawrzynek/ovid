@@ -227,11 +227,12 @@ public:
   void pushScope(std::shared_ptr<ScopeTable<T>> scope);
 
   // remove the most recently push scope from the stack
-  void popScope();
+  std::shared_ptr<ScopeTable<T>> popScope();
 
   // remove the most recently pushed scope from the stack, and assert it is the
   // expected scope
-  void popScope(const std::shared_ptr<ScopeTable<T>> &expected);
+  std::shared_ptr<ScopeTable<T>>
+  popScope(const std::shared_ptr<ScopeTable<T>> &expected);
 
   // search the scope top down for the first symbol with the given scope and
   // name. Returns nullptr if not found
@@ -268,12 +269,21 @@ void ActiveScope<T>::pushScope(std::shared_ptr<ScopeTable<T>> scope) {
   scopes.push_back(scope);
 }
 
-template <class T> void ActiveScope<T>::popScope() { scopes.pop_back(); }
+template <class T> std::shared_ptr<ScopeTable<T>> ActiveScope<T>::popScope() {
+  auto scope = scopes.back();
+  scopes.pop_back();
+  return scope;
+}
 
 template <class T>
-void ActiveScope<T>::popScope(const std::shared_ptr<ScopeTable<T>> &expected) {
-  assert(scopes.back().get() == expected.get());
+std::shared_ptr<ScopeTable<T>>
+ActiveScope<T>::popScope(const std::shared_ptr<ScopeTable<T>> &expected) {
+  auto scope = scopes.back();
+
+  assert(scope.get() == expected.get());
   scopes.pop_back();
+
+  return scope;
 }
 
 template <class T>
@@ -349,7 +359,8 @@ void ActiveScope<T>::popComponentScopesByNameFromRoot(
 }
 
 // convert a set of scopes and a name to a printable string
-std::string scopesAndNameToString(const std::vector<std::string> & scopes, const std::string & name);
+std::string scopesAndNameToString(const std::vector<std::string> &scopes,
+                                  const std::string &name);
 
 } // namespace ovid
 
