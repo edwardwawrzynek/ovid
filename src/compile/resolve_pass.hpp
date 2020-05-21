@@ -7,7 +7,7 @@
  * The name resolution pass on the AST
  * the pass visits each ast node, and resolves all identifiers to references to
  * entries in the symbol tables
- * TODO: Additionally, it fully resolves all of the record type's internals, so
+ * TODO: Additionally, it fully resolves all of the record types' internals, so
  * that they can be fully specified
  * TODO: simplify some syntactical sugar
  */

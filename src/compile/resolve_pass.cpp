@@ -11,6 +11,8 @@ int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
   assert(declaredSym != nullptr);
   declaredSym->resolve_pass_declared_yet = true;
 
+  // TODO: change node from refering to name to refer to symbol
+
   return 0;
 }
 
@@ -18,6 +20,14 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
                                    const ResolvePassState &state) {
   // add this function's scope to the active scope stack
   scopes.names.pushScope(node.body.symbols);
+
+  // mark arguments as declared
+  for(auto &name: node.proto->argNames) {
+    auto sym = node.body.symbols->getDirectScopeTable().findSymbol(name);
+    assert(sym != nullptr);
+    // TODO: change arguments from referring to names to refer to symbols
+    sym->resolve_pass_declared_yet = true;
+  }
 
   for (auto &child : node.body.statements) {
     if (child != nullptr)

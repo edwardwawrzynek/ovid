@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.15.3)
 project(ovid)
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(src/ test/)
-set(SOURCES src/parser.cpp src/tokenizer.cpp src/error.cpp src/ast.cpp src/resolve_pass.cpp)
-set(DRIVER src/main.cpp)
-set(UNIT_TESTS test/test.cpp)
-set(TEST_FRAMEWORK test/tester.cpp)
+include_directories(src/compile src/test)
+set(SOURCES src/compile/parser.cpp src/compile/tokenizer.cpp src/compile/error.cpp src/compile/ast.cpp src/compile/resolve_pass.cpp)
+set(DRIVER src/compile/main.cpp)
+set(UNIT_TESTS src/test/misc_unit.cpp)
+set(TEST_FRAMEWORK src/test/tester.cpp)
 
 ##################################
 # Compiler options

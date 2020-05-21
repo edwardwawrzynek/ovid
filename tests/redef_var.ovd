@@ -5,17 +5,17 @@
 module ovidc:test:redef_var {
     var := 1
     a := 1
-    var := 2 // __error: "redefinition of `ovidc:test:redef_var:var`"
+    var := 2 // __error: "redeclaration of `ovidc:test:redef_var:var`"
 }
 
 module ovidc:test {
     module redef_var {
-        a := 2 // __error: "redefinition of `ovidc:test:redef_var:a`"
+        a := 2 // __error: "redeclaration of `ovidc:test:redef_var:a`"
     }
 
     fn test() -> i32 {
         b := 1
         a + b
-        b := 2 // __error: "redefinition of `b`"
+        b := 2 // __error: "redeclaration of `b`"
     }
 }

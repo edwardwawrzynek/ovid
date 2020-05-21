@@ -1,9 +1,0 @@
-// __ovid_compiler_test
-//__mode: compile
-//__ignore_errors:
-
-module test {
-    fn test(var i32) -> i32 {
-        var // __error: "use of undeclared identifier `var`"
-    }
-}

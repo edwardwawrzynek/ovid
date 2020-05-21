@@ -340,7 +340,7 @@ int testDirectory(const std::string& dirPath) {
 int main() {
   const char* env_path = std::getenv("OVIDC_TESTSUITE_PATH");
   if(env_path == nullptr) {
-    return ovid::tester::testDirectory("../test/tests");
+    return ovid::tester::testDirectory("../tests");
   }
   return ovid::tester::testDirectory(env_path);
 }

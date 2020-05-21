@@ -26,7 +26,7 @@ std::vector<std::unique_ptr<ast::Node>> Parser::parseProgram() {
   } else {
     packageNameScope = scopes.names.getRootScope()->getScopeTable(package);
     packageTypeScope = scopes.types.getRootScope()->getScopeTable(package);
-    assert(packageNameScope != nullptr && packageTypeScope != nullptr);
+    assert(packageNameScope && packageTypeScope);
   }
 
   ParserState state(true, packageNameScope,
@@ -237,8 +237,9 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state) {
 }
 
 // functionproto ::= ident '(' (arg typeExpr ',')* arg typeExpr ')' '->' typeExpr
+// argLocs is an empty vector to put the location of each arg declare in. If null, ignored
 std::unique_ptr<ast::FunctionPrototype>
-Parser::parseFunctionProto(const ParserState &state) {
+Parser::parseFunctionProto(const ParserState &state, std::vector<SourceLocation> *argLocs) {
   if (tokenizer.curToken.token != T_IDENT)
     return errorMan.logError("Expected function name", tokenizer.curTokenLoc,
                              ErrorType::ParseError);
@@ -263,6 +264,7 @@ Parser::parseFunctionProto(const ParserState &state) {
       return errorMan.logError("Expected argument name", tokenizer.curTokenLoc,
                                ErrorType::ParseError);
     argNames.push_back(tokenizer.curToken.ident);
+    if(argLocs) argLocs->push_back(tokenizer.curTokenLoc);
     tokenizer.nextToken();
     // read types
     auto type = parseType(state);
@@ -303,7 +305,8 @@ Parser::parseFunctionDecl(const ParserState &state) {
   // consume 'fn'
   tokenizer.nextToken();
   // get function prototype
-  auto proto = parseFunctionProto(state);
+  std::vector<SourceLocation> argLocs;
+  auto proto = parseFunctionProto(state, &argLocs);
   if (!proto)
     return nullptr;
 
@@ -321,6 +324,15 @@ Parser::parseFunctionDecl(const ParserState &state) {
                         state.current_module);
   // add module scope to active scope stack
   scopes.names.pushScope(state.current_scope);
+
+  // add entries in symbol table for arguments
+  for(size_t i = 0; i < proto->argNames.size(); i++) {
+    auto& arg = proto->argNames[i];
+    auto& loc = argLocs[i];
+
+    auto sym = std::make_shared<Symbol>(loc, false);
+    bodyState.current_scope->getDirectScopeTable().addSymbol(arg, sym);
+  }
 
   while (tokenizer.curToken.token != T_RBRK) {
     auto stat = parseStatement(bodyState);
@@ -420,20 +432,20 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state) {
 
   // make sure symbol wasn't already in table
   auto existing = state.current_scope->getDirectScopeTable().findSymbol(name);
-  if (existing != nullptr) {
+  if (existing) {
     auto scoped_name = getFullyScopedName(name, state);
 
     errorMan.logError(
-        string_format("redefinition of `\x1b[1m%s\x1b[m`", scoped_name.c_str()),
+        string_format("redeclaration of `\x1b[1m%s\x1b[m`", scoped_name.c_str()),
         pos, ErrorType::DuplicateVarDeclare, false);
     errorMan.logError(
-        string_format("previous definition of `\x1b[1m%s\x1b[m` here",
+        string_format("previous declaration of `\x1b[1m%s\x1b[m` here",
                       scoped_name.c_str()),
         existing->decl_loc, ErrorType::Note);
   } else {
     // check if name was shadowed
     auto shadowed = scopes.names.findSymbol(std::vector<std::string>(), name);
-    if (shadowed != nullptr) {
+    if (shadowed) {
       auto scoped_name = getFullyScopedName(name, state);
 
       errorMan.logError(
