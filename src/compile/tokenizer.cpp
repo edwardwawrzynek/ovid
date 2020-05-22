@@ -296,6 +296,8 @@ void Tokenizer::nextToken() {
         curToken.token = T_IMPORT;
       } else if (curToken.ident == "return") {
         curToken.token = T_RETURN;
+      } else if (curToken.ident == "pub") {
+        curToken.token = T_PUB;
       }
     } else {
       curToken.token = T_UNKNOWN;
@@ -320,12 +322,13 @@ Token Tokenizer::peekNextToken() {
 
   return res;
 }
+
 Tokenizer::Tokenizer(const std::string &filename, std::istream *file,
                      ErrorManager &errorMan)
-
     : putback_char('\0'), comment_nesting_level(0), line(1), pos_in_line(0),
-      file(file), errorMan(errorMan), curTokenLoc(filename, 1, 0, file),
-      doTokenPutback(false), locPutback(filename, 1, 0, file), parenLevel(0) {
+      file(file), errorMan(errorMan), curToken(),
+      curTokenLoc(filename, 1, 0, file), doTokenPutback(false),
+      locPutback(filename, 1, 0, file), parenLevel(0) {
   nextToken();
 }
 

@@ -46,7 +46,9 @@ enum class ErrorType {
   NestedFunctionError,
   DuplicateVarDeclare,
   VarDeclareShadowed,
-  UndeclaredIdentifier
+  UndeclaredIdentifier,
+  MutOnRootOfType,
+  PublicSymInPrivateMod,
 };
 
 enum class ErrorPrintLevel { Error, Warning, Note };

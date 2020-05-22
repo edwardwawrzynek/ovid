@@ -21,18 +21,25 @@ public:
   SourceLocation decl_loc;
   /* type of a the symbol */
   std::unique_ptr<ast::Type> type;
+  /* if the symbol is exported out of it's module or not */
+  bool is_public;
   // if the declaration point has been reached in resolve_pass
   // used to disallow using a local before declaration
   // functions and globals are set declared when created
   bool resolve_pass_declared_yet;
   /* TODO: escape analysis metadata and other information loaded from headers */
 
-  Symbol(SourceLocation decl_loc, bool resolve_pass_declared_yet)
-      : decl_loc(std::move(decl_loc)), type(),
+  Symbol(SourceLocation decl_loc, bool is_public,
+         bool resolve_pass_declared_yet)
+      : decl_loc(std::move(decl_loc)), type(), is_public(is_public),
         resolve_pass_declared_yet(resolve_pass_declared_yet){};
 
-  explicit Symbol(SourceLocation decl_loc)
-      : decl_loc(std::move(decl_loc)), type(),
+  Symbol(SourceLocation decl_loc, bool is_public)
+      : decl_loc(std::move(decl_loc)), type(), is_public(is_public),
+        resolve_pass_declared_yet(false){};
+
+  Symbol(SourceLocation decl_loc)
+      : decl_loc(std::move(decl_loc)), type(), is_public(false),
         resolve_pass_declared_yet(false){};
 };
 /* a type alias and its metadata */
@@ -130,6 +137,13 @@ public:
   MutType(std::unique_ptr<Type> type) : type(std::move(type)){};
 
   Type *withoutMutability() override;
+};
+
+class PointerType : public Type {
+public:
+  std::unique_ptr<Type> type;
+
+  PointerType(std::unique_ptr<Type> type) : type(std::move(type)){};
 };
 
 class FunctionType : public Type {

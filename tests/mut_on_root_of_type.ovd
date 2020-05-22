@@ -1,0 +1,9 @@
+// __ovid_compiler_test
+//__mode: compile
+//__ignore_errors:
+
+module test {
+    fn test(a i32, b i32) -> mut i32 {} // __error: :MutOnRootOfType
+    fn test2(a mut i32) -> i32 {} // __error: :MutOnRootOfType
+    fn test3(a *mut i32) -> *mut i32 {}
+}

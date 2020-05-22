@@ -29,7 +29,7 @@ std::vector<std::unique_ptr<ast::Node>> Parser::parseProgram() {
     assert(packageNameScope && packageTypeScope);
   }
 
-  ParserState state(true, packageNameScope, packageTypeScope, package);
+  ParserState state(true, packageNameScope, packageTypeScope, package, false);
   do {
     auto ast = parseStatement(state);
     if (ast)
@@ -195,15 +195,35 @@ Parser::parseBinOpRight(const ParserState &state, int exprPrec,
 }
 
 // typeExpr ::= 'i8' | 'u8' | ... | 'string'
-// typeExpr ::= 'mut' typeExpr
+// typeExpr ::= '*' typeExpr
+// typeExpr ::= 'mut' typeExpr (not at root level)
 std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state) {
+  return parseType(state, true);
+}
+
+std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
+                                             bool is_root_of_type) {
   if (tokenizer.curToken.token == T_MUT) {
+    // a type with root level mutability (eg mut i32) is invalid -- root
+    // mutability is about binding, not type a type like (* mut i32) is valid
+    if (is_root_of_type) {
+      errorMan.logError(
+          "a mutability modifier can't be specified as the root of a type "
+          "(root level mutability should be specified on binding, not type)",
+          tokenizer.curTokenLoc, ErrorType::MutOnRootOfType);
+    }
+
     tokenizer.nextToken();
-    return std::make_unique<ast::MutType>(parseType(state));
+    return std::make_unique<ast::MutType>(parseType(state, false));
   }
-  if (tokenizer.curToken.token != T_IDENT)
+  if (tokenizer.curToken.token == T_STAR) {
+    tokenizer.nextToken();
+    return std::make_unique<ast::PointerType>(parseType(state, false));
+  }
+  if (tokenizer.curToken.token != T_IDENT) {
     return errorMan.logError("Expected a type expression",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
+  }
   auto type = tokenizer.curToken.ident;
   auto loc = tokenizer.curTokenLoc;
   tokenizer.nextToken();
@@ -293,8 +313,12 @@ Parser::parseFunctionProto(const ParserState &state,
 }
 
 std::unique_ptr<ast::Statement>
-Parser::parseFunctionDecl(const ParserState &state) {
+Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   auto pos = tokenizer.curTokenLoc;
+
+  if(is_public && state.in_private_mod) {
+    errorMan.logError("pub function cannot be declared inside a non-pub module", pos, ErrorType::PublicSymInPrivateMod);
+  }
 
   // no nested functions
   bool did_error = false;
@@ -324,7 +348,7 @@ Parser::parseFunctionDecl(const ParserState &state) {
   // the current type scope is copied, as function's can't contain type alias
   // declarations inside them
   ParserState bodyState(false, symbolTable, state.current_type_scope,
-                        state.current_module);
+                        state.current_module, state.in_private_mod);
   // add module scope to active scope stack
   scopes.names.pushScope(state.current_scope);
 
@@ -333,7 +357,7 @@ Parser::parseFunctionDecl(const ParserState &state) {
     auto &arg = proto->argNames[i];
     auto &loc = argLocs[i];
 
-    auto sym = std::make_shared<Symbol>(loc, false);
+    auto sym = std::make_shared<Symbol>(loc, is_public, false);
     bodyState.current_scope->getDirectScopeTable().addSymbol(arg, sym);
   }
 
@@ -357,11 +381,15 @@ Parser::parseFunctionDecl(const ParserState &state) {
 
 // module ::= 'module' identifier (':' identifier)* '{' statement* '}'
 std::unique_ptr<ast::ModuleDecl>
-Parser::parseModuleDecl(const ParserState &state) {
+Parser::parseModuleDecl(const ParserState &state, bool is_public) {
   std::vector<std::string> names;
   ast::StatementList body;
-
   auto pos = tokenizer.curTokenLoc;
+
+  if(is_public && state.in_private_mod) {
+    errorMan.logError("pub module cannot be declared inside a non-pub module", pos, ErrorType::PublicSymInPrivateMod);
+  }
+
   do {
     // on first iteration, consume 'module'
     tokenizer.nextToken();
@@ -378,7 +406,7 @@ Parser::parseModuleDecl(const ParserState &state) {
   tokenizer.nextToken();
 
   ParserState newState(true, state.current_scope, state.current_type_scope,
-                       state.current_module);
+                       state.current_module, !is_public);
 
   for (auto &name : names) {
     // if it doesn't exist already, add module table
@@ -423,7 +451,12 @@ Parser::parseModuleDecl(const ParserState &state) {
 }
 
 // vardecl ::= identifier := expr
-std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state) {
+std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state, bool is_public) {
+
+  if(is_public && state.in_private_mod) {
+    errorMan.logError("pub variable cannot be declared inside a non-pub module", tokenizer.curTokenLoc, ErrorType::PublicSymInPrivateMod);
+  }
+
   auto pos = tokenizer.curTokenLoc;
   auto name = tokenizer.curToken.ident;
   tokenizer.nextToken();
@@ -450,7 +483,7 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state) {
 
     // if at global level, set the symbol to be valid before it's declaration
     // for resolve pass
-    auto sym = std::make_shared<Symbol>(pos, state.is_global_level);
+    auto sym = std::make_shared<Symbol>(pos, is_public, state.is_global_level);
     state.current_scope->getDirectScopeTable().addSymbol(name, sym);
   }
 
@@ -472,19 +505,42 @@ bool Parser::expectEndStatement() {
   return false;
 }
 
-std::unique_ptr<ast::Statement>
-Parser::parseStatement(const ParserState &state) {
+std::unique_ptr<ast::Statement> Parser::parsePossiblePubStatement(const ParserState &state, bool is_public) {
   switch (tokenizer.curToken.token) {
   case T_FN: {
-    auto res = parseFunctionDecl(state);
+    auto res = parseFunctionDecl(state, is_public);
     expectEndStatement();
     return res;
   }
   case T_MODULE: {
-    auto res = parseModuleDecl(state);
+    auto res = parseModuleDecl(state, is_public);
     expectEndStatement();
     return res;
   }
+  case T_IDENT: {
+    auto nextTok = tokenizer.peekNextToken();
+    if (nextTok.token != T_VARDECL) {
+      errorMan.logError("expected 'pub' to be followed by variable, function, or module declaration", tokenizer.curTokenLoc, ErrorType::ParseError);
+      return parseStatement(state);
+    } else {
+      auto res = parseVarDecl(state, is_public);
+      expectEndStatement();
+      return res;
+    }
+  }
+  default: {
+    errorMan.logError("expected 'pub' to be followed by variable, function, or module declaration", tokenizer.curTokenLoc, ErrorType::ParseError);
+    return parseStatement(state);
+  }
+  }
+}
+
+std::unique_ptr<ast::Statement>
+Parser::parseStatement(const ParserState &state) {
+  switch (tokenizer.curToken.token) {
+  case T_FN:
+  case T_MODULE:
+    return parsePossiblePubStatement(state, false);
   case T_IDENT: {
     /* identifier followed by := is a variable declaration */
     auto nextTok = tokenizer.peekNextToken();
@@ -492,11 +548,14 @@ Parser::parseStatement(const ParserState &state) {
       auto res = parseExpr(state);
       expectEndStatement();
       return res;
+    } else {
+      return parsePossiblePubStatement(state, false);
     }
-    auto res = parseVarDecl(state);
-    expectEndStatement();
-    return res;
   }
+
+  case T_PUB:
+    tokenizer.nextToken();
+    return parsePossiblePubStatement(state, true);
   case T_SEMICOLON:
     tokenizer.nextToken();
     return parseStatement(state);

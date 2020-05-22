@@ -16,7 +16,7 @@ int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
   assert(declaredSym != nullptr);
   declaredSym->resolve_pass_declared_yet = true;
 
-  // TODO: change node from refering to name to refer to symbol
+  // TODO: change node from referring to name to refer to symbol
 
   return 0;
 }

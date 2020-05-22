@@ -26,7 +26,9 @@ TesterInstance::errorStringSpecifierToErrorType(const std::string &str) {
       {":NestedFunctionError", ErrorType::NestedFunctionError},
       {":DuplicateVarDeclare", ErrorType::DuplicateVarDeclare},
       {":VarDeclareShadowed", ErrorType::VarDeclareShadowed},
-      {":UndeclaredIdentifier", ErrorType::UndeclaredIdentifier}};
+      {":UndeclaredIdentifier", ErrorType::UndeclaredIdentifier},
+      {":MutOnRootOfType", ErrorType::MutOnRootOfType},
+      {":PublicSymInPrivateMod", ErrorType::PublicSymInPrivateMod}};
   if (types.count(str) == 0) {
     doError(string_format("invalid error type %s", str.c_str()));
   }
@@ -39,7 +41,10 @@ std::string TesterInstance::errorTypeToString(ErrorType type) {
       {ErrorType::NestedFunctionError, ":NestedFunctionError"},
       {ErrorType::DuplicateVarDeclare, ":DuplicateVarDeclare"},
       {ErrorType::VarDeclareShadowed, ":VarDeclareShadowed"},
-      {ErrorType::UndeclaredIdentifier, ":UndeclaredIdentifier"}};
+      {ErrorType::UndeclaredIdentifier, ":UndeclaredIdentifier"},
+      {ErrorType::MutOnRootOfType, ":MutOnRootOfType"},
+      {ErrorType::PublicSymInPrivateMod, ":PublicSymInPrivateMod"}
+  };
 
   return types[type];
 }
