@@ -82,7 +82,7 @@ int ResolvePass::visitIdentifier(Identifier &node,
                                  const ResolvePassState &state) {
   // find the symbol
   std::shared_ptr<Symbol> sym;
-  if(node.is_root_scope) {
+  if (node.is_root_scope) {
     // only check root scope
     sym = scopes.names.getRootScope()->findSymbol(
         node.scope, node.id,

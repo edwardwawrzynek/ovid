@@ -152,8 +152,7 @@ public:
   TypeList argTypes;
   std::unique_ptr<Type> retType;
 
-  FunctionType(TypeList argTypes,
-               std::unique_ptr<Type> retType)
+  FunctionType(TypeList argTypes, std::unique_ptr<Type> retType)
       : argTypes(std::move(argTypes)), retType(std::move(retType)){};
 };
 
@@ -238,7 +237,8 @@ public:
 
   Identifier(SourceLocation &loc, const std::string &id,
              std::vector<std::string> scope, bool is_root_scope)
-      : Expression(loc), scope(std::move(scope)), id(id), is_root_scope(is_root_scope){};
+      : Expression(loc), scope(std::move(scope)), id(id),
+        is_root_scope(is_root_scope){};
 };
 
 class OperatorSymbol : public Expression {

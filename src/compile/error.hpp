@@ -49,6 +49,7 @@ enum class ErrorType {
   UndeclaredIdentifier,
   MutOnRootOfType,
   PublicSymInPrivateMod,
+  PublicSymInFunction,
 };
 
 enum class ErrorPrintLevel { Error, Warning, Note };

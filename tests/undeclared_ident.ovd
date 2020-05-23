@@ -9,10 +9,11 @@ module test {
 
     var // __error: "use of undeclared identifier `var`"
 
-    a := 1
+    val a = 1
 }
 
 module test2 {
     a // __error: "use of undeclared identifier `a`"
     test:a
+    ::test:a
 }

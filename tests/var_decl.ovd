@@ -1,0 +1,17 @@
+// __ovid_compiler_test
+//__mode: compile
+//__ignore_errors:
+
+pub module test:test
+
+fn test() -> i32 {
+    val a = 1
+    mut b = 2
+    pub val c = 3 // __error: "pub variable cannot be declared inside a function"
+    pub mut d = 4 // __error: "pub variable cannot be declared inside a function"
+}
+
+val a1 = 1
+pub val b1 = 2
+mut c1 = 3
+pub mut d1 = 4

@@ -3,19 +3,19 @@
 //__ignore_errors:
 
 module ovidc:test:redef_var {
-    var := 1
-    a := 1
-    var := 2 // __error: "redeclaration of `ovidc:test:redef_var:var`"
+    val var = 1
+    val a = 1
+    mut var = 2 // __error: "redeclaration of `ovidc:test:redef_var:var`"
 }
 
 module ovidc:test {
     module redef_var {
-        a := 2 // __error: "redeclaration of `ovidc:test:redef_var:a`"
+        val a = 2 // __error: "redeclaration of `ovidc:test:redef_var:a`"
     }
 
     fn test() -> i32 {
-        b := 1
+        val b = 1
         a + b
-        b := 2 // __error: "redeclaration of `b`"
+        val b = 2 // __error: "redeclaration of `b`"
     }
 }

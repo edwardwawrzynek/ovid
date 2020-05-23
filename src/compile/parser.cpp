@@ -33,48 +33,57 @@ ast::StatementList Parser::parseProgram() {
   ParserState state(true, packageNameScope, packageTypeScope, package, false);
 
   // check for file beginning with 'module' or 'pub module'
-  if(tokenizer.curToken.token == T_MODULE || (tokenizer.curToken.token == T_PUB && tokenizer.peekNextToken().token == T_MODULE)) {
-     // handle 'pub'
-     bool is_public = false;
-     if(tokenizer.curToken.token == T_PUB) {
-       is_public = true;
-       tokenizer.nextToken();
-     }
-     // read in name
-     auto names = readModuleName(state);
-     if(names.empty()) return parseProgramWithoutRootModuleDecl(state);
+  if (tokenizer.curToken.token == T_MODULE ||
+      (tokenizer.curToken.token == T_PUB &&
+       tokenizer.peekNextToken().token == T_MODULE)) {
+    // handle 'pub'
+    bool is_public = false;
+    if (tokenizer.curToken.token == T_PUB) {
+      is_public = true;
+      tokenizer.nextToken();
+    }
+    // read in name
+    auto names = readModuleName(state);
+    if (names.empty())
+      return parseProgramWithoutRootModuleDecl(state);
 
-     // if '{' is present, parse as a normal module statement
-     if(tokenizer.curToken.token == T_LBRK) {
-       // parse module statement, then parse the rest of program and combine
-       std::unique_ptr<ast::Statement> firstStmnt = parseModuleDeclBody(state, is_public, names, startPos);
-       expectEndStatement();
-       auto restOfProgram = parseProgramWithoutRootModuleDecl(state);
-       restOfProgram.insert(restOfProgram.cbegin(), std::move(firstStmnt));
+    // if '{' is present, parse as a normal module statement
+    if (tokenizer.curToken.token == T_LBRK) {
+      // parse module statement, then parse the rest of program and combine
+      std::unique_ptr<ast::Statement> firstStmnt =
+          parseModuleDeclBody(state, is_public, names, startPos);
+      expectEndStatement();
+      auto restOfProgram = parseProgramWithoutRootModuleDecl(state);
+      restOfProgram.insert(restOfProgram.cbegin(), std::move(firstStmnt));
 
-       return restOfProgram;
-     } else {
-       expectEndStatement();
-       // set up environment for the whole program in the module
-        auto newState = newStateForModule(state, names, is_public);
-        scopes.pushComponentScopesByName(names);
+      return restOfProgram;
+    } else {
+      expectEndStatement();
+      // set up environment for the whole program in the module
+      auto newState = newStateForModule(state, names, is_public);
+      scopes.pushComponentScopesByName(names);
 
-        ast::StatementList nodes = parseProgramWithoutRootModuleDecl(newState);
+      ast::StatementList nodes = parseProgramWithoutRootModuleDecl(newState);
 
-        scopes.popComponentScopesByName(names);
-        // create the module ast node with the program as body
-        ast::StatementList res;
-        res.emplace_back(std::make_unique<ast::ModuleDecl>(startPos, names, std::move(nodes)));
+      scopes.popComponentScopesByName(names);
+      // create the module ast node with the program as body
+      ast::StatementList res;
+      res.emplace_back(
+          std::make_unique<ast::ModuleDecl>(startPos, names, std::move(nodes)));
 
-        return res;
-     }
+      return res;
+    }
+  } else {
+    return parseProgramWithoutRootModuleDecl(state);
   }
 }
 
-ast::StatementList Parser::parseProgramWithoutRootModuleDecl(const ParserState &state) {
+ast::StatementList
+Parser::parseProgramWithoutRootModuleDecl(const ParserState &state) {
   ast::StatementList nodes;
 
-  if(tokenizer.curToken.token == T_EOF) return nodes;
+  if (tokenizer.curToken.token == T_EOF)
+    return nodes;
 
   do {
     auto ast = parseStatement(state);
@@ -105,12 +114,15 @@ Parser::parseIdentifier(const ParserState &state) {
 
   auto pos = tokenizer.curTokenLoc;
 
-  if(tokenizer.curToken.token == T_DOUBLE_COLON) {
+  if (tokenizer.curToken.token == T_DOUBLE_COLON) {
     tokenizer.nextToken();
     is_root_scoped = true;
   }
 
   while (true) {
+    if(tokenizer.curToken.token != T_IDENT)
+      return errorMan.logError("expected identifier after scope operator :", tokenizer.curTokenLoc, ErrorType::ParseError);
+
     ident = tokenizer.curToken.ident;
     tokenizer.nextToken();
     if (tokenizer.curToken.token == T_COLON) {
@@ -134,10 +146,12 @@ Parser::parseIdentifier(const ParserState &state) {
     tokenizer.nextToken();
     return std::make_unique<ast::FunctionCall>(
         pos,
-        std::make_unique<ast::Identifier>(pos, ident, std::move(varScopes), is_root_scoped),
+        std::make_unique<ast::Identifier>(pos, ident, std::move(varScopes),
+                                          is_root_scoped),
         std::move(args));
   } else {
-    return std::make_unique<ast::Identifier>(pos, ident, std::move(varScopes), is_root_scoped);
+    return std::make_unique<ast::Identifier>(pos, ident, std::move(varScopes),
+                                             is_root_scoped);
   }
 }
 
@@ -455,7 +469,9 @@ std::vector<std::string> Parser::readModuleName(const ParserState &state) {
 }
 
 // create the state needed to parse the body of a module
-ParserState Parser::newStateForModule(const ParserState& state, const std::vector<std::string>& names, bool is_mod_public) {
+ParserState Parser::newStateForModule(const ParserState &state,
+                                      const std::vector<std::string> &names,
+                                      bool is_mod_public) {
   ParserState newState(true, state.current_scope, state.current_type_scope,
                        state.current_module, !is_mod_public);
 
@@ -486,7 +502,10 @@ ParserState Parser::newStateForModule(const ParserState& state, const std::vecto
 }
 
 // modulebody ::= '{' statement* '}'
-std::unique_ptr<ast::ModuleDecl> Parser::parseModuleDeclBody(const ParserState& state, bool is_public, const std::vector<std::string> & names, SourceLocation pos) {
+std::unique_ptr<ast::ModuleDecl>
+Parser::parseModuleDeclBody(const ParserState &state, bool is_public,
+                            const std::vector<std::string> &names,
+                            SourceLocation pos) {
   ast::StatementList body;
 
   if (tokenizer.curToken.token != T_LBRK)
@@ -527,25 +546,39 @@ Parser::parseModuleDecl(const ParserState &state, bool is_public) {
   }
 
   names = readModuleName(state);
-  if(names.empty()) return nullptr;
+  if (names.empty())
+    return nullptr;
 
   return parseModuleDeclBody(state, is_public, names, pos);
 }
 
-// vardecl ::= identifier := expr
+// vardecl ::= ('val' | 'mut') identifier = expr
 std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
                                                      bool is_public) {
-
-  if (is_public && state.in_private_mod) {
+  if(is_public && !state.is_global_level) {
+    errorMan.logError("pub variable cannot be declared inside a function", tokenizer.curTokenLoc, ErrorType::PublicSymInFunction);
+    is_public = false;
+  }
+  else if (is_public && state.in_private_mod) {
     errorMan.logError("pub variable cannot be declared inside a non-pub module",
                       tokenizer.curTokenLoc, ErrorType::PublicSymInPrivateMod);
+    is_public = false;
   }
 
   auto pos = tokenizer.curTokenLoc;
+
+  auto is_mut = tokenizer.curToken.token == T_MUT;
+  // consume 'mut' or 'val'
+  tokenizer.nextToken();
+
+  if(tokenizer.curToken.token != T_IDENT) {
+    return errorMan.logError("expected variable name (identifier expected)", tokenizer.curTokenLoc, ErrorType::ParseError);
+  }
+
   auto name = tokenizer.curToken.ident;
   tokenizer.nextToken();
-  if (tokenizer.curToken.token != T_VARDECL)
-    return errorMan.logError("expected := in variable declaration",
+  if (tokenizer.curToken.token != T_ASSIGN)
+    return errorMan.logError("expected = in variable declaration",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   tokenizer.nextToken();
   auto initialVal = parseExpr(state);
@@ -602,18 +635,11 @@ Parser::parsePossiblePubStatement(const ParserState &state, bool is_public) {
     expectEndStatement();
     return res;
   }
-  case T_IDENT: {
-    auto nextTok = tokenizer.peekNextToken();
-    if (nextTok.token != T_VARDECL) {
-      errorMan.logError("expected 'pub' to be followed by variable, function, "
-                        "or module declaration",
-                        tokenizer.curTokenLoc, ErrorType::ParseError);
-      return parseStatement(state);
-    } else {
-      auto res = parseVarDecl(state, is_public);
-      expectEndStatement();
-      return res;
-    }
+  case T_MUT:
+  case T_VAL: {
+    auto res = parseVarDecl(state, is_public);
+    expectEndStatement();
+    return res;
   }
   default: {
     errorMan.logError("expected 'pub' to be followed by variable, function, or "
@@ -629,18 +655,9 @@ Parser::parseStatement(const ParserState &state) {
   switch (tokenizer.curToken.token) {
   case T_FN:
   case T_MODULE:
+  case T_MUT:
+  case T_VAL:
     return parsePossiblePubStatement(state, false);
-  case T_IDENT: {
-    /* identifier followed by := is a variable declaration */
-    auto nextTok = tokenizer.peekNextToken();
-    if (nextTok.token != T_VARDECL) {
-      auto res = parseExpr(state);
-      expectEndStatement();
-      return res;
-    } else {
-      return parsePossiblePubStatement(state, false);
-    }
-  }
   case T_PUB:
     tokenizer.nextToken();
     return parsePossiblePubStatement(state, true);

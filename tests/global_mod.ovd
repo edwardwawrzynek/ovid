@@ -8,13 +8,19 @@ module test:sub:mod
 pub module pub_test { // __error: "pub module cannot be declared inside a non-pub module"
 }
 
+module test {
+    module sub {
+        module mod {}
+    }
+}
+
 module sub {
     module mod {}
 }
 
 module mod {}
 
-a := 1
+val a = 1
 
 fn test() -> i32 {
     test:sub:mod:a

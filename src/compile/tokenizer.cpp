@@ -145,6 +145,17 @@ static std::map<char, char> charEscapeMap = {
     {'r', '\r'},  {'t', '\t'},  {'v', '\v'}, {'\\', '\\'},
     {'\'', '\''}, {'\"', '\"'}, {'?', '\?'}};
 
+/* keywords */
+static std::map<std::string, TokenType> keywordMap = {
+    {"fn", T_FN},
+    {"mut", T_MUT},
+    {"val", T_VAL},
+    {"module", T_MODULE},
+    {"import", T_IMPORT},
+    {"return", T_RETURN},
+    {"pub", T_PUB}
+};
+
 /* scan and read the next token */
 void Tokenizer::nextToken() {
   char c;
@@ -221,9 +232,7 @@ void Tokenizer::nextToken() {
     break;
   case ':': {
     c = next();
-    if (c == '=') {
-      curToken.token = T_VARDECL;
-    } else if(c == ':') {
+    if (c == ':') {
       curToken.token = T_DOUBLE_COLON;
     } else {
       putback(c);
@@ -284,24 +293,14 @@ void Tokenizer::nextToken() {
       putback(c);
 
       /* check for keywords */
-      if (curToken.ident == "fn") {
-        curToken.token = T_FN;
-      } else if (curToken.ident == "true") {
+      if (curToken.ident == "true") {
         curToken.token = T_BOOLLITERAL;
         curToken.bool_literal = true;
       } else if (curToken.ident == "false") {
         curToken.token = T_BOOLLITERAL;
         curToken.bool_literal = false;
-      } else if (curToken.ident == "mut") {
-        curToken.token = T_MUT;
-      } else if (curToken.ident == "module") {
-        curToken.token = T_MODULE;
-      } else if (curToken.ident == "import") {
-        curToken.token = T_IMPORT;
-      } else if (curToken.ident == "return") {
-        curToken.token = T_RETURN;
-      } else if (curToken.ident == "pub") {
-        curToken.token = T_PUB;
+      } else if (keywordMap.count(curToken.ident) > 0) {
+        curToken.token = keywordMap[curToken.ident];
       }
     } else {
       curToken.token = T_UNKNOWN;

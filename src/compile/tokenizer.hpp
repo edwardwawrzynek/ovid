@@ -19,14 +19,14 @@ enum TokenType {
 
   T_ASSIGN = 5,
   T_EQ = 6,
-
-  T_VARDECL = 7,
   T_FN = 8,
 
   T_LBRK = 9,
   T_RBRK = 10,
   T_LPAREN = 11,
   T_RPAREN = 12,
+
+  T_VAL = 14,
   T_MUT = 15,
   T_COMMA = 16,
 

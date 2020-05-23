@@ -5,7 +5,7 @@
 /* module statement without braces wraps entire file */
 pub module test:sub:mod
 
-a := 1
+val a = 1
 
 fn test() -> i32 {
     test:sub:mod:a
