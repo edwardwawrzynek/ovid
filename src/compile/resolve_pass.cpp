@@ -80,11 +80,18 @@ int ResolvePass::visitFunctionCall(FunctionCall &node,
 
 int ResolvePass::visitIdentifier(Identifier &node,
                                  const ResolvePassState &state) {
-  // only lookup declared identifiers
-  auto sym =
-      scopes.names.findSymbol(node.scope, node.id, [](const Symbol &s) -> bool {
-        return s.resolve_pass_declared_yet;
-      });
+  // find the symbol
+  std::shared_ptr<Symbol> sym;
+  if(node.is_root_scope) {
+    // only check root scope
+    sym = scopes.names.getRootScope()->findSymbol(
+        node.scope, node.id,
+        [](const Symbol &s) -> bool { return s.resolve_pass_declared_yet; });
+  } else {
+    sym = scopes.names.findSymbol(
+        node.scope, node.id,
+        [](const Symbol &s) -> bool { return s.resolve_pass_declared_yet; });
+  }
 
   if (sym == nullptr) {
     auto name = scopesAndNameToString(node.scope, node.id);

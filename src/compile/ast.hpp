@@ -71,11 +71,12 @@ public:
 
 namespace ovid::ast {
 class Expression;
-
 class Statement;
+class Type;
 
 typedef std::vector<std::unique_ptr<Expression>> ExpressionList;
 typedef std::vector<std::unique_ptr<Statement>> StatementList;
+typedef std::vector<std::unique_ptr<Type>> TypeList;
 
 /* a scoped block, containing statements as well as a variable symbol table
  * generally used as the container for statement blocks in the ast
@@ -85,18 +86,18 @@ typedef std::vector<std::unique_ptr<Statement>> StatementList;
  * This container is used for scopes inside of functions */
 class ScopedBlock {
 public:
-  std::vector<std::unique_ptr<Statement>> statements;
+  StatementList statements;
   // type aliases can't be declared inside functions, so only name table needed
   std::shared_ptr<ScopeTable<Symbol>> symbols;
 
-  ScopedBlock(std::vector<std::unique_ptr<Statement>> statements)
+  ScopedBlock(StatementList statements)
       : statements(std::move(statements)),
         symbols(std::make_shared<ScopeTable<Symbol>>()){};
 
   explicit ScopedBlock(std::shared_ptr<ScopeTable<Symbol>> symbols)
       : statements(), symbols(std::move(symbols)){};
 
-  ScopedBlock(std::vector<std::unique_ptr<Statement>> statements,
+  ScopedBlock(StatementList statements,
               std::shared_ptr<ScopeTable<Symbol>> symbols)
       : statements(std::move(statements)), symbols(std::move(symbols)){};
 
@@ -148,10 +149,10 @@ public:
 
 class FunctionType : public Type {
 public:
-  std::vector<std::unique_ptr<Type>> argTypes;
+  TypeList argTypes;
   std::unique_ptr<Type> retType;
 
-  FunctionType(std::vector<std::unique_ptr<Type>> argTypes,
+  FunctionType(TypeList argTypes,
                std::unique_ptr<Type> retType)
       : argTypes(std::move(argTypes)), retType(std::move(retType)){};
 };
@@ -233,10 +234,11 @@ class Identifier : public Expression {
 public:
   std::vector<std::string> scope;
   std::string id;
+  bool is_root_scope; // if the identifier began with ::
 
   Identifier(SourceLocation &loc, const std::string &id,
-             std::vector<std::string> scope)
-      : Expression(loc), scope(std::move(scope)), id(id){};
+             std::vector<std::string> scope, bool is_root_scope)
+      : Expression(loc), scope(std::move(scope)), id(id), is_root_scope(is_root_scope){};
 };
 
 class OperatorSymbol : public Expression {

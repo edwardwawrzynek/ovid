@@ -219,14 +219,18 @@ void Tokenizer::nextToken() {
       putback(c);
     }
     break;
-  case ':':
-    if ((c = next()) == '=') {
+  case ':': {
+    c = next();
+    if (c == '=') {
       curToken.token = T_VARDECL;
+    } else if(c == ':') {
+      curToken.token = T_DOUBLE_COLON;
     } else {
       putback(c);
       curToken.token = T_COLON;
     }
     break;
+  }
   case '{':
     curToken.token = T_LBRK;
     break;

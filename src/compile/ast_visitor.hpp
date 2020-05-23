@@ -32,7 +32,7 @@ public:
   explicit BaseASTVisitor(T defaultValue) : defaultValue(defaultValue){};
   virtual T visitNode(Node &node, const S &state);
   virtual std::vector<T>
-  visitNodes(const std::vector<std::unique_ptr<Node>> &nodes, const S &state);
+  visitNodes(const StatementList &nodes, const S &state);
 
   virtual ~BaseASTVisitor() = default;
 };
@@ -121,7 +121,7 @@ T BaseASTVisitor<T, S>::visitTuple(Tuple &node, const S &state) {
 }
 template <class T, class S>
 std::vector<T> BaseASTVisitor<T, S>::visitNodes(
-    const std::vector<std::unique_ptr<Node>> &nodes, const S &state) {
+    const StatementList &nodes, const S &state) {
   std::vector<T> res;
 
   for (auto &n : nodes) {

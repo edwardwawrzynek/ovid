@@ -43,8 +43,7 @@ std::string TesterInstance::errorTypeToString(ErrorType type) {
       {ErrorType::VarDeclareShadowed, ":VarDeclareShadowed"},
       {ErrorType::UndeclaredIdentifier, ":UndeclaredIdentifier"},
       {ErrorType::MutOnRootOfType, ":MutOnRootOfType"},
-      {ErrorType::PublicSymInPrivateMod, ":PublicSymInPrivateMod"}
-  };
+      {ErrorType::PublicSymInPrivateMod, ":PublicSymInPrivateMod"}};
 
   return types[type];
 }

@@ -1,0 +1,28 @@
+// __ovid_compiler_test
+//__mode: compile
+//__ignore_errors:
+
+/* module statement without braces wraps entire file */
+module test:sub:mod
+
+pub module pub_test { // __error: "pub module cannot be declared inside a non-pub module"
+}
+
+module sub {
+    module mod {}
+}
+
+module mod {}
+
+a := 1
+
+fn test() -> i32 {
+    test:sub:mod:a
+    sub:mod:a
+    mod:a
+    a
+    ::test:sub:mod:a
+    ::sub:mod:a // __error: "use of undeclared identifier `sub:mod:a`"
+    ::mod:a // __error: "use of undeclared identifier `mod:a`"
+    ::a // __error: "use of undeclared identifier `a`"
+}

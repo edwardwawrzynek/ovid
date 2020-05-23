@@ -23,10 +23,8 @@ struct ParserState {
   ParserState(bool is_global_level,
               std::shared_ptr<ScopeTable<Symbol>> current_scope,
               std::shared_ptr<ScopeTable<TypeAlias>> current_type_scope,
-              std::vector<std::string> current_module,
-              bool in_private_mod)
-      : is_global_level(is_global_level),
-        in_private_mod(in_private_mod),
+              std::vector<std::string> current_module, bool in_private_mod)
+      : is_global_level(is_global_level), in_private_mod(in_private_mod),
         current_scope(std::move(current_scope)),
         current_type_scope(std::move(current_type_scope)),
         current_module(std::move(current_module)){};
@@ -40,6 +38,10 @@ class Parser {
 
   std::string getFullyScopedName(const std::string &name,
                                  const ParserState &state);
+
+  // parse a program without a file wide module declaration
+  ast::StatementList
+  parseProgramWithoutRootModuleDecl(const ParserState &state);
 
   std::unique_ptr<ast::IntLiteral> parseIntLiteral(const ParserState &state);
 
@@ -59,7 +61,8 @@ class Parser {
 
   bool isDoneParsing() const;
 
-  std::unique_ptr<ast::Statement> parseFunctionDecl(const ParserState &state, bool is_public);
+  std::unique_ptr<ast::Statement> parseFunctionDecl(const ParserState &state,
+                                                    bool is_public);
 
   std::unique_ptr<ast::FunctionPrototype>
   parseFunctionProto(const ParserState &state,
@@ -69,13 +72,27 @@ class Parser {
   std::unique_ptr<ast::Type> parseType(const ParserState &state,
                                        bool is_root_of_type);
 
-  std::unique_ptr<ast::Statement> parseVarDecl(const ParserState &state, bool is_public);
+  std::unique_ptr<ast::Statement> parseVarDecl(const ParserState &state,
+                                               bool is_public);
 
   bool expectEndStatement();
 
-  std::unique_ptr<ast::ModuleDecl> parseModuleDecl(const ParserState &state, bool is_public);
+  std::unique_ptr<ast::ModuleDecl> parseModuleDecl(const ParserState &state,
+                                                   bool is_public);
 
-  std::unique_ptr<ast::Statement> parsePossiblePubStatement(const ParserState &state, bool is_public);
+  std::vector<std::string> readModuleName(const ParserState &state);
+
+  ParserState newStateForModule(const ParserState &state,
+                                const std::vector<std::string> &names,
+                                bool is_mod_public);
+
+  std::unique_ptr<ast::ModuleDecl>
+  parseModuleDeclBody(const ParserState &state, bool is_public,
+                      const std::vector<std::string> &names,
+                      SourceLocation pos);
+
+  std::unique_ptr<ast::Statement>
+  parsePossiblePubStatement(const ParserState &state, bool is_public);
 
 public:
   Parser(Tokenizer &tokenizer, ErrorManager &errorMan, ActiveScopes &scopes,
@@ -83,7 +100,7 @@ public:
 
   void removePushedPackageScope();
 
-  std::vector<std::unique_ptr<ast::Node>> parseProgram();
+  ast::StatementList parseProgram();
 };
 } // namespace ovid
 

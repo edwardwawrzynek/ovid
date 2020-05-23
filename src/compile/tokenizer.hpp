@@ -40,6 +40,7 @@ enum TokenType {
 
   T_RIGHT_ARROW = 22, /* ->, not => */
   T_PUB = 23,
+  T_DOUBLE_COLON = 24,
 
   T_IDENT = -2,
   T_INTLITERAL = -3,
