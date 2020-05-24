@@ -28,7 +28,8 @@ TesterInstance::errorStringSpecifierToErrorType(const std::string &str) {
       {":VarDeclareShadowed", ErrorType::VarDeclareShadowed},
       {":UndeclaredIdentifier", ErrorType::UndeclaredIdentifier},
       {":MutOnRootOfType", ErrorType::MutOnRootOfType},
-      {":PublicSymInPrivateMod", ErrorType::PublicSymInPrivateMod}};
+      {":PublicSymInPrivateMod", ErrorType::PublicSymInPrivateMod},
+      {":PublicSymInFunction", ErrorType::PublicSymInFunction}};
   if (types.count(str) == 0) {
     doError(string_format("invalid error type %s", str.c_str()));
   }
@@ -43,7 +44,8 @@ std::string TesterInstance::errorTypeToString(ErrorType type) {
       {ErrorType::VarDeclareShadowed, ":VarDeclareShadowed"},
       {ErrorType::UndeclaredIdentifier, ":UndeclaredIdentifier"},
       {ErrorType::MutOnRootOfType, ":MutOnRootOfType"},
-      {ErrorType::PublicSymInPrivateMod, ":PublicSymInPrivateMod"}};
+      {ErrorType::PublicSymInPrivateMod, ":PublicSymInPrivateMod"},
+      {ErrorType::PublicSymInFunction, ":PublicSymInFunction"}};
 
   return types[type];
 }
@@ -62,7 +64,7 @@ void TesterInstance::doError(const std::string &message) {
 TesterInstance::TesterInstance(const std::string &filename)
     : filename(filename), file(filename), mode(), line(1), pos_in_line(0),
       expectedErrors(), ignoredErrors(1, ErrorType::Note), pline(1),
-      ppos_in_line(0) {}
+      ppos_in_line(0), packageName() {}
 
 void TesterInstance::readHeader() {
   // rewind
@@ -102,29 +104,45 @@ void TesterInstance::readHeader() {
     return;
   }
 
-  if (!readToComment()) {
-    doError("expected ignored errors comment (//__ignore_errors: __) after "
-            "mode comment");
-    return;
-  }
+  while (readToComment()) {
+    auto type = readToken();
+    if (type == "__end_header")
+      break;
 
-  auto errors_begin = readToken();
-  if (errors_begin != "__ignore_errors:") {
-    doError("comment doesn't match expected ignore errors comment "
-            "(//__ignore_errors: __)");
-    return;
-  }
+    std::vector<std::string> args;
+    std::string tmp_arg;
 
-  std::string token;
-  while ((token = readToken()) != "") {
-    if (token == ":none")
-      ignoredErrors.clear();
-    else {
-      auto type = errorStringSpecifierToErrorType(token);
-      ignoredErrors.push_back(type);
+    while (!(tmp_arg = readToken()).empty())
+      args.push_back(tmp_arg);
+
+    if (type == "__ignore_errors:") {
+      for (auto &arg : args) {
+        if (arg == ":none")
+          ignoredErrors.clear();
+        else
+          ignoredErrors.push_back(errorStringSpecifierToErrorType(arg));
+      }
+    } else if (type == "__package_name:") {
+      if (args.size() != 1)
+        doError("expected only one argument to __package_name:");
+      // parse colon separated package name
+      size_t pos;
+      while ((pos = args[0].find(':')) != std::string::npos) {
+        packageName.push_back(args[0].substr(0, pos));
+        args[0].erase(0, pos + 1);
+      }
+      packageName.push_back(args[0]);
+
+    } else {
+      doError("invalid header annotation (expected __ignore_errors, "
+              "__package_name, or __end_header");
     }
   }
 
+  readInErrors();
+}
+
+void TesterInstance::readInErrors() {
   // read errors
   while (readToComment()) {
     auto desc = readToken();
@@ -133,7 +151,7 @@ void TesterInstance::readHeader() {
       return;
     }
     std::string token;
-    while ((token = readToken()) != "") {
+    while (!(token = readToken()).empty()) {
       if (token[0] == ':') {
         expectedErrors.emplace_back(TestErrorRecord(
             errorStringSpecifierToErrorType(token), "", line, 0));
@@ -237,18 +255,19 @@ int TesterInstance::readToComment() {
 }
 
 int TesterInstance::run() {
+  readHeader();
+
   int failed = 0;
   rewind();
 
   /* compile program */
   auto errorMan = ovid::TestErrorManager();
   auto lexer = ovid::Tokenizer(filename, &file, errorMan);
-  std::vector<std::string> package;
-  auto scopes = ovid::ActiveScopes(package);
-  auto parser = ovid::Parser(lexer, errorMan, scopes, package);
+  auto scopes = ovid::ActiveScopes(packageName);
+  auto parser = ovid::Parser(lexer, errorMan, scopes, packageName);
   auto ast = parser.parseProgram();
   parser.removePushedPackageScope();
-  auto resolvePass = ovid::ast::ResolvePass(scopes, errorMan, package);
+  auto resolvePass = ovid::ast::ResolvePass(scopes, errorMan, packageName);
   resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());
   resolvePass.removePushedPackageScope();
 
@@ -342,7 +361,6 @@ int testDirectory(const std::string &dirPath) {
               << ": beginning test\n";
 
     auto tester = TesterInstance(entry.path().string());
-    tester.readHeader();
     auto res = tester.run();
     if (res == 0) {
       std::cout << "\x1b[1m[  \x1b[32mOK\x1b[0;1m  ]\x1b[m";

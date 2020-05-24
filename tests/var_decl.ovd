@@ -1,6 +1,6 @@
 // __ovid_compiler_test
 //__mode: compile
-//__ignore_errors:
+//__end_header
 
 pub module test:test
 

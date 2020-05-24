@@ -1,9 +1,9 @@
 // __ovid_compiler_test
 //__mode: compile
-//__ignore_errors:
+//__end_header
 
 module test {
-    fn test(a i32, b i32) -> mut i32 {} // __error: :MutOnRootOfType
-    fn test2(a mut i32) -> i32 {} // __error: :MutOnRootOfType
+    fn test(a i32, b i32) -> mut i32 {} // __error: "a mutability modifier can't be specified as the root of a type"
+    fn test2(a mut i32) -> i32 {} // __error: "a mutability modifier can't be specified as the root of a type"
     fn test3(a *mut i32) -> *mut i32 {}
 }

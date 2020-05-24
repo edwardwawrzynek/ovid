@@ -1,6 +1,6 @@
 // __ovid_compiler_test
 //__mode: compile
-//__ignore_errors:
+//__end_header
 
 module test {
     fn test(a i32, b i32) -> i32 {

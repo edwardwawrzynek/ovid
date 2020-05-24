@@ -1,6 +1,6 @@
 // __ovid_compiler_test
 //__mode: compile
-//__ignore_errors:
+//__end_header
 
 module test0 {
     /* this shadows the a declared at root scope */

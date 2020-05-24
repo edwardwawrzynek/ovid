@@ -12,7 +12,7 @@ namespace ovid {
 /* make sure all tokens are parsed correctly */
 TEST(TokenizerTest, Tokens) {
   std::istringstream input(
-      "+-*/ = == := fn {}()mut ,module import return;: hello 123 -23 -0xf0f"
+      "+-*/ = == val fn {}()mut ,module import return;: hello 123 -23 -0xf0f"
       " 0b110101 "
       "0.345 -3. true false 'a' '\\n'");
   auto testError = TestErrorManager();
@@ -30,7 +30,7 @@ TEST(TokenizerTest, Tokens) {
   tokenizer.nextToken();
   EXPECT_EQ(tokenizer.curToken.token, T_EQ);
   tokenizer.nextToken();
-  EXPECT_EQ(tokenizer.curToken.token, T_VARDECL);
+  EXPECT_EQ(tokenizer.curToken.token, T_VAL);
   tokenizer.nextToken();
   EXPECT_EQ(tokenizer.curToken.token, T_FN);
   tokenizer.nextToken();
@@ -94,13 +94,13 @@ TEST(TokenizerTest, Tokens) {
 
 /* make sure semicolons are inserted correctly */
 TEST(SemicolonInsertion, Tokens) {
-  std::istringstream input("a := 1 +\n 3 + 4\n( 5\n + 1 )");
+  std::istringstream input("a val 1 +\n 3 + 4\n( 5\n + 1 )");
   auto testError = TestErrorManager();
   Tokenizer tokenizer("test", &input, testError);
 
   EXPECT_EQ(tokenizer.curToken.token, T_IDENT);
   tokenizer.nextToken();
-  EXPECT_EQ(tokenizer.curToken.token, T_VARDECL);
+  EXPECT_EQ(tokenizer.curToken.token, T_VAL);
   tokenizer.nextToken();
   EXPECT_EQ(tokenizer.curToken.token, T_INTLITERAL);
   tokenizer.nextToken();

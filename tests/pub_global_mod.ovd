@@ -1,6 +1,6 @@
 // __ovid_compiler_test
 //__mode: compile
-//__ignore_errors:
+//__end_header
 
 /* module statement without braces wraps entire file */
 pub module test:sub:mod

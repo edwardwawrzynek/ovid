@@ -27,20 +27,19 @@ public:
   // used to disallow using a local before declaration
   // functions and globals are set declared when created
   bool resolve_pass_declared_yet;
+  /* if the symbol is mutable
+   * only applicable for variables */
+  bool is_mut;
   /* TODO: escape analysis metadata and other information loaded from headers */
 
   Symbol(SourceLocation decl_loc, bool is_public,
-         bool resolve_pass_declared_yet)
+         bool resolve_pass_declared_yet, bool is_mut)
       : decl_loc(std::move(decl_loc)), type(), is_public(is_public),
-        resolve_pass_declared_yet(resolve_pass_declared_yet){};
+        resolve_pass_declared_yet(resolve_pass_declared_yet), is_mut(is_mut){};
 
-  Symbol(SourceLocation decl_loc, bool is_public)
-      : decl_loc(std::move(decl_loc)), type(), is_public(is_public),
-        resolve_pass_declared_yet(false){};
-
-  Symbol(SourceLocation decl_loc)
+  explicit Symbol(SourceLocation decl_loc)
       : decl_loc(std::move(decl_loc)), type(), is_public(false),
-        resolve_pass_declared_yet(false){};
+        resolve_pass_declared_yet(false), is_mut(false){};
 };
 /* a type alias and its metadata */
 struct TypeAlias {
@@ -239,6 +238,16 @@ public:
              std::vector<std::string> scope, bool is_root_scope)
       : Expression(loc), scope(std::move(scope)), id(id),
         is_root_scope(is_root_scope){};
+};
+
+/* Identifier node, but with symbol resolved to scope table */
+class IdentifierResolved : public Expression {
+public:
+  std::shared_ptr<Symbol> symbol;
+
+  explicit IdentifierResolved(SourceLocation &loc,
+                              std::shared_ptr<Symbol> symbol)
+      : Expression(loc), symbol(std::move(symbol)){};
 };
 
 class OperatorSymbol : public Expression {

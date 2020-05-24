@@ -56,6 +56,8 @@ class TesterInstance {
 
   std::vector<ErrorType> ignoredErrors;
 
+  std::vector<std::string> packageName;
+
   // read a char, and maintain line, pos_in_line
   int read();
 
@@ -76,11 +78,12 @@ class TesterInstance {
    * etc) */
   void doError(const std::string &message);
 
-public:
-  TesterInstance(const std::string &filename);
-
   // read in header information (check magic header, read mode)
   void readHeader();
+  void readInErrors();
+
+public:
+  TesterInstance(const std::string &filename);
 
   // actually test a program (0 for success, non zero on test failure)
   int run();

@@ -15,8 +15,9 @@ int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
       scopes.names.findSymbol(std::vector<std::string>(), node.name);
   assert(declaredSym != nullptr);
   declaredSym->resolve_pass_declared_yet = true;
-
   // TODO: change node from referring to name to refer to symbol
+
+  node = VarDecl(node.loc, node.name, nullptr);
 
   return 0;
 }

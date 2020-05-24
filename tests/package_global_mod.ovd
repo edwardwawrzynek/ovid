@@ -1,5 +1,6 @@
 // __ovid_compiler_test
 //__mode: compile
+//__package_name: pkg:name
 //__end_header
 
 /* module statement without braces wraps entire file */
@@ -23,11 +24,15 @@ module mod {}
 val a = 1
 
 fn test() -> i32 {
+    pkg:name:test:sub:mod:a
+    name:test:sub:mod:a
     test:sub:mod:a
     sub:mod:a
     mod:a
     a
-    ::test:sub:mod:a
+    ::pkg:name:test:sub:mod:a
+    ::name:test:sub:mod:a // __error: "use of undeclared identifier `name:test:sub:mod:a`"
+    ::test:sub:mod:a // __error: "use of undeclared identifier `test:sub:mod:a`"
     ::sub:mod:a // __error: "use of undeclared identifier `sub:mod:a`"
     ::mod:a // __error: "use of undeclared identifier `mod:a`"
     ::a // __error: "use of undeclared identifier `a`"

@@ -61,11 +61,11 @@ ast::StatementList Parser::parseProgram() {
       expectEndStatement();
       // set up environment for the whole program in the module
       auto newState = newStateForModule(state, names, is_public);
-      scopes.pushComponentScopesByName(names);
+      scopes.pushComponentScopesByName(newState.current_module);
 
       ast::StatementList nodes = parseProgramWithoutRootModuleDecl(newState);
 
-      scopes.popComponentScopesByName(names);
+      scopes.popComponentScopesByName(newState.current_module);
       // create the module ast node with the program as body
       ast::StatementList res;
       res.emplace_back(
@@ -120,8 +120,9 @@ Parser::parseIdentifier(const ParserState &state) {
   }
 
   while (true) {
-    if(tokenizer.curToken.token != T_IDENT)
-      return errorMan.logError("expected identifier after scope operator :", tokenizer.curTokenLoc, ErrorType::ParseError);
+    if (tokenizer.curToken.token != T_IDENT)
+      return errorMan.logError("expected identifier after scope operator :",
+                               tokenizer.curTokenLoc, ErrorType::ParseError);
 
     ident = tokenizer.curToken.ident;
     tokenizer.nextToken();
@@ -278,8 +279,7 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
     // mutability is about binding, not type a type like (* mut i32) is valid
     if (is_root_of_type) {
       errorMan.logError(
-          "a mutability modifier can't be specified as the root of a type "
-          "(root level mutability should be specified on binding, not type)",
+          "a mutability modifier can't be specified as the root of a type",
           tokenizer.curTokenLoc, ErrorType::MutOnRootOfType);
     }
 
@@ -428,7 +428,7 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
     auto &arg = proto->argNames[i];
     auto &loc = argLocs[i];
 
-    auto sym = std::make_shared<Symbol>(loc, is_public, false);
+    auto sym = std::make_shared<Symbol>(loc, is_public, false, false);
     bodyState.current_scope->getDirectScopeTable().addSymbol(arg, sym);
   }
 
@@ -555,11 +555,11 @@ Parser::parseModuleDecl(const ParserState &state, bool is_public) {
 // vardecl ::= ('val' | 'mut') identifier = expr
 std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
                                                      bool is_public) {
-  if(is_public && !state.is_global_level) {
-    errorMan.logError("pub variable cannot be declared inside a function", tokenizer.curTokenLoc, ErrorType::PublicSymInFunction);
+  if (is_public && !state.is_global_level) {
+    errorMan.logError("pub variable cannot be declared inside a function",
+                      tokenizer.curTokenLoc, ErrorType::PublicSymInFunction);
     is_public = false;
-  }
-  else if (is_public && state.in_private_mod) {
+  } else if (is_public && state.in_private_mod) {
     errorMan.logError("pub variable cannot be declared inside a non-pub module",
                       tokenizer.curTokenLoc, ErrorType::PublicSymInPrivateMod);
     is_public = false;
@@ -571,8 +571,9 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
   // consume 'mut' or 'val'
   tokenizer.nextToken();
 
-  if(tokenizer.curToken.token != T_IDENT) {
-    return errorMan.logError("expected variable name (identifier expected)", tokenizer.curTokenLoc, ErrorType::ParseError);
+  if (tokenizer.curToken.token != T_IDENT) {
+    return errorMan.logError("expected variable name (identifier expected)",
+                             tokenizer.curTokenLoc, ErrorType::ParseError);
   }
 
   auto name = tokenizer.curToken.ident;
@@ -600,7 +601,8 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
 
     // if at global level, set the symbol to be valid before it's declaration
     // for resolve pass
-    auto sym = std::make_shared<Symbol>(pos, is_public, state.is_global_level);
+    auto sym =
+        std::make_shared<Symbol>(pos, is_public, state.is_global_level, is_mut);
     state.current_scope->getDirectScopeTable().addSymbol(name, sym);
   }
 
