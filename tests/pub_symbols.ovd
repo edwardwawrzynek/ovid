@@ -6,7 +6,7 @@ pub module test {
     pub val a = 1
     val b = 1
 
-    pub; // __error: "expected 'pub' to be followed by variable, function, or module declaration"
+    pub; // __error: "expected 'pub' to be followed by variable, function, type, or module declaration"
 
     fn test() -> i32 {}
     pub fn test2() -> i32 {}
@@ -19,7 +19,7 @@ pub module test {
         }
     }
 
-    pub c + 1 // __error: "expected 'pub' to be followed by variable, function, or module declaration"
+    pub c + 1 // __error: "expected 'pub' to be followed by variable, function, type, or module declaration"
 }
 
 val c = 1

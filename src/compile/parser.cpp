@@ -265,6 +265,21 @@ Parser::parseBinOpRight(const ParserState &state, int exprPrec,
   }
 }
 
+static std::map<std::string, std::function<std::unique_ptr<ast::Type>()>> builtinTypes = {
+    {"i8", [] {return std::make_unique<ast::IntType>(8, false);}},
+    {"i16", [] {return std::make_unique<ast::IntType>(16, false);}},
+    {"i32", [] {return std::make_unique<ast::IntType>(32, false);}},
+    {"i64", [] {return std::make_unique<ast::IntType>(64, false);}},
+    {"u8", [] {return std::make_unique<ast::IntType>(8, true);}},
+    {"u16", [] {return std::make_unique<ast::IntType>(16, true);}},
+    {"u32", [] {return std::make_unique<ast::IntType>(32, true);}},
+    {"u64", [] {return std::make_unique<ast::IntType>(64, true);}},
+    {"f32", [] {return std::make_unique<ast::FloatType>(32);}},
+    {"f64", [] {return std::make_unique<ast::FloatType>(64);}},
+    {"bool", [] {return std::make_unique<ast::BoolType>();}},
+    {"void", [] {return std::make_unique<ast::VoidType>();}}
+};
+
 // typeExpr ::= 'i8' | 'u8' | ... | 'string'
 // typeExpr ::= '*' typeExpr
 // typeExpr ::= 'mut' typeExpr (not at root level)
@@ -290,38 +305,72 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
     tokenizer.nextToken();
     return std::make_unique<ast::PointerType>(parseType(state, false));
   }
-  if (tokenizer.curToken.token != T_IDENT) {
+  if (tokenizer.curToken.token != T_IDENT && tokenizer.curToken.token != T_DOUBLE_COLON) {
     return errorMan.logError("Expected a type expression",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   }
-  auto type = tokenizer.curToken.ident;
-  auto loc = tokenizer.curTokenLoc;
-  tokenizer.nextToken();
-  if (type == "i8")
-    return std::make_unique<ast::IntType>(8, false);
-  if (type == "i16")
-    return std::make_unique<ast::IntType>(16, false);
-  if (type == "i32")
-    return std::make_unique<ast::IntType>(32, false);
-  if (type == "i64")
-    return std::make_unique<ast::IntType>(64, false);
-  if (type == "u8")
-    return std::make_unique<ast::IntType>(8, true);
-  if (type == "u16")
-    return std::make_unique<ast::IntType>(16, true);
-  if (type == "u32")
-    return std::make_unique<ast::IntType>(32, true);
-  if (type == "u64")
-    return std::make_unique<ast::IntType>(64, true);
-  if (type == "bool")
-    return std::make_unique<ast::BoolType>();
-  if (type == "f32")
-    return std::make_unique<ast::FloatType>(32);
-  if (type == "f64")
-    return std::make_unique<ast::FloatType>(64);
 
-  return errorMan.logError("Invalid type expression", loc,
-                           ErrorType::ParseError);
+  /* parse scopes and name */
+  bool is_root_scoped = false;
+  std::vector<std::string> type_scopes;
+  std::string name;
+
+  if(tokenizer.curToken.token == T_DOUBLE_COLON) {
+    tokenizer.nextToken();
+    is_root_scoped = true;
+  }
+
+  while(true) {
+    if(tokenizer.curToken.token != T_IDENT) return errorMan.logError("expected identifier in type expression", tokenizer.curTokenLoc, ErrorType::ParseError);
+
+    auto token = tokenizer.curToken.ident;
+    tokenizer.nextToken();
+    if(tokenizer.curToken.token == T_COLON) {
+      type_scopes.push_back(token);
+      tokenizer.nextToken();
+    } else {
+      name = token;
+      break;
+    }
+  }
+
+  // check if type is a builtin
+  if(type_scopes.empty() && builtinTypes.count(name) > 0) {
+      return builtinTypes[tokenizer.curToken.ident]();
+  }
+
+  return std::make_unique<ast::UnresolvedType>(type_scopes, name, is_root_scoped);
+}
+
+// typealias ::= 'type' ident '=' typeExpr
+std::unique_ptr<ast::TypeAliasDecl>
+Parser::parseTypeAliasDecl(const ParserState &state, bool is_public) {
+  auto pos = tokenizer.curTokenLoc;
+
+  if (is_public && state.in_private_mod)
+    errorMan.logError(
+        "pub type cannot be declared inside a non-pub module", pos,
+        ErrorType::PublicSymInPrivateMod);
+
+  // consume 'type'
+  tokenizer.nextToken();
+  // get name
+  if (tokenizer.curToken.token != T_IDENT) {
+    return errorMan.logError("expected type alias name (expected identifier)",
+                             tokenizer.curTokenLoc, ErrorType::ParseError);
+  }
+  auto name = tokenizer.curToken.ident;
+  tokenizer.nextToken();
+  if (tokenizer.curToken.token != T_ASSIGN) {
+    return errorMan.logError("expected '=' after type name",
+                             tokenizer.curTokenLoc, ErrorType::ParseError);
+  }
+  tokenizer.nextToken();
+  auto type = parseType(state);
+
+  // TODO: add to symbol tables
+
+  return std::make_unique<ast::TypeAliasDecl>(pos, name, std::move(type));
 }
 
 // functionproto ::= ident '(' (arg typeExpr ',')* arg typeExpr ')' '->'
@@ -428,7 +477,7 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
     auto &arg = proto->argNames[i];
     auto &loc = argLocs[i];
 
-    auto sym = std::make_shared<Symbol>(loc, is_public, false, false);
+    auto sym = std::make_shared<Symbol>(loc, false, false, false);
     bodyState.current_scope->getDirectScopeTable().addSymbol(arg, sym);
   }
 
@@ -443,11 +492,22 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   // remove module scope to active scope stack
   scopes.names.popScope(state.current_scope);
 
+  // add entry for function to symbol table
+  if (checkRedeclaration(pos, proto->name, state))
+    return nullptr;
+
+  auto type = std::make_unique<ast::NamedFunctionType>(
+      std::move(proto->type), std::move(proto->argNames));
+  auto ast = std::make_unique<ast::FunctionDecl>(pos, std::move(type),
+                                                 proto->name, std::move(body));
+
+  auto fun_sym = std::make_shared<Symbol>(pos, is_public, true, false);
+  state.current_scope->getDirectScopeTable().addSymbol(proto->name, fun_sym);
+
   if (did_error)
     return nullptr;
 
-  return std::make_unique<ast::FunctionDecl>(pos, std::move(proto),
-                                             std::move(body));
+  return ast;
 }
 
 // modulename ::= 'module' identifier (':' identifier)*
@@ -584,19 +644,7 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
   tokenizer.nextToken();
   auto initialVal = parseExpr(state);
 
-  // make sure symbol wasn't already in table
-  auto existing = state.current_scope->getDirectScopeTable().findSymbol(name);
-  if (existing) {
-    auto scoped_name = getFullyScopedName(name, state);
-
-    errorMan.logError(string_format("redeclaration of `\x1b[1m%s\x1b[m`",
-                                    scoped_name.c_str()),
-                      pos, ErrorType::DuplicateVarDeclare, false);
-    errorMan.logError(
-        string_format("previous declaration of `\x1b[1m%s\x1b[m` here",
-                      scoped_name.c_str()),
-        existing->decl_loc, ErrorType::Note);
-  } else {
+  if (!checkRedeclaration(pos, name, state)) {
     // add entry to symbol table
 
     // if at global level, set the symbol to be valid before it's declaration
@@ -643,10 +691,16 @@ Parser::parsePossiblePubStatement(const ParserState &state, bool is_public) {
     expectEndStatement();
     return res;
   }
+  case T_TYPE: {
+    auto res = parseTypeAliasDecl(state, is_public);
+    expectEndStatement();
+    return res;
+  }
   default: {
-    errorMan.logError("expected 'pub' to be followed by variable, function, or "
-                      "module declaration",
-                      tokenizer.curTokenLoc, ErrorType::ParseError);
+    errorMan.logError(
+        "expected 'pub' to be followed by variable, function, type, or "
+        "module declaration",
+        tokenizer.curTokenLoc, ErrorType::ParseError);
     return parseStatement(state);
   }
   }
@@ -659,6 +713,7 @@ Parser::parseStatement(const ParserState &state) {
   case T_MODULE:
   case T_MUT:
   case T_VAL:
+  case T_TYPE:
     return parsePossiblePubStatement(state, false);
   case T_PUB:
     tokenizer.nextToken();
@@ -688,6 +743,26 @@ std::string Parser::getFullyScopedName(const std::string &name,
     scoped_name = name;
   }
   return scoped_name;
+}
+
+bool Parser::checkRedeclaration(const SourceLocation &pos,
+                                const std::string &name,
+                                const ParserState &state) {
+  // make sure symbol wasn't already in table
+  auto existing = state.current_scope->getDirectScopeTable().findSymbol(name);
+  if (existing) {
+    auto scoped_name = getFullyScopedName(name, state);
+
+    errorMan.logError(string_format("redeclaration of `\x1b[1m%s\x1b[m`",
+                                    scoped_name.c_str()),
+                      pos, ErrorType::DuplicateVarDeclare, false);
+    errorMan.logError(
+        string_format("previous declaration of `\x1b[1m%s\x1b[m` here",
+                      scoped_name.c_str()),
+        existing->decl_loc, ErrorType::Note);
+  }
+
+  return existing != nullptr;
 }
 
 Parser::Parser(Tokenizer &tokenizer, ErrorManager &errorMan,

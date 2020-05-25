@@ -42,6 +42,8 @@ enum TokenType {
   T_PUB = 23,
   T_DOUBLE_COLON = 24,
 
+  T_TYPE = 25,
+
   T_IDENT = -2,
   T_INTLITERAL = -3,
   T_FLOATLITERAL = -4,

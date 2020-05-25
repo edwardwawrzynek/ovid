@@ -89,16 +89,8 @@ public:
   // type aliases can't be declared inside functions, so only name table needed
   std::shared_ptr<ScopeTable<Symbol>> symbols;
 
-  ScopedBlock(StatementList statements)
-      : statements(std::move(statements)),
-        symbols(std::make_shared<ScopeTable<Symbol>>()){};
-
   explicit ScopedBlock(std::shared_ptr<ScopeTable<Symbol>> symbols)
       : statements(), symbols(std::move(symbols)){};
-
-  ScopedBlock(StatementList statements,
-              std::shared_ptr<ScopeTable<Symbol>> symbols)
-      : statements(std::move(statements)), symbols(std::move(symbols)){};
 
   void addStatement(std::unique_ptr<Statement> statement);
 };
@@ -109,6 +101,24 @@ public:
   virtual ~Type() = default;
 
   virtual Type *withoutMutability();
+};
+
+/* an unresolved type
+ * not inferred, just not yet resolved by ResolvePass */
+class UnresolvedType: public Type {
+public:
+  std::vector<std::string> scopes;
+  std::string name;
+  // if the type began with ::
+  bool is_root_scoped;
+
+  UnresolvedType(const std::vector<std::string>& scopes,
+  const std::string& name, bool is_root_scoped): scopes(scopes), name(name), is_root_scoped(is_root_scoped) {};
+};
+
+class VoidType: public Type {
+public:
+  VoidType(){};
 };
 
 class BoolType : public Type {
@@ -127,14 +137,14 @@ public:
 class FloatType : public Type {
 public:
   int size; // in bits
-  FloatType(int size) : size(size){};
+  explicit FloatType(int size) : size(size){};
 };
 
 class MutType : public Type {
 public:
   std::unique_ptr<Type> type;
 
-  MutType(std::unique_ptr<Type> type) : type(std::move(type)){};
+  explicit MutType(std::unique_ptr<Type> type) : type(std::move(type)){};
 
   Type *withoutMutability() override;
 };
@@ -143,7 +153,7 @@ class PointerType : public Type {
 public:
   std::unique_ptr<Type> type;
 
-  PointerType(std::unique_ptr<Type> type) : type(std::move(type)){};
+  explicit PointerType(std::unique_ptr<Type> type) : type(std::move(type)){};
 };
 
 class FunctionType : public Type {
@@ -155,6 +165,16 @@ public:
       : argTypes(std::move(argTypes)), retType(std::move(retType)){};
 };
 
+class NamedFunctionType : public Type {
+public:
+  std::unique_ptr<FunctionType> type;
+  std::vector<std::string> argNames;
+
+  NamedFunctionType(std::unique_ptr<FunctionType> type,
+                    std::vector<std::string> argNames)
+      : type(std::move(type)), argNames(std::move(argNames)){};
+};
+
 class FunctionPrototype {
 public:
   std::unique_ptr<FunctionType> type;
@@ -162,7 +182,7 @@ public:
   std::string name;
 
   FunctionPrototype(std::unique_ptr<FunctionType> type,
-                    std::vector<std::string> argNames, std::string &name)
+                    std::vector<std::string> argNames, const std::string &name)
       : type(std::move(type)), argNames(std::move(argNames)), name(name){};
 };
 
@@ -187,19 +207,25 @@ public:
   std::string name;
   std::unique_ptr<Expression> initialValue;
 
+  // resolved reference to entry for this symbol
+  std::shared_ptr<Symbol> resolved_symbol;
+
   VarDecl(SourceLocation &loc, std::string &name,
           std::unique_ptr<Expression> initialValue)
-      : Statement(loc), name(name), initialValue(std::move(initialValue)){};
+      : Statement(loc), name(name), initialValue(std::move(initialValue)),
+        resolved_symbol(){};
 };
 
 class FunctionDecl : public Statement {
 public:
-  std::unique_ptr<FunctionPrototype> proto;
+  std::unique_ptr<NamedFunctionType> type;
+  std::string name;
   ScopedBlock body;
 
-  FunctionDecl(SourceLocation &loc, std::unique_ptr<FunctionPrototype> proto,
-               ScopedBlock body)
-      : Statement(loc), proto(std::move(proto)), body(std::move(body)){};
+  FunctionDecl(SourceLocation &loc, std::unique_ptr<NamedFunctionType> type,
+               const std::string &name, ScopedBlock body)
+      : Statement(loc), type(std::move(type)), name(name),
+        body(std::move(body)){};
 };
 
 class ModuleDecl : public Statement {
@@ -210,6 +236,16 @@ public:
   ModuleDecl(SourceLocation &loc, std::vector<std::string> scope,
              StatementList body)
       : Statement(loc), scope(std::move(scope)), body(std::move(body)){};
+};
+
+class TypeAliasDecl : public Statement {
+public:
+  std::string name;
+  std::unique_ptr<Type> type;
+
+  TypeAliasDecl(SourceLocation &loc, const std::string &name,
+                std::unique_ptr<Type> type)
+      : Statement(loc), name(name), type(std::move(type)){};
 };
 
 /* ast expressions */
@@ -230,24 +266,17 @@ public:
 
 class Identifier : public Expression {
 public:
+  /* -- parsed symbol info -- */
   std::vector<std::string> scope;
   std::string id;
   bool is_root_scope; // if the identifier began with ::
+  /* -- resolved symbol info -- */
+  std::shared_ptr<Symbol> resolved_symbol;
 
   Identifier(SourceLocation &loc, const std::string &id,
              std::vector<std::string> scope, bool is_root_scope)
       : Expression(loc), scope(std::move(scope)), id(id),
-        is_root_scope(is_root_scope){};
-};
-
-/* Identifier node, but with symbol resolved to scope table */
-class IdentifierResolved : public Expression {
-public:
-  std::shared_ptr<Symbol> symbol;
-
-  explicit IdentifierResolved(SourceLocation &loc,
-                              std::shared_ptr<Symbol> symbol)
-      : Expression(loc), symbol(std::move(symbol)){};
+        is_root_scope(is_root_scope), resolved_symbol(){};
 };
 
 class OperatorSymbol : public Expression {
@@ -287,6 +316,7 @@ public:
   explicit Tuple(SourceLocation &loc, ExpressionList expressions)
       : Expression(loc), expressions(std::move(expressions)){};
 };
+
 } // namespace ovid::ast
 
 #endif

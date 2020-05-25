@@ -149,7 +149,7 @@ static std::map<char, char> charEscapeMap = {
 static std::map<std::string, TokenType> keywordMap = {
     {"fn", T_FN},         {"mut", T_MUT},       {"val", T_VAL},
     {"module", T_MODULE}, {"import", T_IMPORT}, {"return", T_RETURN},
-    {"pub", T_PUB}};
+    {"pub", T_PUB},       {"type", T_TYPE}};
 
 /* scan and read the next token */
 void Tokenizer::nextToken() {

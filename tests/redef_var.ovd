@@ -15,7 +15,13 @@ module ovidc:test {
 
     fn test() -> i32 {
         val b = 1
-        a + b
+        a + c // __error: "use of undeclared identifier `a`" "use of undeclared identifier `c`"
         val b = 2 // __error: "redeclaration of `b`"
     }
+
+    val test = 1 // __error: "redeclaration of `ovidc:test:test`"
+
+    val test2 = 1
+
+    fn test2() -> i32 {} // __error: "redeclaration of `ovidc:test:test2`"
 }

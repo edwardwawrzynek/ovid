@@ -27,6 +27,7 @@ template <class T, class S> class BaseASTVisitor {
   virtual T visitAssignment(Assignment &node, const S &state);
   virtual T visitIntLiteral(IntLiteral &node, const S &state);
   virtual T visitTuple(Tuple &node, const S &state);
+  virtual T visitTypeAliasDecl(TypeAliasDecl &node, const S &state);
 
 public:
   explicit BaseASTVisitor(T defaultValue) : defaultValue(defaultValue){};
@@ -52,6 +53,8 @@ T BaseASTVisitor<T, S>::visitStatement(Statement &node, const S &state) {
     return visitFunctionDecl(dynamic_cast<FunctionDecl &>(node), state);
   } else if (dynamic_cast<ModuleDecl *>(&node)) {
     return visitModuleDecl(dynamic_cast<ModuleDecl &>(node), state);
+  } else if (dynamic_cast<TypeAliasDecl *>(&node) != nullptr) {
+    return visitTypeAliasDecl(dynamic_cast<TypeAliasDecl &>(node), state);
   } else if (dynamic_cast<Expression *>(&node) != nullptr) {
     return visitExpression(dynamic_cast<Expression &>(node), state);
   }
@@ -128,6 +131,11 @@ std::vector<T> BaseASTVisitor<T, S>::visitNodes(const StatementList &nodes,
   }
 
   return res;
+}
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitTypeAliasDecl(TypeAliasDecl &node,
+                                           const S &state) {
+  return defaultValue;
 }
 
 } // namespace ovid::ast

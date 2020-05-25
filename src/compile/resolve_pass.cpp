@@ -15,9 +15,8 @@ int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
       scopes.names.findSymbol(std::vector<std::string>(), node.name);
   assert(declaredSym != nullptr);
   declaredSym->resolve_pass_declared_yet = true;
-  // TODO: change node from referring to name to refer to symbol
-
-  node = VarDecl(node.loc, node.name, nullptr);
+  // change node from referring to name to refer to symbol
+  node.resolved_symbol = declaredSym;
 
   return 0;
 }
@@ -31,7 +30,7 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
   is_in_global = false;
 
   // mark arguments as declared
-  for (auto &name : node.proto->argNames) {
+  for (auto &name : node.type->argNames) {
     // check for shadowing
     checkShadowed(
         node.loc, name, [](const Symbol &sym) -> bool { return true; }, true);
@@ -77,7 +76,14 @@ int ResolvePass::visitModuleDecl(ModuleDecl &node,
 }
 
 int ResolvePass::visitFunctionCall(FunctionCall &node,
-                                   const ResolvePassState &state) {}
+                                   const ResolvePassState &state) {
+  visitNode(*node.funcExpr, state);
+  for (auto &arg : node.args) {
+    visitNode(*arg, state);
+  }
+
+  return 0;
+}
 
 int ResolvePass::visitIdentifier(Identifier &node,
                                  const ResolvePassState &state) {
@@ -102,17 +108,36 @@ int ResolvePass::visitIdentifier(Identifier &node,
         node.loc, ErrorType::UndeclaredIdentifier);
   }
 
-  // TODO: somehow change node to refer to sym instead of scope/id strings
-  // (variant?)
+  // change node to refer to sym instead of scope/id strings
+  node.resolved_symbol = sym;
+
+  return 0;
 }
 
 int ResolvePass::visitOperatorSymbol(OperatorSymbol &node,
-                                     const ResolvePassState &state) {}
+                                     const ResolvePassState &state) {
+  return 0;
+}
 int ResolvePass::visitAssignment(Assignment &node,
-                                 const ResolvePassState &state) {}
+                                 const ResolvePassState &state) {
+  visitNode(*node.lvalue, state);
+  visitNode(*node.rvalue, state);
+
+  return 0;
+}
+
 int ResolvePass::visitIntLiteral(IntLiteral &node,
-                                 const ResolvePassState &state) {}
-int ResolvePass::visitTuple(Tuple &node, const ResolvePassState &state) {}
+                                 const ResolvePassState &state) {
+  return 0;
+}
+
+int ResolvePass::visitTuple(Tuple &node, const ResolvePassState &state) {
+  for (auto &expr : node.expressions) {
+    visitNode(*expr, state);
+  }
+
+  return 0;
+}
 
 ResolvePass::ResolvePass(ActiveScopes &scopes, ErrorManager &errorMan,
                          const std::vector<std::string> &package)

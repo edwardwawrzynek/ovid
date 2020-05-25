@@ -39,6 +39,9 @@ class Parser {
   std::string getFullyScopedName(const std::string &name,
                                  const ParserState &state);
 
+  bool checkRedeclaration(const SourceLocation &pos, const std::string &name,
+                          const ParserState &state);
+
   // parse a program without a file wide module declaration
   ast::StatementList
   parseProgramWithoutRootModuleDecl(const ParserState &state);
@@ -82,9 +85,9 @@ class Parser {
 
   std::vector<std::string> readModuleName(const ParserState &state);
 
-  ParserState newStateForModule(const ParserState &state,
-                                const std::vector<std::string> &names,
-                                bool is_mod_public);
+  static ParserState newStateForModule(const ParserState &state,
+                                       const std::vector<std::string> &names,
+                                       bool is_mod_public);
 
   std::unique_ptr<ast::ModuleDecl>
   parseModuleDeclBody(const ParserState &state, bool is_public,
@@ -93,6 +96,9 @@ class Parser {
 
   std::unique_ptr<ast::Statement>
   parsePossiblePubStatement(const ParserState &state, bool is_public);
+
+  std::unique_ptr<ast::TypeAliasDecl>
+  parseTypeAliasDecl(const ParserState &state, bool is_public);
 
 public:
   Parser(Tokenizer &tokenizer, ErrorManager &errorMan, ActiveScopes &scopes,
