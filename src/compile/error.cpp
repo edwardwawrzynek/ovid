@@ -1,4 +1,5 @@
 #include "error.hpp"
+#include <cassert>
 #include <iomanip>
 #include <limits>
 #include <string>
@@ -25,51 +26,86 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
   auto printType = errorTypeToPrintLevel(type);
   std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":"
             << location.col << ": ";
-  if (printType == ErrorPrintLevel::Error)
-    std::cout << "\x1b[1;31merror: ";
-  else if (printType == ErrorPrintLevel::Warning)
-    std::cout << "\x1b[1;33mwarning: ";
-  else if (printType == ErrorPrintLevel::Note)
-    std::cout << "\x1b[1;36mnote: ";
 
-  std::cout << "\x1b[m";
-  std::cout << msg;
-  std::cout << "\n" << std::setw(5) << location.row << " |\x1b[m ";
+  std::string color_code;
+  if (printType == ErrorPrintLevel::Error)
+    color_code = "\x1b[1;31m";
+  else if (printType == ErrorPrintLevel::Warning)
+    color_code = "\x1b[1;33m";
+  else if (printType == ErrorPrintLevel::Note)
+    color_code = "\x1b[1;36m";
+
+  if (printType == ErrorPrintLevel::Error)
+    std::cout << color_code << "error: ";
+  else if (printType == ErrorPrintLevel::Warning)
+    std::cout << color_code << "warning: ";
+  else if (printType == ErrorPrintLevel::Note)
+    std::cout << color_code << "note: ";
+
+  std::cout << "\x1b[m" << msg << "\n";
+
   location.file->clear();
+
+  // print source location
   if (location.file) {
-    /* save location */
+    // save old location
     auto oldLoc = location.file->tellg();
-    /* seek to line row - 1 */
+    // seek to proper line
     location.file->seekg(std::ios::beg);
     for (int i = 0; i < location.row - 1; ++i) {
       location.file->ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
 
+    // calculate number of lines to print
+    auto numLines = (location.end_row - location.row) + 1;
     std::string line;
-    getline(*location.file, line);
-    std::cout << line << "\n      | \x1b[m";
-    for (int i = 0; i < location.col - 1; i++) {
-      if (isspace(line[i]))
-        std::cout << line[i];
-      else
-        std::cout << ' ';
+    for (auto l = 0; l < numLines; l++) {
+      // print line header
+      std::cout << "\x1b[m" << std::setw(5) << location.row + l << " | ";
+      // read line
+      getline(*location.file, line);
+      // print line, and highlight characters in the error
+      for (auto p = 0; p < line.size(); p++) {
+        if ((p < location.col - 1 && l == 0) ||
+            (p > location.end_col - 1 && l == numLines - 1))
+          std::cout << "\x1b[m";
+        else
+          std::cout << color_code;
+        std::cout << line[p];
+      }
+      std::cout << "\n";
     }
-    if (printType == ErrorPrintLevel::Error)
-      std::cout << "\x1b[31;1m^";
-    else if (printType == ErrorPrintLevel::Warning)
-      std::cout << "\x1b[33;1m^";
-    else if (printType == ErrorPrintLevel::Note)
-      std::cout << "\x1b[36;1m^";
 
-    std::cout << "\x1b[m\n";
+    // if the error was only one line, print underline bar
+    if (numLines == 1) {
+      std::cout << "\x1b[m      | ";
+      int i;
+      for (i = 0; i < location.col - 1; i++) {
+        if (isspace(line[i]))
+          std::cout << line[i];
+        else
+          std::cout << " ";
+      }
+      std::cout << color_code;
+      std::cout << "^";
+      i++;
+      while (i < location.end_col) {
+        std::cout << "~";
+        i++;
+      }
+    }
 
     location.file->seekg(oldLoc);
 
   } else {
-    std::cout << "[ Can't print source location ]\n";
+    std::cout << "[ Can't print source location ]";
   }
+
+  std::cout << "\x1b[m";
+
   if (emitNewline)
     std::cout << "\n";
+
   return nullptr;
 }
 
@@ -102,7 +138,7 @@ std::nullptr_t TestErrorManager::logError(const std::string &msg,
 std::nullptr_t TestErrorManager::logError(const std::string &msg,
                                           const SourceLocation &location,
                                           ErrorType type, bool emitNewline) {
-  errors.emplace_back(type, msg, location.row, location.col);
+  errors.emplace_back(type, msg, location);
   return nullptr;
 }
 
@@ -160,6 +196,21 @@ std::string scopesAndNameToString(const std::vector<std::string> &scopes,
 std::string scopesAndNameToString(const std::vector<std::string> &scopes,
                                   const std::string &name) {
   return scopesAndNameToString(scopes, name, true);
+}
+
+SourceLocation SourceLocation::through(const SourceLocation &endLoc) {
+  assert(file == endLoc.file);
+  assert(filename == endLoc.filename);
+
+  return SourceLocation(filename, row, col, endLoc.end_row, endLoc.end_col,
+                        file);
+}
+
+SourceLocation SourceLocation::until(const SourceLocation &endLoc) {
+  assert(file == endLoc.file);
+  assert(filename == endLoc.filename);
+
+  return SourceLocation(filename, row, col, endLoc.row, endLoc.col, file);
 }
 
 } // namespace ovid

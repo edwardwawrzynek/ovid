@@ -192,7 +192,7 @@ class Node {
 public:
   SourceLocation loc;
 
-  explicit Node(SourceLocation &loc) : loc(loc){};
+  explicit Node(SourceLocation loc) : loc(std::move(loc)){};
 
   virtual ~Node() = default;
 };
@@ -200,7 +200,7 @@ public:
 /* ast statements */
 class Statement : public Node {
 public:
-  explicit Statement(SourceLocation &loc) : Node(loc){};
+  explicit Statement(SourceLocation loc) : Node(std::move(loc)){};
 };
 
 class VarDecl : public Statement {
@@ -211,10 +211,10 @@ public:
   // resolved reference to entry for this symbol
   std::shared_ptr<Symbol> resolved_symbol;
 
-  VarDecl(SourceLocation &loc, std::string &name,
+  VarDecl(SourceLocation loc, std::string &name,
           std::unique_ptr<Expression> initialValue)
-      : Statement(loc), name(name), initialValue(std::move(initialValue)),
-        resolved_symbol(){};
+      : Statement(std::move(loc)), name(name),
+        initialValue(std::move(initialValue)), resolved_symbol(){};
 };
 
 class FunctionDecl : public Statement {
@@ -223,9 +223,9 @@ public:
   std::string name;
   ScopedBlock body;
 
-  FunctionDecl(SourceLocation &loc, std::unique_ptr<NamedFunctionType> type,
+  FunctionDecl(SourceLocation loc, std::unique_ptr<NamedFunctionType> type,
                const std::string &name, ScopedBlock body)
-      : Statement(loc), type(std::move(type)), name(name),
+      : Statement(std::move(loc)), type(std::move(type)), name(name),
         body(std::move(body)){};
 };
 
@@ -234,9 +234,10 @@ public:
   std::vector<std::string> scope;
   StatementList body;
 
-  ModuleDecl(SourceLocation &loc, std::vector<std::string> scope,
+  ModuleDecl(SourceLocation loc, std::vector<std::string> scope,
              StatementList body)
-      : Statement(loc), scope(std::move(scope)), body(std::move(body)){};
+      : Statement(std::move(loc)), scope(std::move(scope)),
+        body(std::move(body)){};
 };
 
 class TypeAliasDecl : public Statement {
@@ -244,15 +245,15 @@ public:
   std::string name;
   std::unique_ptr<Type> type;
 
-  TypeAliasDecl(SourceLocation &loc, const std::string &name,
+  TypeAliasDecl(SourceLocation loc, const std::string &name,
                 std::unique_ptr<Type> type)
-      : Statement(loc), name(name), type(std::move(type)){};
+      : Statement(std::move(loc)), name(name), type(std::move(type)){};
 };
 
 /* ast expressions */
 class Expression : public Statement {
 public:
-  explicit Expression(SourceLocation &loc) : Statement(loc){};
+  explicit Expression(SourceLocation loc) : Statement(std::move(loc)){};
 };
 
 class FunctionCall : public Expression {
@@ -260,9 +261,10 @@ public:
   std::unique_ptr<Expression> funcExpr;
   ExpressionList args;
 
-  FunctionCall(SourceLocation &loc, std::unique_ptr<Expression> funcExpr,
+  FunctionCall(SourceLocation loc, std::unique_ptr<Expression> funcExpr,
                ExpressionList args)
-      : Expression(loc), funcExpr(std::move(funcExpr)), args(std::move(args)){};
+      : Expression(std::move(loc)), funcExpr(std::move(funcExpr)),
+        args(std::move(args)){};
 };
 
 class Identifier : public Expression {
@@ -274,9 +276,9 @@ public:
   /* -- resolved symbol info -- */
   std::shared_ptr<Symbol> resolved_symbol;
 
-  Identifier(SourceLocation &loc, const std::string &id,
+  Identifier(SourceLocation loc, const std::string &id,
              std::vector<std::string> scope, bool is_root_scope)
-      : Expression(loc), scope(std::move(scope)), id(id),
+      : Expression(std::move(loc)), scope(std::move(scope)), id(id),
         is_root_scope(is_root_scope), resolved_symbol(){};
 };
 
@@ -314,8 +316,8 @@ class OperatorSymbol : public Expression {
 public:
   OperatorType op;
 
-  OperatorSymbol(SourceLocation &loc, OperatorType op)
-      : Expression(loc), op(op){};
+  OperatorSymbol(SourceLocation loc, OperatorType op)
+      : Expression(std::move(loc)), op(op){};
 };
 
 class Assignment : public Expression {
@@ -323,30 +325,31 @@ public:
   std::unique_ptr<Expression> lvalue;
   std::unique_ptr<Expression> rvalue;
 
-  Assignment(SourceLocation &loc, std::unique_ptr<Expression> lvalue,
+  Assignment(SourceLocation loc, std::unique_ptr<Expression> lvalue,
              std::unique_ptr<Expression> rvalue)
-      : Expression(loc), lvalue(std::move(lvalue)), rvalue(std::move(rvalue)){};
+      : Expression(std::move(loc)), lvalue(std::move(lvalue)),
+        rvalue(std::move(rvalue)){};
 };
 
 class Literal : public Expression {
 public:
-  explicit Literal(SourceLocation &loc) : Expression(loc){};
+  explicit Literal(SourceLocation loc) : Expression(std::move(loc)){};
 };
 
 class IntLiteral : public Literal {
 public:
   const long value;
 
-  IntLiteral(SourceLocation &loc, const long value)
-      : Literal(loc), value(value){};
+  IntLiteral(SourceLocation loc, const long value)
+      : Literal(std::move(loc)), value(value){};
 };
 
 class Tuple : public Expression {
 public:
   ExpressionList expressions;
 
-  explicit Tuple(SourceLocation &loc, ExpressionList expressions)
-      : Expression(loc), expressions(std::move(expressions)){};
+  explicit Tuple(SourceLocation loc, ExpressionList expressions)
+      : Expression(std::move(loc)), expressions(std::move(expressions)){};
 };
 
 } // namespace ovid::ast

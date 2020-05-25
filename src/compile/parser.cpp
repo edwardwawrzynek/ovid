@@ -47,11 +47,13 @@ ast::StatementList Parser::parseProgram() {
     if (names.empty())
       return parseProgramWithoutRootModuleDecl(state);
 
+    auto endModHeaderPos = tokenizer.curTokenLoc;
+
     // if '{' is present, parse as a normal module statement
     if (tokenizer.curToken.token == T_LBRK) {
       // parse module statement, then parse the rest of program and combine
-      std::unique_ptr<ast::Statement> firstStmnt =
-          parseModuleDeclBody(state, is_public, names, startPos);
+      std::unique_ptr<ast::Statement> firstStmnt = parseModuleDeclBody(
+          state, is_public, names, startPos.through(endModHeaderPos));
       expectEndStatement();
       auto restOfProgram = parseProgramWithoutRootModuleDecl(state);
       restOfProgram.insert(restOfProgram.cbegin(), std::move(firstStmnt));
@@ -68,8 +70,8 @@ ast::StatementList Parser::parseProgram() {
       scopes.popComponentScopesByName(newState.current_module);
       // create the module ast node with the program as body
       ast::StatementList res;
-      res.emplace_back(
-          std::make_unique<ast::ModuleDecl>(startPos, names, std::move(nodes)));
+      res.emplace_back(std::make_unique<ast::ModuleDecl>(
+          startPos.through(endModHeaderPos), names, std::move(nodes)));
 
       return res;
     }
@@ -119,12 +121,15 @@ Parser::parseIdentifier(const ParserState &state) {
     is_root_scoped = true;
   }
 
+  SourceLocation end = pos;
   while (true) {
     if (tokenizer.curToken.token != T_IDENT)
       return errorMan.logError("expected identifier after scope operator :",
                                tokenizer.curTokenLoc, ErrorType::ParseError);
 
     ident = tokenizer.curToken.ident;
+    end = tokenizer.curTokenLoc;
+
     tokenizer.nextToken();
     if (tokenizer.curToken.token == T_COLON) {
       varScopes.push_back(ident);
@@ -151,8 +156,8 @@ Parser::parseIdentifier(const ParserState &state) {
                                           is_root_scoped),
         std::move(args));
   } else {
-    return std::make_unique<ast::Identifier>(pos, ident, std::move(varScopes),
-                                             is_root_scoped);
+    return std::make_unique<ast::Identifier>(
+        pos.through(end), ident, std::move(varScopes), is_root_scoped);
   }
 }
 
@@ -650,8 +655,7 @@ Parser::parseModuleDeclBody(const ParserState &state, bool is_public,
   // remove this module's scope from the active scope stack
   scopes.popComponentScopesByName(newState.current_module);
 
-  return std::make_unique<ast::ModuleDecl>(pos, std::move(names),
-                                           std::move(body));
+  return std::make_unique<ast::ModuleDecl>(pos, names, std::move(body));
 }
 
 // module ::= 'module' identifier (':' identifier)* '{' statement* '}'
@@ -669,7 +673,8 @@ Parser::parseModuleDecl(const ParserState &state, bool is_public) {
   if (names.empty())
     return nullptr;
 
-  return parseModuleDeclBody(state, is_public, names, pos);
+  return parseModuleDeclBody(state, is_public, names,
+                             pos.until(tokenizer.curTokenLoc));
 }
 
 // vardecl ::= ('val' | 'mut') identifier = expr

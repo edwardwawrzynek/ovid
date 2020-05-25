@@ -4,8 +4,15 @@
 #include "tokenizer.hpp"
 
 namespace ovid {
-/* put back a character if we read to far */
-void Tokenizer::putback(char c) { putback_char = c; }
+/* put back a character if we read too far */
+void Tokenizer::putback(char c) {
+  putback_char = c;
+  line = pline;
+  pos_in_line = ppos_in_line;
+
+  curTokenLoc.end_col = pos_in_line;
+  curTokenLoc.end_row = line;
+}
 
 /* read the next char (no whitespace, etc handling ) */
 char Tokenizer::next() {
@@ -13,6 +20,16 @@ char Tokenizer::next() {
   if (putback_char != '\0') {
     c = putback_char;
     putback_char = '\0';
+
+    pos_in_line++;
+    if (c == '\n') {
+      line++;
+      pos_in_line = 0;
+    }
+
+    curTokenLoc.end_col = pos_in_line;
+    curTokenLoc.end_row = line;
+
     return c;
   }
 
@@ -26,12 +43,19 @@ char Tokenizer::next() {
       c = EOF;
   }
 
+  pline = line;
+  ppos_in_line = pos_in_line;
+
   pos_in_line++;
 
   if (c == '\n') {
     pos_in_line = 0;
     line++;
   }
+
+  curTokenLoc.end_col = pos_in_line;
+  curTokenLoc.end_row = line;
+
   return c;
 }
 
@@ -167,6 +191,7 @@ void Tokenizer::nextToken() {
   curToken.last_doc_comment_loc++;
 
   c = skip();
+  /* save position of start of token */
   curTokenLoc.col = pos_in_line;
   curTokenLoc.row = line;
   /* if newline is present and last token could be the end of a statement, and
@@ -327,9 +352,9 @@ Token Tokenizer::peekNextToken() {
 Tokenizer::Tokenizer(const std::string &filename, std::istream *file,
                      ErrorManager &errorMan)
     : putback_char('\0'), comment_nesting_level(0), line(1), pos_in_line(0),
-      file(file), errorMan(errorMan), curToken(),
-      curTokenLoc(filename, 1, 0, file), doTokenPutback(false),
-      locPutback(filename, 1, 0, file), parenLevel(0) {
+      pline(1), ppos_in_line(0), file(file), errorMan(errorMan), curToken(),
+      curTokenLoc(filename, 1, 0, 1, 0, file), doTokenPutback(false),
+      locPutback(filename, 1, 0, 1, 0, file), parenLevel(0) {
   nextToken();
 }
 

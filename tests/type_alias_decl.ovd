@@ -26,7 +26,8 @@ fn test(a intptrptr) -> intptr {
 }
 
 fn test1(a test:intptrptr) -> *::test:intptr {
-    a
+    adsaffads + qwre
+    *a
 }
 
 fn test2(a sub:newtype) -> ::test:sub:newtype {

@@ -25,13 +25,20 @@ std::string string_format(const std::string &format, Args... args) {
 /* location in source code */
 struct SourceLocation {
   std::string filename;
-  int64_t col, row;
+  int64_t col, row;         // start of error
+  int64_t end_col, end_row; // end of error (inclusive)
   std::istream *file; /* file may be null (if input isn't from a file, or is non
                          seekable (like stdin) */
 
   SourceLocation(const std::string &filename, int64_t row, int64_t col,
-                 std::istream *file)
-      : filename(filename), col(col), row(row), file(file){};
+                 int64_t end_row, int64_t end_col, std::istream *file)
+      : filename(filename), col(col), row(row), end_col(end_col),
+        end_row(end_row), file(file){};
+
+  // construct a source location beginning here, lasting until before endLoc
+  SourceLocation until(const SourceLocation &endLoc);
+  // construct a source location beginning here, lasting through endLoc
+  SourceLocation through(const SourceLocation &endLoc);
 };
 /**
  * Types of errors and warnings
@@ -93,10 +100,11 @@ public:
 struct TestErrorRecord {
   ErrorType type;
   std::string message;
-  int row, col;
+  SourceLocation loc;
 
-  TestErrorRecord(ErrorType type, const std::string &message, int row, int col)
-      : type(type), message(message), row(row), col(col){};
+  TestErrorRecord(ErrorType type, const std::string &message,
+                  const SourceLocation &loc)
+      : type(type), message(message), loc(loc){};
 };
 
 class TestErrorManager : public ErrorManager {

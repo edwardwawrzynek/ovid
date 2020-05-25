@@ -79,6 +79,8 @@ class Tokenizer {
   uint64_t line;
   /* current position in line */
   uint64_t pos_in_line;
+  // past line and pos_in_line (for putback)
+  uint64_t pline, ppos_in_line;
   std::istream *file;
   ErrorManager &errorMan;
 

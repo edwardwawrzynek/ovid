@@ -153,11 +153,13 @@ void TesterInstance::readInErrors() {
     std::string token;
     while (!(token = readToken()).empty()) {
       if (token[0] == ':') {
-        expectedErrors.emplace_back(TestErrorRecord(
-            errorStringSpecifierToErrorType(token), "", line, 0));
+        expectedErrors.emplace_back(
+            TestErrorRecord(errorStringSpecifierToErrorType(token), "",
+                            SourceLocation(filename, line, 0, line, 0, &file)));
       } else {
         expectedErrors.emplace_back(
-            TestErrorRecord(ErrorType::NONE, token, line, 0));
+            TestErrorRecord(ErrorType::NONE, token,
+                            SourceLocation(filename, line, 0, line, 0, &file)));
       }
       foundExpected.push_back(false);
     }
@@ -292,12 +294,12 @@ int TesterInstance::run() {
       auto &expected = expectedErrors[i];
       if (expected.type == ErrorType::NONE) {
         auto clean = errorMan.clearEscapeCodes(error.message);
-        if (expected.message == clean && expected.row == error.row) {
+        if (expected.message == clean && expected.loc.row == error.loc.row) {
           foundExpected[i] = true;
           isExpected = true;
         }
       } else {
-        if (expected.type == error.type && expected.row == error.row) {
+        if (expected.type == error.type && expected.loc.row == error.loc.row) {
           foundExpected[i] = true;
           isExpected = true;
         }
@@ -308,8 +310,7 @@ int TesterInstance::run() {
 
     std::cout << "compile " << filename << ": an unexpected error occurred:\n";
     // pretty print error
-    auto loc = SourceLocation(filename, error.row, error.col, &file);
-    ppErrorMan.logError(error.message, loc, error.type);
+    ppErrorMan.logError(error.message, error.loc, error.type);
 
     failed = 1;
   }
@@ -324,7 +325,7 @@ int TesterInstance::run() {
         std::cout << "\"" << expected.message << "\"";
       }
 
-      std::cout << " to occur on line " << expected.row
+      std::cout << " to occur on line " << expected.loc.row
                 << ", no such error occurred\n\n";
 
       failed = 1;
