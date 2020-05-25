@@ -17,8 +17,10 @@ enum TokenType {
   T_STAR = 3, /* also used for pointers */
   T_DIV = 4,
 
-  T_ASSIGN = 5,
-  T_EQ = 6,
+  T_ADDR = 5,
+
+  T_ASSIGN = 6,
+  T_EQ = 7,
   T_FN = 8,
 
   T_LBRK = 9,

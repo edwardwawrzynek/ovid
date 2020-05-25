@@ -42,6 +42,11 @@ class Parser {
   bool checkRedeclaration(const SourceLocation &pos, const std::string &name,
                           const ParserState &state);
 
+  // convert token types to ast::OperatorType
+  ast::OperatorType infixTokenToOperatorType(TokenType token);
+  ast::OperatorType prefixTokenToOperatorType(TokenType token);
+  ast::OperatorType postfixTokenToOperatorType(TokenType token);
+
   // parse a program without a file wide module declaration
   ast::StatementList
   parseProgramWithoutRootModuleDecl(const ParserState &state);
@@ -55,6 +60,8 @@ class Parser {
   std::unique_ptr<ast::Expression> parseExpr(const ParserState &state);
 
   std::unique_ptr<ast::Expression> parsePrimary(const ParserState &state);
+
+  std::unique_ptr<ast::Expression> parsePrefixOp(const ParserState &state);
 
   std::unique_ptr<ast::Expression>
   parseBinOpRight(const ParserState &state, int exprPrec,

@@ -105,18 +105,19 @@ public:
 
 /* an unresolved type
  * not inferred, just not yet resolved by ResolvePass */
-class UnresolvedType: public Type {
+class UnresolvedType : public Type {
 public:
   std::vector<std::string> scopes;
   std::string name;
   // if the type began with ::
   bool is_root_scoped;
 
-  UnresolvedType(const std::vector<std::string>& scopes,
-  const std::string& name, bool is_root_scoped): scopes(scopes), name(name), is_root_scoped(is_root_scoped) {};
+  UnresolvedType(const std::vector<std::string> &scopes,
+                 const std::string &name, bool is_root_scoped)
+      : scopes(scopes), name(name), is_root_scoped(is_root_scoped){};
 };
 
-class VoidType: public Type {
+class VoidType : public Type {
 public:
   VoidType(){};
 };
@@ -279,11 +280,42 @@ public:
         is_root_scope(is_root_scope), resolved_symbol(){};
 };
 
+enum class OperatorType {
+  ADD,
+  SUB,
+  MUL,
+  DIV,
+  MOD,
+  NEGATIVE,
+  DEREF,
+  ADDR,
+  PREFIX_INC,
+  PREFIX_DEC,
+  POSTFIX_INC,
+  POSTFIX_DEC,
+  BIN_AND,
+  BIN_OR,
+  BIN_XOR,
+  BIN_NOT,
+  LOG_AND,
+  LOG_OR,
+  LOG_NOT,
+  EQUAL,
+  NEQUAL,
+  GREATER,
+  GREATER_EQUAL,
+  LESS,
+  LESS_EQUAL,
+  LEFT_SHIFT,
+  RIGHT_SHIFT
+};
+
 class OperatorSymbol : public Expression {
 public:
-  TokenType op;
+  OperatorType op;
 
-  OperatorSymbol(SourceLocation &loc, TokenType op) : Expression(loc), op(op){};
+  OperatorSymbol(SourceLocation &loc, OperatorType op)
+      : Expression(loc), op(op){};
 };
 
 class Assignment : public Expression {

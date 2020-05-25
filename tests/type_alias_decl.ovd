@@ -22,11 +22,11 @@ module sub {
 }
 
 fn test(a intptrptr) -> intptr {
-    *a
+   *a
 }
 
-fn test1(a ::test:intptrptr) -> test:intptr {
-    *a
+fn test1(a test:intptrptr) -> *::test:intptr {
+    a
 }
 
 fn test2(a sub:newtype) -> ::test:sub:newtype {
@@ -38,5 +38,5 @@ fn test3(a newtype) -> test:sub:newtype { // __error: "use of undeclared type `n
 }
 
 fn test4(a sometype) -> i32 { // __error: "use of undeclared type `sometype`"
-    *a
+    a
 }

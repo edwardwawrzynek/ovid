@@ -192,6 +192,61 @@ Parser::parseParenExpr(const ParserState &state) {
                            ErrorType::ParseError);
 }
 
+static std::map<TokenType, ast::OperatorType> infixOperatorMap = {
+    {T_ADD, ast::OperatorType::ADD},
+    {T_SUB, ast::OperatorType::SUB},
+    {T_STAR, ast::OperatorType::MUL},
+    {T_DIV, ast::OperatorType::DIV}};
+
+static std::map<TokenType, ast::OperatorType> prefixOperatorMap = {
+    {T_SUB, ast::OperatorType::NEGATIVE},
+    {T_STAR, ast::OperatorType::DEREF},
+    {T_ADDR, ast::OperatorType::ADDR},
+};
+
+static std::map<TokenType, ast::OperatorType> postfixOperatorMap = {};
+
+ast::OperatorType Parser::infixTokenToOperatorType(TokenType token) {
+  if (infixOperatorMap.count(token) > 0) {
+    return infixOperatorMap[token];
+  }
+  assert(false);
+}
+
+ast::OperatorType Parser::prefixTokenToOperatorType(TokenType token) {
+  if (prefixOperatorMap.count(token) > 0) {
+    return prefixOperatorMap[token];
+  }
+  assert(false);
+}
+
+ast::OperatorType Parser::postfixTokenToOperatorType(TokenType token) {
+  if (postfixOperatorMap.count(token) > 0) {
+    return postfixOperatorMap[token];
+  }
+  assert(false);
+}
+
+// parse a prefixed operation
+std::unique_ptr<ast::Expression>
+Parser::parsePrefixOp(const ParserState &state) {
+  auto startPos = tokenizer.curTokenLoc;
+  if (prefixOperatorMap.count(tokenizer.curToken.token) > 0) {
+    auto op = prefixTokenToOperatorType(tokenizer.curToken.token);
+    tokenizer.nextToken();
+    auto right = parsePrefixOp(state);
+
+    std::vector<std::unique_ptr<ast::Expression>> args;
+    args.push_back(std::move(right));
+
+    return std::make_unique<ast::FunctionCall>(
+        startPos, std::make_unique<ast::OperatorSymbol>(startPos, op),
+        std::move(args));
+  } else {
+    return parsePrimary(state);
+  }
+}
+
 std::unique_ptr<ast::Expression>
 Parser::parsePrimary(const ParserState &state) {
   switch (tokenizer.curToken.token) {
@@ -216,7 +271,7 @@ Parser::parsePrimary(const ParserState &state) {
 
 // expr ::= primary binoprhs
 std::unique_ptr<ast::Expression> Parser::parseExpr(const ParserState &state) {
-  auto leftExpr = parsePrimary(state);
+  auto leftExpr = parsePrefixOp(state);
   if (!leftExpr)
     return nullptr;
 
@@ -237,7 +292,7 @@ Parser::parseBinOpRight(const ParserState &state, int exprPrec,
     auto opPos = tokenizer.curTokenLoc;
     tokenizer.nextToken();
 
-    auto rightExpr = parsePrimary(state);
+    auto rightExpr = parsePrefixOp(state);
     if (!rightExpr)
       return nullptr;
 
@@ -259,26 +314,28 @@ Parser::parseBinOpRight(const ParserState &state, int exprPrec,
       args.push_back(std::move(leftExpr));
       args.push_back(std::move(rightExpr));
       leftExpr = std::make_unique<ast::FunctionCall>(
-          startPos, std::make_unique<ast::OperatorSymbol>(opPos, op),
+          startPos,
+          std::make_unique<ast::OperatorSymbol>(opPos,
+                                                infixTokenToOperatorType(op)),
           std::move(args));
     }
   }
 }
 
-static std::map<std::string, std::function<std::unique_ptr<ast::Type>()>> builtinTypes = {
-    {"i8", [] {return std::make_unique<ast::IntType>(8, false);}},
-    {"i16", [] {return std::make_unique<ast::IntType>(16, false);}},
-    {"i32", [] {return std::make_unique<ast::IntType>(32, false);}},
-    {"i64", [] {return std::make_unique<ast::IntType>(64, false);}},
-    {"u8", [] {return std::make_unique<ast::IntType>(8, true);}},
-    {"u16", [] {return std::make_unique<ast::IntType>(16, true);}},
-    {"u32", [] {return std::make_unique<ast::IntType>(32, true);}},
-    {"u64", [] {return std::make_unique<ast::IntType>(64, true);}},
-    {"f32", [] {return std::make_unique<ast::FloatType>(32);}},
-    {"f64", [] {return std::make_unique<ast::FloatType>(64);}},
-    {"bool", [] {return std::make_unique<ast::BoolType>();}},
-    {"void", [] {return std::make_unique<ast::VoidType>();}}
-};
+static std::map<std::string, std::function<std::unique_ptr<ast::Type>()>>
+    builtinTypes = {
+        {"i8", [] { return std::make_unique<ast::IntType>(8, false); }},
+        {"i16", [] { return std::make_unique<ast::IntType>(16, false); }},
+        {"i32", [] { return std::make_unique<ast::IntType>(32, false); }},
+        {"i64", [] { return std::make_unique<ast::IntType>(64, false); }},
+        {"u8", [] { return std::make_unique<ast::IntType>(8, true); }},
+        {"u16", [] { return std::make_unique<ast::IntType>(16, true); }},
+        {"u32", [] { return std::make_unique<ast::IntType>(32, true); }},
+        {"u64", [] { return std::make_unique<ast::IntType>(64, true); }},
+        {"f32", [] { return std::make_unique<ast::FloatType>(32); }},
+        {"f64", [] { return std::make_unique<ast::FloatType>(64); }},
+        {"bool", [] { return std::make_unique<ast::BoolType>(); }},
+        {"void", [] { return std::make_unique<ast::VoidType>(); }}};
 
 // typeExpr ::= 'i8' | 'u8' | ... | 'string'
 // typeExpr ::= '*' typeExpr
@@ -305,7 +362,8 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
     tokenizer.nextToken();
     return std::make_unique<ast::PointerType>(parseType(state, false));
   }
-  if (tokenizer.curToken.token != T_IDENT && tokenizer.curToken.token != T_DOUBLE_COLON) {
+  if (tokenizer.curToken.token != T_IDENT &&
+      tokenizer.curToken.token != T_DOUBLE_COLON) {
     return errorMan.logError("Expected a type expression",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   }
@@ -315,17 +373,19 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
   std::vector<std::string> type_scopes;
   std::string name;
 
-  if(tokenizer.curToken.token == T_DOUBLE_COLON) {
+  if (tokenizer.curToken.token == T_DOUBLE_COLON) {
     tokenizer.nextToken();
     is_root_scoped = true;
   }
 
-  while(true) {
-    if(tokenizer.curToken.token != T_IDENT) return errorMan.logError("expected identifier in type expression", tokenizer.curTokenLoc, ErrorType::ParseError);
+  while (true) {
+    if (tokenizer.curToken.token != T_IDENT)
+      return errorMan.logError("expected identifier in type expression",
+                               tokenizer.curTokenLoc, ErrorType::ParseError);
 
     auto token = tokenizer.curToken.ident;
     tokenizer.nextToken();
-    if(tokenizer.curToken.token == T_COLON) {
+    if (tokenizer.curToken.token == T_COLON) {
       type_scopes.push_back(token);
       tokenizer.nextToken();
     } else {
@@ -335,11 +395,12 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
   }
 
   // check if type is a builtin
-  if(type_scopes.empty() && builtinTypes.count(name) > 0) {
-      return builtinTypes[tokenizer.curToken.ident]();
+  if (type_scopes.empty() && builtinTypes.count(name) > 0) {
+    return builtinTypes[tokenizer.curToken.ident]();
   }
 
-  return std::make_unique<ast::UnresolvedType>(type_scopes, name, is_root_scoped);
+  return std::make_unique<ast::UnresolvedType>(type_scopes, name,
+                                               is_root_scoped);
 }
 
 // typealias ::= 'type' ident '=' typeExpr
@@ -348,9 +409,8 @@ Parser::parseTypeAliasDecl(const ParserState &state, bool is_public) {
   auto pos = tokenizer.curTokenLoc;
 
   if (is_public && state.in_private_mod)
-    errorMan.logError(
-        "pub type cannot be declared inside a non-pub module", pos,
-        ErrorType::PublicSymInPrivateMod);
+    errorMan.logError("pub type cannot be declared inside a non-pub module",
+                      pos, ErrorType::PublicSymInPrivateMod);
 
   // consume 'type'
   tokenizer.nextToken();

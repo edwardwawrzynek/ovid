@@ -217,6 +217,9 @@ void Tokenizer::nextToken() {
   case '/':
     curToken.token = T_DIV;
     break;
+  case '&':
+    curToken.token = T_ADDR;
+    break;
   case '=':
     if ((c = next()) == '=') {
       curToken.token = T_EQ;
