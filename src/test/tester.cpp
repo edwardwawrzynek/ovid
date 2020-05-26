@@ -29,7 +29,9 @@ TesterInstance::errorStringSpecifierToErrorType(const std::string &str) {
       {":UndeclaredIdentifier", ErrorType::UndeclaredIdentifier},
       {":MutOnRootOfType", ErrorType::MutOnRootOfType},
       {":PublicSymInPrivateMod", ErrorType::PublicSymInPrivateMod},
-      {":PublicSymInFunction", ErrorType::PublicSymInFunction}};
+      {":PublicSymInFunction", ErrorType::PublicSymInFunction},
+      {":DuplicateTypeDecl", ErrorType::DuplicateTypeDecl},
+      {":TypeDeclInFunction", ErrorType::TypeDeclInFunction}};
   if (types.count(str) == 0) {
     doError(string_format("invalid error type %s", str.c_str()));
   }
@@ -45,7 +47,9 @@ std::string TesterInstance::errorTypeToString(ErrorType type) {
       {ErrorType::UndeclaredIdentifier, ":UndeclaredIdentifier"},
       {ErrorType::MutOnRootOfType, ":MutOnRootOfType"},
       {ErrorType::PublicSymInPrivateMod, ":PublicSymInPrivateMod"},
-      {ErrorType::PublicSymInFunction, ":PublicSymInFunction"}};
+      {ErrorType::PublicSymInFunction, ":PublicSymInFunction"},
+      {ErrorType::DuplicateTypeDecl, ":DuplicateTypeDecl"},
+      {ErrorType::TypeDeclInFunction, ":TypeDeclInFunction"}};
 
   return types[type];
 }

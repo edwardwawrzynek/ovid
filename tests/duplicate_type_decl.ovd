@@ -1,0 +1,19 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+module test
+
+pub type test1 = i32 // __error: "pub type cannot be declared inside a non-pub module"
+
+fn test1() -> test1 {
+    type test2 = i32 // __error: "type cannot be declared inside a function"
+}
+
+type test3 = **i32
+
+module mod {
+    type test3 = *i32 // __error: "declaration of type `test:mod:test3` shadows higher declaration"
+}
+
+type test3 = i32 // __error: "redeclaration of type `test:test3`"

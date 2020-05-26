@@ -8,7 +8,11 @@ module i32 {
 }
 
 type test1 = i32:type1
-type test2 = ::i32:type1
+type test2 = ::test:i32:type1
+type test3 = ::i32:type1 // __error: "use of undeclared type `i32:type1`"
+type test4 = type1 // __error: "use of undeclared type `type1`"
+
+type test5 = randomtype // __error: "use of undeclared type `randomtype`"
 
 pub type test = i32 // __error: "pub type cannot be declared inside a non-pub module"
 
@@ -26,7 +30,6 @@ fn test(a intptrptr) -> intptr {
 }
 
 fn test1(a test:intptrptr) -> *::test:intptr {
-    adsaffads + qwre
     *a
 }
 
@@ -34,10 +37,10 @@ fn test2(a sub:newtype) -> ::test:sub:newtype {
     a
 }
 
-fn test3(a newtype) -> test:sub:newtype { // __error: "use of undeclared type `newtype`"
+fn test3(a newtype) -> test:sub:newtype {
     a
 }
 
-fn test4(a sometype) -> i32 { // __error: "use of undeclared type `sometype`"
+fn test4(a sometype) -> i32 {
     a
 }

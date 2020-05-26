@@ -107,6 +107,9 @@ class Parser {
   std::unique_ptr<ast::TypeAliasDecl>
   parseTypeAliasDecl(const ParserState &state, bool is_public);
 
+  void addTypeAlias(const ParserState &state, std::string name,
+                    std::shared_ptr<TypeAlias> alias);
+
 public:
   Parser(Tokenizer &tokenizer, ErrorManager &errorMan, ActiveScopes &scopes,
          const std::vector<std::string> &package);

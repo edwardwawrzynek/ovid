@@ -36,7 +36,6 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
         node.loc, name, [](const Symbol &sym) -> bool { return true; }, true);
     auto sym = node.body.symbols->getDirectScopeTable().findSymbol(name);
     assert(sym != nullptr);
-    // TODO: change arguments from referring to names to refer to symbols
     sym->resolve_pass_declared_yet = true;
   }
 
@@ -139,11 +138,23 @@ int ResolvePass::visitTuple(Tuple &node, const ResolvePassState &state) {
   return 0;
 }
 
+int ResolvePass::visitTypeAliasDecl(TypeAliasDecl &node,
+                                    const ResolvePassState &state) {
+  // check for type shadowing
+  checkTypeShadowed(node.loc, node.name, [] (const TypeAlias& t) {return true;});
+
+  // run type resolution on the type
+  auto resolverState = TypeResolverState(node.loc);
+  node.type->type = type_resolver.visitType(*node.type->type, resolverState);
+
+  return 0;
+}
+
 ResolvePass::ResolvePass(ActiveScopes &scopes, ErrorManager &errorMan,
                          const std::vector<std::string> &package)
     : BaseASTVisitor<int, ResolvePassState>(0), errorMan(errorMan),
       scopes(scopes), package(package), current_module(package),
-      is_in_global(true) {
+      is_in_global(true), type_resolver(scopes, errorMan) {
   // add package as scope table [1] in scope stack
   assert(scopes.names.getNumActiveScopes() == 1);
   assert(scopes.types.getNumActiveScopes() == 1);
@@ -185,5 +196,97 @@ bool ResolvePass::checkShadowed(const SourceLocation &pos,
 
   return shadowed != nullptr;
 }
+
+bool ResolvePass::checkTypeShadowed(
+    const SourceLocation &pos, const std::string &name,
+    std::function<bool(const TypeAlias &)> predicate) {
+  // pop top of type stack. even though type stack doesn't match name scope, top
+  // is still the scope in which the visited type is declared in
+  auto poppedScope = scopes.types.popScope();
+
+  auto shadowed =
+      scopes.types.findSymbol(std::vector<std::string>(), name, predicate);
+
+  if (shadowed) {
+    auto scoped_name = scopesAndNameToString(current_module, name, is_in_global);
+
+    errorMan.logError(
+        string_format(
+            "declaration of type `\x1b[1m%s\x1b[m` shadows higher declaration",
+            scoped_name.c_str()),
+        pos, ErrorType::TypeDeclShadowed, false);
+    errorMan.logError(
+        string_format("shadowed declaration of type `\x1b[1m%s\x1b[m` here",
+                      scoped_name.c_str()),
+        shadowed->decl_loc, ErrorType::Note);
+  }
+
+  scopes.types.pushScope(poppedScope);
+
+  return shadowed != nullptr;
+}
+
+std::unique_ptr<Type>
+TypeResolver::visitUnresolvedType(UnresolvedType &type,
+                                  const TypeResolverState &state) {
+  // lookup type in type tables
+  std::shared_ptr<TypeAlias> sym;
+  if(type.is_root_scoped) {
+    sym = scopes.types.getRootScope()->findSymbol(type.scopes, type.name);
+  } else {
+    sym = scopes.types.findSymbol(type.scopes, type.name);
+  }
+
+  if(sym == nullptr) {
+    errorMan.logError(string_format("use of undeclared type `\x1b[1m%s\x1b[m`", scopesAndNameToString(type.scopes, type.name, true).c_str()), state.typePos, ErrorType::UndeclaredType);
+
+    return nullptr;
+  }
+
+  return visitType(*sym->type, state);
+}
+
+std::unique_ptr<Type>
+TypeResolver::visitVoidType(VoidType &type, const TypeResolverState &state) {
+  return std::make_unique<VoidType>();
+}
+
+std::unique_ptr<Type>
+TypeResolver::visitBoolType(BoolType &type, const TypeResolverState &state) {
+  return std::make_unique<BoolType>();
+}
+
+std::unique_ptr<Type>
+TypeResolver::visitIntType(IntType &type, const TypeResolverState &state) {
+  return std::make_unique<IntType>(type.size, type.isUnsigned);
+}
+
+std::unique_ptr<Type>
+TypeResolver::visitFloatType(FloatType &type, const TypeResolverState &state) {
+  return std::make_unique<FloatType>(type.size);
+}
+
+std::unique_ptr<Type>
+TypeResolver::visitMutType(MutType &type, const TypeResolverState &state) {
+  return std::make_unique<MutType>(visitType(*type.type, state));
+}
+
+std::unique_ptr<Type>
+TypeResolver::visitPointerType(PointerType &type,
+                               const TypeResolverState &state) {
+  return std::make_unique<PointerType>(visitType(*type.type, state));
+}
+
+std::unique_ptr<Type>
+TypeResolver::visitFunctionType(FunctionType &type,
+                                const TypeResolverState &state) {}
+
+std::unique_ptr<Type>
+TypeResolver::visitNamedFunctionType(NamedFunctionType &type,
+                                     const TypeResolverState &state) {}
+
+TypeResolver::TypeResolver(ActiveScopes &scopes,
+                           ErrorManager &errorMan)
+    : BaseTypeVisitor(nullptr), scopes(scopes), errorMan(errorMan) {}
 
 } // namespace ovid::ast

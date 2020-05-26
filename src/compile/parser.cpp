@@ -417,6 +417,10 @@ Parser::parseTypeAliasDecl(const ParserState &state, bool is_public) {
     errorMan.logError("pub type cannot be declared inside a non-pub module",
                       pos, ErrorType::PublicSymInPrivateMod);
 
+  if (!state.is_global_level)
+    errorMan.logError("type cannot be declared inside a function", pos,
+                      ErrorType::TypeDeclInFunction);
+
   // consume 'type'
   tokenizer.nextToken();
   // get name
@@ -425,6 +429,9 @@ Parser::parseTypeAliasDecl(const ParserState &state, bool is_public) {
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   }
   auto name = tokenizer.curToken.ident;
+
+  auto endNamePos = tokenizer.curTokenLoc;
+
   tokenizer.nextToken();
   if (tokenizer.curToken.token != T_ASSIGN) {
     return errorMan.logError("expected '=' after type name",
@@ -433,9 +440,33 @@ Parser::parseTypeAliasDecl(const ParserState &state, bool is_public) {
   tokenizer.nextToken();
   auto type = parseType(state);
 
-  // TODO: add to symbol tables
+  // add symbol with reference to type to type table
+  auto sym = std::make_shared<TypeAlias>(pos.through(endNamePos),
+                                         std::move(type), is_public);
+  addTypeAlias(state, name, sym);
 
-  return std::make_unique<ast::TypeAliasDecl>(pos, name, std::move(type));
+  return std::make_unique<ast::TypeAliasDecl>(pos.through(endNamePos), name,
+                                              sym);
+}
+
+// add a type alias to the type table and check for duplicate definition
+void Parser::addTypeAlias(const ParserState &state, std::string name,
+                          std::shared_ptr<TypeAlias> alias) {
+  auto existing =
+      state.current_type_scope->getDirectScopeTable().findSymbol(name);
+  if (existing) {
+    auto scopedName = scopesAndNameToString(state.current_module, name,
+                                            state.is_global_level);
+    errorMan.logError(string_format("redeclaration of type `\x1b[1m%s\x1b[m`",
+                                    scopedName.c_str()),
+                      alias->decl_loc, ErrorType::DuplicateTypeDecl, false);
+    errorMan.logError(
+        string_format("previous declaration of type `\x1b[1m%s\x1b[m` here",
+                      scopedName.c_str()),
+        existing->decl_loc, ErrorType::Note);
+  } else {
+    state.current_type_scope->getDirectScopeTable().addSymbol(name, alias);
+  }
 }
 
 // functionproto ::= ident '(' (arg typeExpr ',')* arg typeExpr ')' '->'
@@ -702,6 +733,8 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
   }
 
   auto name = tokenizer.curToken.ident;
+  auto endNamePos = tokenizer.curTokenLoc;
+
   tokenizer.nextToken();
   if (tokenizer.curToken.token != T_ASSIGN)
     return errorMan.logError("expected = in variable declaration",
@@ -709,17 +742,18 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
   tokenizer.nextToken();
   auto initialVal = parseExpr(state);
 
-  if (!checkRedeclaration(pos, name, state)) {
+  if (!checkRedeclaration(pos.through(endNamePos), name, state)) {
     // add entry to symbol table
 
     // if at global level, set the symbol to be valid before it's declaration
     // for resolve pass
-    auto sym =
-        std::make_shared<Symbol>(pos, is_public, state.is_global_level, is_mut);
+    auto sym = std::make_shared<Symbol>(pos.through(endNamePos), is_public,
+                                        state.is_global_level, is_mut);
     state.current_scope->getDirectScopeTable().addSymbol(name, sym);
   }
 
-  return std::make_unique<ast::VarDecl>(pos, name, std::move(initialVal));
+  return std::make_unique<ast::VarDecl>(pos.through(endNamePos), name,
+                                        std::move(initialVal));
 }
 
 // error if end of statement (semicolon, which may have been automatically

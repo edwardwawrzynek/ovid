@@ -94,6 +94,7 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
         i++;
       }
     }
+    std::cout << "\n";
 
     location.file->seekg(oldLoc);
 

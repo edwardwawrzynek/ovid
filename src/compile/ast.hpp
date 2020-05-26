@@ -47,9 +47,15 @@ public:
   // declaration or import location
   SourceLocation decl_loc;
   std::unique_ptr<ast::Type> type;
+  // if the type is marked pub
+  bool is_public;
 
   explicit TypeAlias(SourceLocation decl_loc)
-      : decl_loc(std::move(decl_loc)), type(){};
+      : decl_loc(std::move(decl_loc)), type(), is_public(false){};
+
+  TypeAlias(SourceLocation decl_loc, std::unique_ptr<ast::Type> type,
+            bool is_public)
+      : decl_loc(decl_loc), type(std::move(type)), is_public(is_public){};
 };
 
 // name and type symbol tables
@@ -243,10 +249,10 @@ public:
 class TypeAliasDecl : public Statement {
 public:
   std::string name;
-  std::unique_ptr<Type> type;
+  std::shared_ptr<TypeAlias> type;
 
   TypeAliasDecl(SourceLocation loc, const std::string &name,
-                std::unique_ptr<Type> type)
+                std::shared_ptr<TypeAlias> type)
       : Statement(std::move(loc)), name(name), type(std::move(type)){};
 };
 

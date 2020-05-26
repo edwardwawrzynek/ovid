@@ -57,6 +57,10 @@ enum class ErrorType {
   MutOnRootOfType,
   PublicSymInPrivateMod,
   PublicSymInFunction,
+  TypeDeclInFunction,
+  DuplicateTypeDecl,
+  TypeDeclShadowed,
+  UndeclaredType,
 };
 
 enum class ErrorPrintLevel { Error, Warning, Note };
