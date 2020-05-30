@@ -16,9 +16,7 @@ namespace ovid::ast {
 
 class TypeResolverState {
 public:
-  SourceLocation typePos;
-
-  explicit TypeResolverState(const SourceLocation& typePos): typePos(typePos) {};
+  explicit TypeResolverState() {};
 };
 
 class TypeResolver
@@ -53,8 +51,12 @@ class TypeResolver
                          const TypeResolverState &state) override;
 
 public:
-  TypeResolver(ActiveScopes &scopes,
-               ErrorManager &errorMan);
+  TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan);
+
+  // function must be non overloaded to get the right return type (FunctionType, not just the generic Type
+  std::unique_ptr<FunctionType>
+  visitFunctionTypeNonOverload(FunctionType &type,
+                               const TypeResolverState &state);
 };
 
 class ResolvePassState {};

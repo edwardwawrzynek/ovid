@@ -327,20 +327,20 @@ Parser::parseBinOpRight(const ParserState &state, int exprPrec,
   }
 }
 
-static std::map<std::string, std::function<std::unique_ptr<ast::Type>()>>
+static std::map<std::string, std::function<std::unique_ptr<ast::Type>(const SourceLocation & loc)>>
     builtinTypes = {
-        {"i8", [] { return std::make_unique<ast::IntType>(8, false); }},
-        {"i16", [] { return std::make_unique<ast::IntType>(16, false); }},
-        {"i32", [] { return std::make_unique<ast::IntType>(32, false); }},
-        {"i64", [] { return std::make_unique<ast::IntType>(64, false); }},
-        {"u8", [] { return std::make_unique<ast::IntType>(8, true); }},
-        {"u16", [] { return std::make_unique<ast::IntType>(16, true); }},
-        {"u32", [] { return std::make_unique<ast::IntType>(32, true); }},
-        {"u64", [] { return std::make_unique<ast::IntType>(64, true); }},
-        {"f32", [] { return std::make_unique<ast::FloatType>(32); }},
-        {"f64", [] { return std::make_unique<ast::FloatType>(64); }},
-        {"bool", [] { return std::make_unique<ast::BoolType>(); }},
-        {"void", [] { return std::make_unique<ast::VoidType>(); }}};
+        {"i8", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 8, false); }},
+        {"i16", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 16, false); }},
+        {"i32", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 32, false); }},
+        {"i64", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 64, false); }},
+        {"u8", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 8, true); }},
+        {"u16", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 16, true); }},
+        {"u32", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 32, true); }},
+        {"u64", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 64, true); }},
+        {"f32", [] (auto loc) { return std::make_unique<ast::FloatType>(loc, 32); }},
+        {"f64", [] (auto loc) { return std::make_unique<ast::FloatType>(loc, 64); }},
+        {"bool", [] (auto loc) { return std::make_unique<ast::BoolType>(loc); }},
+        {"void", [] (auto loc) { return std::make_unique<ast::VoidType>(loc); }}};
 
 // typeExpr ::= 'i8' | 'u8' | ... | 'string'
 // typeExpr ::= '*' typeExpr
@@ -351,6 +351,8 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state) {
 
 std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
                                              bool is_root_of_type) {
+
+  auto pos = tokenizer.curTokenLoc;
   if (tokenizer.curToken.token == T_MUT) {
     // a type with root level mutability (eg mut i32) is invalid -- root
     // mutability is about binding, not type a type like (* mut i32) is valid
@@ -361,11 +363,11 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
     }
 
     tokenizer.nextToken();
-    return std::make_unique<ast::MutType>(parseType(state, false));
+    return std::make_unique<ast::MutType>(pos, parseType(state, false));
   }
   if (tokenizer.curToken.token == T_STAR) {
     tokenizer.nextToken();
-    return std::make_unique<ast::PointerType>(parseType(state, false));
+    return std::make_unique<ast::PointerType>(pos, parseType(state, false));
   }
   if (tokenizer.curToken.token != T_IDENT &&
       tokenizer.curToken.token != T_DOUBLE_COLON) {
@@ -383,12 +385,15 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
     is_root_scoped = true;
   }
 
+  SourceLocation endPos = tokenizer.curTokenLoc;
+
   while (true) {
     if (tokenizer.curToken.token != T_IDENT)
       return errorMan.logError("expected identifier in type expression",
                                tokenizer.curTokenLoc, ErrorType::ParseError);
 
     auto token = tokenizer.curToken.ident;
+    endPos = tokenizer.curTokenLoc;
     tokenizer.nextToken();
     if (tokenizer.curToken.token == T_COLON) {
       type_scopes.push_back(token);
@@ -401,10 +406,10 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
 
   // check if type is a builtin
   if (type_scopes.empty() && builtinTypes.count(name) > 0) {
-    return builtinTypes[tokenizer.curToken.ident]();
+    return builtinTypes[tokenizer.curToken.ident](pos.through(endPos));
   }
 
-  return std::make_unique<ast::UnresolvedType>(type_scopes, name,
+  return std::make_unique<ast::UnresolvedType>(pos.through(endPos), type_scopes, name,
                                                is_root_scoped);
 }
 
@@ -480,6 +485,8 @@ Parser::parseFunctionProto(const ParserState &state,
                              ErrorType::ParseError);
   std::string name = tokenizer.curToken.ident;
 
+  auto startPos = tokenizer.curTokenLoc;
+
   // left paren
   tokenizer.nextToken();
   if (tokenizer.curToken.token != T_LPAREN)
@@ -522,7 +529,7 @@ Parser::parseFunctionProto(const ParserState &state,
   auto retType = parseType(state);
 
   return std::make_unique<ast::FunctionPrototype>(
-      std::make_unique<ast::FunctionType>(std::move(argTypes),
+      std::make_unique<ast::FunctionType>(startPos.through(retType->loc), std::move(argTypes),
                                           std::move(retType)),
       std::move(argNames), name);
 }
@@ -592,7 +599,7 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   if (checkRedeclaration(pos, proto->name, state))
     return nullptr;
 
-  auto type = std::make_unique<ast::NamedFunctionType>(
+  auto type = std::make_unique<ast::NamedFunctionType>(pos.through(proto->type->loc),
       std::move(proto->type), std::move(proto->argNames));
   auto ast = std::make_unique<ast::FunctionDecl>(pos, std::move(type),
                                                  proto->name, std::move(body));

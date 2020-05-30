@@ -156,7 +156,7 @@ TEST(BasicActiveScopesTest, Symbols) {
   package.emplace_back("s1");
   package.emplace_back("s2");
 
-  auto loc = SourceLocation("test", 0, 0, nullptr);
+  auto loc = SourceLocation("test", 0, 0, 0, 0, nullptr);
 
   auto scopes = ActiveScopes(package);
 

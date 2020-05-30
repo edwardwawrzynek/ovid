@@ -37,10 +37,10 @@ fn test2(a sub:newtype) -> ::test:sub:newtype {
     a
 }
 
-fn test3(a newtype) -> test:sub:newtype {
+fn test3(a newtype) -> test:sub:newtype { // __error: "use of undeclared type `newtype`"
     a
 }
 
-fn test4(a sometype) -> i32 {
+fn test4(a sometype) -> randomtype { // __error: "use of undeclared type `sometype`" "use of undeclared type `randomtype`"
     a
 }

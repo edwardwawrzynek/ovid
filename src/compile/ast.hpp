@@ -104,9 +104,12 @@ public:
 /* ast types */
 class Type {
 public:
+  SourceLocation loc;
   virtual ~Type() = default;
 
   virtual Type *withoutMutability();
+
+  explicit Type(SourceLocation loc): loc(std::move(loc)) {};
 };
 
 /* an unresolved type
@@ -118,19 +121,27 @@ public:
   // if the type began with ::
   bool is_root_scoped;
 
-  UnresolvedType(const std::vector<std::string> &scopes,
+  UnresolvedType(SourceLocation loc, const std::vector<std::string> &scopes,
                  const std::string &name, bool is_root_scoped)
-      : scopes(scopes), name(name), is_root_scoped(is_root_scoped){};
+      : Type(std::move(loc)), scopes(scopes), name(name), is_root_scoped(is_root_scoped){};
+};
+
+/* a usage of an aliased type that has been resolved to it's entry in the type alias tables */
+class ResolvedAlias: public Type {
+public:
+  std::shared_ptr<TypeAlias> alias;
+
+  ResolvedAlias(SourceLocation loc, std::shared_ptr<TypeAlias> alias): Type(std::move(loc)), alias(std::move(alias)) {};
 };
 
 class VoidType : public Type {
 public:
-  VoidType(){};
+  VoidType(SourceLocation loc): Type(std::move(loc)){};
 };
 
 class BoolType : public Type {
 public:
-  BoolType(){};
+  BoolType(SourceLocation loc): Type(std::move(loc)){};
 };
 
 class IntType : public Type {
@@ -138,20 +149,20 @@ public:
   int size; // in bits
   bool isUnsigned;
 
-  IntType(int size, bool isUnsigned) : size(size), isUnsigned(isUnsigned){};
+  IntType(SourceLocation loc, int size, bool isUnsigned) : Type(std::move(loc)), size(size), isUnsigned(isUnsigned){};
 };
 
 class FloatType : public Type {
 public:
   int size; // in bits
-  explicit FloatType(int size) : size(size){};
+  explicit FloatType(SourceLocation loc, int size) : Type(std::move(loc)), size(size){};
 };
 
 class MutType : public Type {
 public:
   std::unique_ptr<Type> type;
 
-  explicit MutType(std::unique_ptr<Type> type) : type(std::move(type)){};
+  explicit MutType(SourceLocation loc, std::unique_ptr<Type> type) : Type(std::move(loc)), type(std::move(type)){};
 
   Type *withoutMutability() override;
 };
@@ -160,7 +171,7 @@ class PointerType : public Type {
 public:
   std::unique_ptr<Type> type;
 
-  explicit PointerType(std::unique_ptr<Type> type) : type(std::move(type)){};
+  explicit PointerType(SourceLocation loc, std::unique_ptr<Type> type) : Type(std::move(loc)), type(std::move(type)){};
 };
 
 class FunctionType : public Type {
@@ -168,8 +179,8 @@ public:
   TypeList argTypes;
   std::unique_ptr<Type> retType;
 
-  FunctionType(TypeList argTypes, std::unique_ptr<Type> retType)
-      : argTypes(std::move(argTypes)), retType(std::move(retType)){};
+  FunctionType(SourceLocation loc, TypeList argTypes, std::unique_ptr<Type> retType)
+      : Type(std::move(loc)), argTypes(std::move(argTypes)), retType(std::move(retType)){};
 };
 
 class NamedFunctionType : public Type {
@@ -177,9 +188,9 @@ public:
   std::unique_ptr<FunctionType> type;
   std::vector<std::string> argNames;
 
-  NamedFunctionType(std::unique_ptr<FunctionType> type,
+  NamedFunctionType(SourceLocation loc, std::unique_ptr<FunctionType> type,
                     std::vector<std::string> argNames)
-      : type(std::move(type)), argNames(std::move(argNames)){};
+      : Type(std::move(loc)), type(std::move(type)), argNames(std::move(argNames)){};
 };
 
 class FunctionPrototype {

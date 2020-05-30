@@ -39,6 +39,9 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
     sym->resolve_pass_declared_yet = true;
   }
 
+  auto typeResolveState = TypeResolverState();
+  node.type->type = type_resolver.visitFunctionTypeNonOverload(*node.type->type, typeResolveState);
+
   for (auto &child : node.body.statements) {
     if (child != nullptr)
       visitNode(*child, state);
@@ -141,10 +144,11 @@ int ResolvePass::visitTuple(Tuple &node, const ResolvePassState &state) {
 int ResolvePass::visitTypeAliasDecl(TypeAliasDecl &node,
                                     const ResolvePassState &state) {
   // check for type shadowing
-  checkTypeShadowed(node.loc, node.name, [] (const TypeAlias& t) {return true;});
+  checkTypeShadowed(node.loc, node.name,
+                    [](const TypeAlias &t) { return true; });
 
   // run type resolution on the type
-  auto resolverState = TypeResolverState(node.loc);
+  auto resolverState = TypeResolverState();
   node.type->type = type_resolver.visitType(*node.type->type, resolverState);
 
   return 0;
@@ -208,7 +212,8 @@ bool ResolvePass::checkTypeShadowed(
       scopes.types.findSymbol(std::vector<std::string>(), name, predicate);
 
   if (shadowed) {
-    auto scoped_name = scopesAndNameToString(current_module, name, is_in_global);
+    auto scoped_name =
+        scopesAndNameToString(current_module, name, is_in_global);
 
     errorMan.logError(
         string_format(
@@ -231,62 +236,81 @@ TypeResolver::visitUnresolvedType(UnresolvedType &type,
                                   const TypeResolverState &state) {
   // lookup type in type tables
   std::shared_ptr<TypeAlias> sym;
-  if(type.is_root_scoped) {
+  if (type.is_root_scoped) {
     sym = scopes.types.getRootScope()->findSymbol(type.scopes, type.name);
   } else {
     sym = scopes.types.findSymbol(type.scopes, type.name);
   }
 
-  if(sym == nullptr) {
-    errorMan.logError(string_format("use of undeclared type `\x1b[1m%s\x1b[m`", scopesAndNameToString(type.scopes, type.name, true).c_str()), state.typePos, ErrorType::UndeclaredType);
+  if (sym == nullptr) {
+    errorMan.logError(
+        string_format(
+            "use of undeclared type `\x1b[1m%s\x1b[m`",
+            scopesAndNameToString(type.scopes, type.name, true).c_str()),
+        type.loc, ErrorType::UndeclaredType);
 
     return nullptr;
   }
 
-  return visitType(*sym->type, state);
+  return std::make_unique<ResolvedAlias>(type.loc, sym);
 }
 
 std::unique_ptr<Type>
 TypeResolver::visitVoidType(VoidType &type, const TypeResolverState &state) {
-  return std::make_unique<VoidType>();
+  return std::make_unique<VoidType>(type.loc);
 }
 
 std::unique_ptr<Type>
 TypeResolver::visitBoolType(BoolType &type, const TypeResolverState &state) {
-  return std::make_unique<BoolType>();
+  return std::make_unique<BoolType>(type.loc);
 }
 
 std::unique_ptr<Type>
 TypeResolver::visitIntType(IntType &type, const TypeResolverState &state) {
-  return std::make_unique<IntType>(type.size, type.isUnsigned);
+  return std::make_unique<IntType>(type.loc, type.size, type.isUnsigned);
 }
 
 std::unique_ptr<Type>
 TypeResolver::visitFloatType(FloatType &type, const TypeResolverState &state) {
-  return std::make_unique<FloatType>(type.size);
+  return std::make_unique<FloatType>(type.loc, type.size);
 }
 
 std::unique_ptr<Type>
 TypeResolver::visitMutType(MutType &type, const TypeResolverState &state) {
-  return std::make_unique<MutType>(visitType(*type.type, state));
+  return std::make_unique<MutType>(type.loc, visitType(*type.type, state));
 }
 
 std::unique_ptr<Type>
 TypeResolver::visitPointerType(PointerType &type,
                                const TypeResolverState &state) {
-  return std::make_unique<PointerType>(visitType(*type.type, state));
+  return std::make_unique<PointerType>(type.loc, visitType(*type.type, state));
+}
+
+std::unique_ptr<FunctionType>
+TypeResolver::visitFunctionTypeNonOverload(FunctionType &type,
+                                const TypeResolverState &state) {
+    TypeList argTypes;
+    for(auto &arg: type.argTypes) {
+      argTypes.push_back(visitType(*arg, state));
+    }
+    auto retType = visitType(*type.retType, state);
+  return std::make_unique<FunctionType>(type.loc, std::move(argTypes), std::move(retType));
 }
 
 std::unique_ptr<Type>
 TypeResolver::visitFunctionType(FunctionType &type,
-                                const TypeResolverState &state) {}
+                                           const TypeResolverState &state) {
+  return visitFunctionTypeNonOverload(type, state);
+}
 
 std::unique_ptr<Type>
 TypeResolver::visitNamedFunctionType(NamedFunctionType &type,
-                                     const TypeResolverState &state) {}
+                                     const TypeResolverState &state) {
+  auto newType = visitFunctionTypeNonOverload(*type.type, state);
+  return std::make_unique<NamedFunctionType>(type.loc, std::move(newType), type.argNames);
+}
 
-TypeResolver::TypeResolver(ActiveScopes &scopes,
-                           ErrorManager &errorMan)
+TypeResolver::TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan)
     : BaseTypeVisitor(nullptr), scopes(scopes), errorMan(errorMan) {}
 
 } // namespace ovid::ast
