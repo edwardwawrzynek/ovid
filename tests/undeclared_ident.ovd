@@ -9,11 +9,11 @@ module test {
 
     var // __error: "use of undeclared identifier `var`"
 
-    val a = 1
+    pub val a = 1
 }
 
 module test2 {
     a // __error: "use of undeclared identifier `a`"
     test:a
-    ::test:a
+    ::ovidc_test:test:a
 }

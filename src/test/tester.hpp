@@ -83,7 +83,7 @@ class TesterInstance {
   void readInErrors();
 
 public:
-  TesterInstance(const std::string &filename);
+  explicit TesterInstance(const std::string &filename);
 
   // actually test a program (0 for success, non zero on test failure)
   int run();

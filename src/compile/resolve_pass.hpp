@@ -7,8 +7,6 @@
  * The name resolution pass on the AST
  * the pass visits each ast node, and resolves all identifiers to references to
  * entries in the symbol tables
- * TODO: Additionally, it fully resolves all of the record types' internals, so
- * that they can be fully specified
  * TODO: simplify some syntactical sugar
  */
 
@@ -16,7 +14,12 @@ namespace ovid::ast {
 
 class TypeResolverState {
 public:
-  explicit TypeResolverState() {};
+  const std::vector<std::string> &package;
+  const std::vector<std::string> &current_module;
+
+  TypeResolverState(const std::vector<std::string> &package,
+                    const std::vector<std::string> &current_module)
+      : package(package), current_module(current_module){};
 };
 
 class TypeResolver
@@ -53,7 +56,8 @@ class TypeResolver
 public:
   TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan);
 
-  // function must be non overloaded to get the right return type (FunctionType, not just the generic Type
+  // function must be non overloaded to get the right return type (FunctionType,
+  // not just the generic Type
   std::unique_ptr<FunctionType>
   visitFunctionTypeNonOverload(FunctionType &type,
                                const TypeResolverState &state);

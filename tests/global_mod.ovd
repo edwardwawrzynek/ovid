@@ -27,7 +27,7 @@ fn test() -> i32 {
     sub:mod:a
     mod:a
     a
-    ::test:sub:mod:a
+    ::ovidc_test:test:sub:mod:a
     ::sub:mod:a // __error: "use of undeclared identifier `sub:mod:a`"
     ::mod:a // __error: "use of undeclared identifier `mod:a`"
     ::a // __error: "use of undeclared identifier `a`"

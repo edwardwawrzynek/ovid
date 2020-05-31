@@ -2,5 +2,4 @@ module test:main
 
 type d = *mut b
 type c = b
-type b = a
-type a = *i32
+type b = c

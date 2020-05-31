@@ -32,15 +32,18 @@ void ActiveScopes::popComponentScopesByName(
 ActiveScopes::ActiveScopes(const std::vector<std::string> &packageName)
     : names(), types() {
   // add root scopes
-  names.pushScope(std::make_shared<ovid::ScopeTable<ovid::Symbol>>());
-  types.pushScope(std::make_shared<ovid::ScopeTable<ovid::TypeAlias>>());
+  names.pushScope(
+      std::make_shared<ovid::ScopeTable<ovid::Symbol>>(true, nullptr));
+  types.pushScope(
+      std::make_shared<ovid::ScopeTable<ovid::TypeAlias>>(true, nullptr));
 
   // add package scopes
   auto curNameScope = names.getRootScope();
   auto curTypeScope = types.getRootScope();
   for (auto &scope : packageName) {
-    curNameScope = curNameScope->addScopeTable(scope);
-    curTypeScope = curTypeScope->addScopeTable(scope);
+    // packages are always public
+    curNameScope = curNameScope->addScopeTable(scope, true, curNameScope);
+    curTypeScope = curTypeScope->addScopeTable(scope, true, curTypeScope);
   }
 }
 } // namespace ovid

@@ -4,10 +4,10 @@
 
 module test0 {
     /* this shadows the a declared at root scope */
-    val a = 1 // __error: "declaration of `test0:a` shadows higher declaration"
+    val a = 1 // __error: "declaration of `ovidc_test:test0:a` shadows higher declaration"
 
     module test1 {
-        val a = 2 // __error: "declaration of `test0:test1:a` shadows higher declaration"
+        val a = 2 // __error: "declaration of `ovidc_test:test0:test1:a` shadows higher declaration"
         val b = 1
     }
 

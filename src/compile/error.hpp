@@ -61,6 +61,8 @@ enum class ErrorType {
   DuplicateTypeDecl,
   TypeDeclShadowed,
   UndeclaredType,
+  UseOfPrivateIdentifier,
+  UseOfPrivateType,
 };
 
 enum class ErrorPrintLevel { Error, Warning, Note };

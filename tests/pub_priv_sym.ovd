@@ -1,0 +1,86 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+pub module test1:test2
+
+pub module test3 {
+    val a = 1
+    pub val b = 2
+
+    type a = i32
+    pub type b = i32
+
+    module test4 {
+        val c = 3
+        pub val d = 4
+
+        fn test() -> void {
+            /* all symbol accessible to descendants */
+            a
+            b
+            c
+            d
+            test4:c
+            test4:d
+            test3:a
+            test3:b
+            test3:test4:c
+            test3:test4:d
+            test2:test3:a
+            test2:test3:b
+            test2:test3:test4:c
+            test2:test3:test4:d
+            test1:test2:test3:a
+            test1:test2:test3:b
+            test1:test2:test3:test4:c
+            test1:test2:test3:test4:d
+            ovidc_test:test1:test2:test3:a
+            ovidc_test:test1:test2:test3:b
+            ovidc_test:test1:test2:test3:test4:c
+            ovidc_test:test1:test2:test3:test4:d
+            ::ovidc_test:test1:test2:test3:a
+            ::ovidc_test:test1:test2:test3:b
+            ::ovidc_test:test1:test2:test3:test4:c
+            ::ovidc_test:test1:test2:test3:test4:d
+        }
+    }
+}
+
+fn test() -> void {
+    test3:a // __error: "use of private identifier `test3:a`"
+    test2:test3:a // __error: "use of private identifier `test2:test3:a`"
+    test1:test2:test3:a // __error: "use of private identifier `test1:test2:test3:a`"
+    ovidc_test:test1:test2:test3:a // __error: "use of private identifier `ovidc_test:test1:test2:test3:a`"
+    ::ovidc_test:test1:test2:test3:a // __error: "use of private identifier `ovidc_test:test1:test2:test3:a`"
+
+    test3:b
+    test2:test3:b
+    test1:test2:test3:b
+    ovidc_test:test1:test2:test3:b
+    ::ovidc_test:test1:test2:test3:b
+
+    test3:test4:c // __error: "use of private identifier `test3:test4:c`"
+    test2:test3:test4:c // __error: "use of private identifier `test2:test3:test4:c`"
+    test1:test2:test3:test4:c // __error: "use of private identifier `test1:test2:test3:test4:c`"
+    ovidc_test:test1:test2:test3:test4:c // __error: "use of private identifier `ovidc_test:test1:test2:test3:test4:c`"
+    ::ovidc_test:test1:test2:test3:test4:c // __error: "use of private identifier `ovidc_test:test1:test2:test3:test4:c`"
+
+    test3:test4:d
+    test2:test3:test4:d
+    test1:test2:test3:test4:d
+    ovidc_test:test1:test2:test3:test4:d
+    ::ovidc_test:test1:test2:test3:test4:d
+}
+
+fn test1() -> test3:a {} // __error: "use of private type `test3:a`"
+fn test2() -> test2:test3:a {} // __error: "use of private type `test2:test3:a`"
+fn test3() -> test1:test2:test3:a {} // __error: "use of private type `test1:test2:test3:a`"
+fn test4() -> ovidc_test:test1:test2:test3:a {} // __error: "use of private type `ovidc_test:test1:test2:test3:a`"
+fn test5() -> ::ovidc_test:test1:test2:test3:a {} // __error: "use of private type `ovidc_test:test1:test2:test3:a`"
+
+fn test6() -> test3:b {}
+fn test7() -> test2:test3:b {}
+fn test8() -> test1:test2:test3:b {}
+fn test9() -> ovidc_test:test1:test2:test3:b {}
+fn test10() -> ::ovidc_test:test1:test2:test3:b {}

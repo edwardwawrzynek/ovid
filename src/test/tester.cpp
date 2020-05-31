@@ -22,6 +22,7 @@ TesterInstance::errorStringSpecifierToErrorType(const std::string &str) {
     return ErrorType::NONE;
   }
   std::map<std::string, ErrorType> types = {
+      {":Note", ErrorType::Note},
       {":ParseError", ErrorType::ParseError},
       {":NestedFunctionError", ErrorType::NestedFunctionError},
       {":DuplicateVarDeclare", ErrorType::DuplicateVarDeclare},
@@ -31,7 +32,11 @@ TesterInstance::errorStringSpecifierToErrorType(const std::string &str) {
       {":PublicSymInPrivateMod", ErrorType::PublicSymInPrivateMod},
       {":PublicSymInFunction", ErrorType::PublicSymInFunction},
       {":DuplicateTypeDecl", ErrorType::DuplicateTypeDecl},
-      {":TypeDeclInFunction", ErrorType::TypeDeclInFunction}};
+      {":TypeDeclInFunction", ErrorType::TypeDeclInFunction},
+      {":TypeDeclShadowed", ErrorType::TypeDeclShadowed},
+      {":UndeclaredType", ErrorType::UndeclaredType},
+      {":UseOfPrivateIdentifier", ErrorType::UseOfPrivateIdentifier},
+      {":UseOfPrivateType", ErrorType::UseOfPrivateType}};
   if (types.count(str) == 0) {
     doError(string_format("invalid error type %s", str.c_str()));
   }
@@ -40,6 +45,7 @@ TesterInstance::errorStringSpecifierToErrorType(const std::string &str) {
 
 std::string TesterInstance::errorTypeToString(ErrorType type) {
   std::map<ErrorType, std::string> types = {
+      {ErrorType::Note, ":Note"},
       {ErrorType::ParseError, ":ParseError"},
       {ErrorType::NestedFunctionError, ":NestedFunctionError"},
       {ErrorType::DuplicateVarDeclare, ":DuplicateVarDeclare"},
@@ -49,7 +55,11 @@ std::string TesterInstance::errorTypeToString(ErrorType type) {
       {ErrorType::PublicSymInPrivateMod, ":PublicSymInPrivateMod"},
       {ErrorType::PublicSymInFunction, ":PublicSymInFunction"},
       {ErrorType::DuplicateTypeDecl, ":DuplicateTypeDecl"},
-      {ErrorType::TypeDeclInFunction, ":TypeDeclInFunction"}};
+      {ErrorType::TypeDeclInFunction, ":TypeDeclInFunction"},
+      {ErrorType::TypeDeclShadowed, ":TypeDeclShadowed"},
+      {ErrorType::UndeclaredType, ":UndeclaredType"},
+      {ErrorType::UseOfPrivateIdentifier, ":UseOfPrivateIdentifier"},
+      {ErrorType::UseOfPrivateType, ":UseOfPrivateType"}};
 
   return types[type];
 }
@@ -67,8 +77,8 @@ void TesterInstance::doError(const std::string &message) {
 
 TesterInstance::TesterInstance(const std::string &filename)
     : filename(filename), file(filename), mode(), line(1), pos_in_line(0),
-      expectedErrors(), ignoredErrors(1, ErrorType::Note), pline(1),
-      ppos_in_line(0), packageName() {}
+      pline(1), ppos_in_line(0), expectedErrors(),
+      ignoredErrors(1, ErrorType::Note), packageName(1, "ovidc_test") {}
 
 void TesterInstance::readHeader() {
   // rewind
@@ -129,6 +139,7 @@ void TesterInstance::readHeader() {
     } else if (type == "__package_name:") {
       if (args.size() != 1)
         doError("expected only one argument to __package_name:");
+      packageName.clear();
       // parse colon separated package name
       size_t pos;
       while ((pos = args[0].find(':')) != std::string::npos) {
@@ -294,7 +305,7 @@ int TesterInstance::run() {
 
     // check if expected
     bool isExpected = false;
-    for (int i = 0; i < expectedErrors.size(); i++) {
+    for (size_t i = 0; i < expectedErrors.size(); i++) {
       auto &expected = expectedErrors[i];
       if (expected.type == ErrorType::NONE) {
         auto clean = errorMan.clearEscapeCodes(error.message);
@@ -319,7 +330,7 @@ int TesterInstance::run() {
     failed = 1;
   }
 
-  for (int i = 0; i < expectedErrors.size(); i++) {
+  for (size_t i = 0; i < expectedErrors.size(); i++) {
     auto &expected = expectedErrors[i];
     if (!foundExpected[i]) {
       std::cout << "an annotated error did not occur in test\nexpected error ";

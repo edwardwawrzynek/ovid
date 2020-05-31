@@ -327,20 +327,46 @@ Parser::parseBinOpRight(const ParserState &state, int exprPrec,
   }
 }
 
-static std::map<std::string, std::function<std::unique_ptr<ast::Type>(const SourceLocation & loc)>>
+static std::map<std::string, std::function<std::unique_ptr<ast::Type>(
+                                 const SourceLocation &loc)>>
     builtinTypes = {
-        {"i8", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 8, false); }},
-        {"i16", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 16, false); }},
-        {"i32", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 32, false); }},
-        {"i64", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 64, false); }},
-        {"u8", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 8, true); }},
-        {"u16", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 16, true); }},
-        {"u32", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 32, true); }},
-        {"u64", [] (auto loc) { return std::make_unique<ast::IntType>(loc, 64, true); }},
-        {"f32", [] (auto loc) { return std::make_unique<ast::FloatType>(loc, 32); }},
-        {"f64", [] (auto loc) { return std::make_unique<ast::FloatType>(loc, 64); }},
-        {"bool", [] (auto loc) { return std::make_unique<ast::BoolType>(loc); }},
-        {"void", [] (auto loc) { return std::make_unique<ast::VoidType>(loc); }}};
+        {"i8",
+         [](auto loc) {
+           return std::make_unique<ast::IntType>(loc, 8, false);
+         }},
+        {"i16",
+         [](auto loc) {
+           return std::make_unique<ast::IntType>(loc, 16, false);
+         }},
+        {"i32",
+         [](auto loc) {
+           return std::make_unique<ast::IntType>(loc, 32, false);
+         }},
+        {"i64",
+         [](auto loc) {
+           return std::make_unique<ast::IntType>(loc, 64, false);
+         }},
+        {"u8",
+         [](auto loc) { return std::make_unique<ast::IntType>(loc, 8, true); }},
+        {"u16",
+         [](auto loc) {
+           return std::make_unique<ast::IntType>(loc, 16, true);
+         }},
+        {"u32",
+         [](auto loc) {
+           return std::make_unique<ast::IntType>(loc, 32, true);
+         }},
+        {"u64",
+         [](auto loc) {
+           return std::make_unique<ast::IntType>(loc, 64, true);
+         }},
+        {"f32",
+         [](auto loc) { return std::make_unique<ast::FloatType>(loc, 32); }},
+        {"f64",
+         [](auto loc) { return std::make_unique<ast::FloatType>(loc, 64); }},
+        {"bool", [](auto loc) { return std::make_unique<ast::BoolType>(loc); }},
+        {"void",
+         [](auto loc) { return std::make_unique<ast::VoidType>(loc); }}};
 
 // typeExpr ::= 'i8' | 'u8' | ... | 'string'
 // typeExpr ::= '*' typeExpr
@@ -409,18 +435,14 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
     return builtinTypes[tokenizer.curToken.ident](pos.through(endPos));
   }
 
-  return std::make_unique<ast::UnresolvedType>(pos.through(endPos), type_scopes, name,
-                                               is_root_scoped);
+  return std::make_unique<ast::UnresolvedType>(pos.through(endPos), type_scopes,
+                                               name, is_root_scoped);
 }
 
 // typealias ::= 'type' ident '=' typeExpr
 std::unique_ptr<ast::TypeAliasDecl>
 Parser::parseTypeAliasDecl(const ParserState &state, bool is_public) {
   auto pos = tokenizer.curTokenLoc;
-
-  if (is_public && state.in_private_mod)
-    errorMan.logError("pub type cannot be declared inside a non-pub module",
-                      pos, ErrorType::PublicSymInPrivateMod);
 
   if (!state.is_global_level)
     errorMan.logError("type cannot be declared inside a function", pos,
@@ -529,7 +551,8 @@ Parser::parseFunctionProto(const ParserState &state,
   auto retType = parseType(state);
 
   return std::make_unique<ast::FunctionPrototype>(
-      std::make_unique<ast::FunctionType>(startPos.through(retType->loc), std::move(argTypes),
+      std::make_unique<ast::FunctionType>(startPos.through(retType->loc),
+                                          std::move(argTypes),
                                           std::move(retType)),
       std::move(argNames), name);
 }
@@ -537,11 +560,6 @@ Parser::parseFunctionProto(const ParserState &state,
 std::unique_ptr<ast::Statement>
 Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   auto pos = tokenizer.curTokenLoc;
-
-  if (is_public && state.in_private_mod) {
-    errorMan.logError("pub function cannot be declared inside a non-pub module",
-                      pos, ErrorType::PublicSymInPrivateMod);
-  }
 
   // no nested functions
   bool did_error = false;
@@ -566,7 +584,8 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
                              ErrorType::ParseError);
   tokenizer.nextToken();
 
-  auto symbolTable = std::make_shared<ScopeTable<Symbol>>();
+  // construct scope table for function (private, function scope)
+  auto symbolTable = std::make_shared<ScopeTable<Symbol>>(false, nullptr, true);
   ast::ScopedBlock body(symbolTable);
   // the current type scope is copied, as function's can't contain type alias
   // declarations inside them
@@ -599,8 +618,9 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   if (checkRedeclaration(pos, proto->name, state))
     return nullptr;
 
-  auto type = std::make_unique<ast::NamedFunctionType>(pos.through(proto->type->loc),
-      std::move(proto->type), std::move(proto->argNames));
+  auto type = std::make_unique<ast::NamedFunctionType>(
+      pos.through(proto->type->loc), std::move(proto->type),
+      std::move(proto->argNames));
   auto ast = std::make_unique<ast::FunctionDecl>(pos, std::move(type),
                                                  proto->name, std::move(body));
 
@@ -647,13 +667,14 @@ ParserState Parser::newStateForModule(const ParserState &state,
     assert((existingNamesTable == nullptr) == (existingTypesTable == nullptr));
 
     if (existingNamesTable == nullptr) {
-      newState.current_scope = newState.current_scope->addScopeTable(name);
+      newState.current_scope = newState.current_scope->addScopeTable(
+          name, is_mod_public, newState.current_scope);
     } else {
       newState.current_scope = existingNamesTable;
     }
     if (existingTypesTable == nullptr) {
-      newState.current_type_scope =
-          newState.current_type_scope->addScopeTable(name);
+      newState.current_type_scope = newState.current_type_scope->addScopeTable(
+          name, is_mod_public, newState.current_type_scope);
     } else {
       newState.current_type_scope = existingTypesTable;
     }
@@ -721,10 +742,6 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
   if (is_public && !state.is_global_level) {
     errorMan.logError("pub variable cannot be declared inside a function",
                       tokenizer.curTokenLoc, ErrorType::PublicSymInFunction);
-    is_public = false;
-  } else if (is_public && state.in_private_mod) {
-    errorMan.logError("pub variable cannot be declared inside a non-pub module",
-                      tokenizer.curTokenLoc, ErrorType::PublicSymInPrivateMod);
     is_public = false;
   }
 

@@ -3,18 +3,19 @@
 //__end_header
 
 module test
+
 module i32 {
-    type type1 = i32
+    pub type type1 = i32
 }
 
 type test1 = i32:type1
-type test2 = ::test:i32:type1
+type test2 = ::ovidc_test:test:i32:type1
 type test3 = ::i32:type1 // __error: "use of undeclared type `i32:type1`"
 type test4 = type1 // __error: "use of undeclared type `type1`"
 
 type test5 = randomtype // __error: "use of undeclared type `randomtype`"
 
-pub type test = i32 // __error: "pub type cannot be declared inside a non-pub module"
+pub type test = i32
 
 type int = i32
 type intptr = *mut i32
@@ -22,18 +23,18 @@ type uintptr = *mut u32
 type intptrptr = *intptr
 
 module sub {
-    type newtype = i32
+    pub type newtype = i32
 }
 
 fn test(a intptrptr) -> intptr {
    *a
 }
 
-fn test1(a test:intptrptr) -> *::test:intptr {
+fn test1(a test:intptrptr) -> *::ovidc_test:test:intptr {
     *a
 }
 
-fn test2(a sub:newtype) -> ::test:sub:newtype {
+fn test2(a sub:newtype) -> ::ovidc_test:test:sub:newtype {
     a
 }
 

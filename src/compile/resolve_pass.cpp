@@ -39,8 +39,9 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
     sym->resolve_pass_declared_yet = true;
   }
 
-  auto typeResolveState = TypeResolverState();
-  node.type->type = type_resolver.visitFunctionTypeNonOverload(*node.type->type, typeResolveState);
+  auto typeResolveState = TypeResolverState(package, current_module);
+  node.type->type = type_resolver.visitFunctionTypeNonOverload(
+      *node.type->type, typeResolveState);
 
   for (auto &child : node.body.statements) {
     if (child != nullptr)
@@ -91,23 +92,43 @@ int ResolvePass::visitIdentifier(Identifier &node,
                                  const ResolvePassState &state) {
   // find the symbol
   std::shared_ptr<Symbol> sym;
+  std::shared_ptr<ScopeTable<Symbol>> containingTable;
   if (node.is_root_scope) {
     // only check root scope
     sym = scopes.names.getRootScope()->findSymbol(
         node.scope, node.id,
         [](const Symbol &s) -> bool { return s.resolve_pass_declared_yet; });
+    containingTable = scopes.names.getRootScope();
   } else {
     sym = scopes.names.findSymbol(
         node.scope, node.id,
         [](const Symbol &s) -> bool { return s.resolve_pass_declared_yet; });
+    containingTable = scopes.names.findTableContainingSymbol(
+        node.scope, node.id,
+        [](const Symbol &s) -> bool { return s.resolve_pass_declared_yet; });
   }
 
+  auto scopedName = scopesAndNameToString(node.scope, node.id);
+  // error on undeclared symbol
   if (sym == nullptr) {
-    auto name = scopesAndNameToString(node.scope, node.id);
     errorMan.logError(
         string_format("use of undeclared identifier `\x1b[1m%s\x1b[m`",
-                      name.c_str()),
+                      scopedName.c_str()),
         node.loc, ErrorType::UndeclaredIdentifier);
+  }
+  // error on usage of inaccessible (private) symbol
+  else if (!containingTable->checkAccessible(
+               node.scope, node.id,
+               [](const Symbol &s) -> bool {
+                 return s.resolve_pass_declared_yet;
+               },
+               scopes.names.getRootScope()->getScopeTable(package),
+               scopes.names.getRootScope()->getScopeTable(current_module),
+               sym->is_public)) {
+    errorMan.logError(
+        string_format("use of private identifier `\x1b[1m%s\x1b[m`",
+                      scopedName.c_str()),
+        node.loc, ErrorType::UseOfPrivateIdentifier);
   }
 
   // change node to refer to sym instead of scope/id strings
@@ -147,8 +168,11 @@ int ResolvePass::visitTypeAliasDecl(TypeAliasDecl &node,
   checkTypeShadowed(node.loc, node.name,
                     [](const TypeAlias &t) { return true; });
 
+  if (node.type->type == nullptr)
+    return 0;
+
   // run type resolution on the type
-  auto resolverState = TypeResolverState();
+  auto resolverState = TypeResolverState(package, current_module);
   node.type->type = type_resolver.visitType(*node.type->type, resolverState);
 
   return 0;
@@ -236,20 +260,34 @@ TypeResolver::visitUnresolvedType(UnresolvedType &type,
                                   const TypeResolverState &state) {
   // lookup type in type tables
   std::shared_ptr<TypeAlias> sym;
+  std::shared_ptr<ScopeTable<TypeAlias>> containingTable;
   if (type.is_root_scoped) {
     sym = scopes.types.getRootScope()->findSymbol(type.scopes, type.name);
+    containingTable = scopes.types.getRootScope();
   } else {
     sym = scopes.types.findSymbol(type.scopes, type.name);
+    containingTable =
+        scopes.types.findTableContainingSymbol(type.scopes, type.name);
   }
 
+  auto scopedName = scopesAndNameToString(type.scopes, type.name, true);
+
   if (sym == nullptr) {
-    errorMan.logError(
-        string_format(
-            "use of undeclared type `\x1b[1m%s\x1b[m`",
-            scopesAndNameToString(type.scopes, type.name, true).c_str()),
-        type.loc, ErrorType::UndeclaredType);
+    errorMan.logError(string_format("use of undeclared type `\x1b[1m%s\x1b[m`",
+                                    scopedName.c_str()),
+                      type.loc, ErrorType::UndeclaredType);
 
     return nullptr;
+  }
+  // check for use of private type
+  else if (!containingTable->checkAccessible(
+               type.scopes, type.name,
+               scopes.types.getRootScope()->getScopeTable(state.package),
+               scopes.types.getRootScope()->getScopeTable(state.current_module),
+               sym->is_public)) {
+    errorMan.logError(string_format("use of private type `\x1b[1m%s\x1b[m`",
+                                    scopedName.c_str()),
+                      type.loc, ErrorType::UseOfPrivateType);
   }
 
   return std::make_unique<ResolvedAlias>(type.loc, sym);
@@ -288,18 +326,19 @@ TypeResolver::visitPointerType(PointerType &type,
 
 std::unique_ptr<FunctionType>
 TypeResolver::visitFunctionTypeNonOverload(FunctionType &type,
-                                const TypeResolverState &state) {
-    TypeList argTypes;
-    for(auto &arg: type.argTypes) {
-      argTypes.push_back(visitType(*arg, state));
-    }
-    auto retType = visitType(*type.retType, state);
-  return std::make_unique<FunctionType>(type.loc, std::move(argTypes), std::move(retType));
+                                           const TypeResolverState &state) {
+  TypeList argTypes;
+  for (auto &arg : type.argTypes) {
+    argTypes.push_back(visitType(*arg, state));
+  }
+  auto retType = visitType(*type.retType, state);
+  return std::make_unique<FunctionType>(type.loc, std::move(argTypes),
+                                        std::move(retType));
 }
 
 std::unique_ptr<Type>
 TypeResolver::visitFunctionType(FunctionType &type,
-                                           const TypeResolverState &state) {
+                                const TypeResolverState &state) {
   return visitFunctionTypeNonOverload(type, state);
 }
 
@@ -307,7 +346,8 @@ std::unique_ptr<Type>
 TypeResolver::visitNamedFunctionType(NamedFunctionType &type,
                                      const TypeResolverState &state) {
   auto newType = visitFunctionTypeNonOverload(*type.type, state);
-  return std::make_unique<NamedFunctionType>(type.loc, std::move(newType), type.argNames);
+  return std::make_unique<NamedFunctionType>(type.loc, std::move(newType),
+                                             type.argNames);
 }
 
 TypeResolver::TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan)
