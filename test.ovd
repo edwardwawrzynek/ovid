@@ -1,5 +1,41 @@
-module test:main
+pub module test
 
-type d = *mut b
-type c = b
-type b = c
+fn test1() -> void {
+    if true {} elsif true {} elsif true {} else {}
+}
+
+fn test2() -> void {
+    val a = true
+
+    if a {
+        test1()
+        test1()
+    }
+
+    elsif a { test1(); test1()
+        test1();
+    }
+}
+
+fn test3() ->
+    void    {
+    if true {
+        val a = 1
+        a
+    } elsif true {
+        val b = 2
+        b
+    } else {
+        val c = 3
+        c
+        if 1 + 1 + 1 {
+            val d = 4
+            d
+            c
+        } else {
+            val e = 5
+            e
+            c
+        }
+    }
+}

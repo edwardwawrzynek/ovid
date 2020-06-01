@@ -1,10 +1,9 @@
 #include "ast.hpp"
-#include "ast_visitor.hpp"
 #include "error.hpp"
+#include "ir.hpp"
 #include "parser.hpp"
 #include "resolve_pass.hpp"
 #include "tokenizer.hpp"
-#include <cstdio>
 #include <iostream>
 
 int main(int argc, char **argv) {

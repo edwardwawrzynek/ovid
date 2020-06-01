@@ -20,12 +20,14 @@ template <class T, class S> class BaseASTVisitor {
   virtual T visitVarDecl(VarDecl &node, const S &state);
   virtual T visitFunctionDecl(FunctionDecl &node, const S &state);
   virtual T visitModuleDecl(ModuleDecl &node, const S &state);
+  virtual T visitIfStatement(IfStatement &node, const S &state);
 
   virtual T visitFunctionCall(FunctionCall &node, const S &state);
   virtual T visitIdentifier(Identifier &node, const S &state);
   virtual T visitOperatorSymbol(OperatorSymbol &node, const S &state);
   virtual T visitAssignment(Assignment &node, const S &state);
   virtual T visitIntLiteral(IntLiteral &node, const S &state);
+  virtual T visitBoolLiteral(BoolLiteral &node, const S &state);
   virtual T visitTuple(Tuple &node, const S &state);
   virtual T visitTypeAliasDecl(TypeAliasDecl &node, const S &state);
 
@@ -56,6 +58,8 @@ T BaseASTVisitor<T, S>::visitStatement(Statement &node, const S &state) {
     return visitModuleDecl(dynamic_cast<ModuleDecl &>(node), state);
   } else if (dynamic_cast<TypeAliasDecl *>(&node) != nullptr) {
     return visitTypeAliasDecl(dynamic_cast<TypeAliasDecl &>(node), state);
+  } else if (dynamic_cast<IfStatement *>(&node) != nullptr) {
+    return visitIfStatement(dynamic_cast<IfStatement &>(node), state);
   } else if (dynamic_cast<Expression *>(&node) != nullptr) {
     return visitExpression(dynamic_cast<Expression &>(node), state);
   }
@@ -82,6 +86,8 @@ template <class T, class S>
 T BaseASTVisitor<T, S>::visitLiteral(Literal &node, const S &state) {
   if (dynamic_cast<IntLiteral *>(&node) != nullptr) {
     return visitIntLiteral(dynamic_cast<IntLiteral &>(node), state);
+  } else if (dynamic_cast<BoolLiteral *>(&node) != nullptr) {
+    return visitBoolLiteral(dynamic_cast<BoolLiteral &>(node), state);
   }
   assert(false);
 }
@@ -95,6 +101,10 @@ T BaseASTVisitor<T, S>::visitFunctionDecl(FunctionDecl &node, const S &state) {
 }
 template <class T, class S>
 T BaseASTVisitor<T, S>::visitModuleDecl(ModuleDecl &node, const S &state) {
+  return std::move(defaultValue);
+}
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitIfStatement(IfStatement &node, const S &state) {
   return std::move(defaultValue);
 }
 template <class T, class S>
@@ -116,6 +126,10 @@ T BaseASTVisitor<T, S>::visitAssignment(Assignment &node, const S &state) {
 }
 template <class T, class S>
 T BaseASTVisitor<T, S>::visitIntLiteral(IntLiteral &node, const S &state) {
+  return std::move(defaultValue);
+}
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitBoolLiteral(BoolLiteral &node, const S &state) {
   return std::move(defaultValue);
 }
 template <class T, class S>

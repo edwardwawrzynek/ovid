@@ -277,6 +277,20 @@ public:
       : Statement(std::move(loc)), name(name), type(std::move(type)){};
 };
 
+class IfStatement : public Statement {
+public:
+  // if - elsif... - else chain
+  // for else, condition is just true
+  std::vector<std::unique_ptr<Expression>> conditions;
+  std::vector<ScopedBlock> bodies;
+
+  IfStatement(SourceLocation loc,
+              std::vector<std::unique_ptr<Expression>> conditions,
+              std::vector<ScopedBlock> bodies)
+      : Statement(std::move(loc)), conditions(std::move(conditions)),
+        bodies(std::move(bodies)){};
+};
+
 /* ast expressions */
 class Expression : public Statement {
 public:
@@ -365,9 +379,17 @@ public:
 
 class IntLiteral : public Literal {
 public:
-  const long value;
+  const int64_t value;
 
-  IntLiteral(SourceLocation loc, const long value)
+  IntLiteral(SourceLocation loc, const int64_t value)
+      : Literal(std::move(loc)), value(value){};
+};
+
+class BoolLiteral : public Literal {
+public:
+  const bool value;
+
+  BoolLiteral(SourceLocation loc, const bool value)
       : Literal(std::move(loc)), value(value){};
 };
 

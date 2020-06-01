@@ -78,6 +78,31 @@ int ResolvePass::visitModuleDecl(ModuleDecl &node,
   return 0;
 }
 
+int ResolvePass::visitIfStatement(IfStatement &node,
+                                  const ResolvePassState &state) {
+  for (auto &cond : node.conditions) {
+    visitNode(*cond, state);
+  }
+
+  for (auto &body : node.bodies) {
+    // add this body's scope to the active scope stack
+    scopes.names.pushScope(body.symbols);
+
+    auto pis_in_global = is_in_global;
+    is_in_global = false;
+
+    for (auto &statement : body.statements) {
+      visitNode(*statement, state);
+    }
+
+    is_in_global = pis_in_global;
+
+    scopes.names.popScope(body.symbols);
+  }
+
+  return 0;
+}
+
 int ResolvePass::visitFunctionCall(FunctionCall &node,
                                    const ResolvePassState &state) {
   visitNode(*node.funcExpr, state);
@@ -137,20 +162,11 @@ int ResolvePass::visitIdentifier(Identifier &node,
   return 0;
 }
 
-int ResolvePass::visitOperatorSymbol(OperatorSymbol &node,
-                                     const ResolvePassState &state) {
-  return 0;
-}
 int ResolvePass::visitAssignment(Assignment &node,
                                  const ResolvePassState &state) {
   visitNode(*node.lvalue, state);
   visitNode(*node.rvalue, state);
 
-  return 0;
-}
-
-int ResolvePass::visitIntLiteral(IntLiteral &node,
-                                 const ResolvePassState &state) {
   return 0;
 }
 

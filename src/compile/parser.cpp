@@ -105,6 +105,16 @@ Parser::parseIntLiteral(const ParserState &state) {
   return res;
 }
 
+// boolexpr ::= 'true'|'false'
+std::unique_ptr<ast::BoolLiteral>
+Parser::parseBoolLiteral(const ParserState &state) {
+  auto res = std::make_unique<ast::BoolLiteral>(
+      tokenizer.curTokenLoc, tokenizer.curToken.bool_literal);
+
+  tokenizer.nextToken();
+  return res;
+}
+
 // identexpr ::= identifier (':' identifier)*
 // funccallexpr ::= identifier (':' identifier)* '(' (expr ',') * expr ')'
 std::unique_ptr<ast::Expression>
@@ -141,6 +151,9 @@ Parser::parseIdentifier(const ParserState &state) {
     ast::ExpressionList args;
     do {
       tokenizer.nextToken();
+      if (tokenizer.curToken.token == T_RPAREN)
+        break;
+
       auto expr = parseExpr(state);
       if (!expr)
         return nullptr;
@@ -262,6 +275,8 @@ Parser::parsePrimary(const ParserState &state) {
     return parseParenExpr(state);
   case T_INTLITERAL:
     return parseIntLiteral(state);
+  case T_BOOLLITERAL:
+    return parseBoolLiteral(state);
   default:
     auto loc = tokenizer.curTokenLoc;
     // consume token (the parse methods normally do this)
@@ -445,7 +460,7 @@ Parser::parseTypeAliasDecl(const ParserState &state, bool is_public) {
   auto pos = tokenizer.curTokenLoc;
 
   if (!state.is_global_level)
-    errorMan.logError("type cannot be declared inside a function", pos,
+    errorMan.logError("type cannot be declared inside a non global scope", pos,
                       ErrorType::TypeDeclInFunction);
 
   // consume 'type'
@@ -591,8 +606,6 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   // declarations inside them
   ParserState bodyState(false, symbolTable, state.current_type_scope,
                         state.current_module, state.in_private_mod);
-  // add module scope to active scope stack
-  scopes.names.pushScope(state.current_scope);
 
   // add entries in symbol table for arguments
   for (size_t i = 0; i < proto->argNames.size(); i++) {
@@ -611,8 +624,6 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
     body.addStatement(std::move(stat));
   }
   tokenizer.nextToken();
-  // remove module scope to active scope stack
-  scopes.names.popScope(state.current_scope);
 
   // add entry for function to symbol table
   if (checkRedeclaration(pos, proto->name, state))
@@ -728,8 +739,15 @@ Parser::parseModuleDecl(const ParserState &state, bool is_public) {
                       pos, ErrorType::PublicSymInPrivateMod);
   }
 
+  bool do_bail_after_name = false;
+  if (!state.is_global_level) {
+    errorMan.logError("module cannot be declared inside a non global scope",
+                      pos, ErrorType::ModDeclInFunction);
+    do_bail_after_name = true;
+  }
+
   names = readModuleName(state);
-  if (names.empty())
+  if (names.empty() || do_bail_after_name)
     return nullptr;
 
   return parseModuleDeclBody(state, is_public, names,
@@ -740,8 +758,9 @@ Parser::parseModuleDecl(const ParserState &state, bool is_public) {
 std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
                                                      bool is_public) {
   if (is_public && !state.is_global_level) {
-    errorMan.logError("pub variable cannot be declared inside a function",
-                      tokenizer.curTokenLoc, ErrorType::PublicSymInFunction);
+    errorMan.logError(
+        "pub variable cannot be declared inside a non global scope",
+        tokenizer.curTokenLoc, ErrorType::PublicSymInFunction);
     is_public = false;
   }
 
@@ -778,6 +797,72 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
 
   return std::make_unique<ast::VarDecl>(pos.through(endNamePos), name,
                                         std::move(initialVal));
+}
+
+// ifstatement = 'if' expr '{' statement* '}' ('elsif' expr '{' statement* '}')*
+// ('else' '{' statement* '}')? NOTE: this method consumes the end of statement
+// signifier (semicolon if present)
+std::unique_ptr<ast::IfStatement>
+Parser::parseIfStatement(const ParserState &state) {
+  std::vector<std::unique_ptr<ast::Expression>> conds;
+  std::vector<ast::ScopedBlock> bodies;
+
+  auto pos = tokenizer.curTokenLoc;
+
+  while (tokenizer.curToken.token == T_IF ||
+         tokenizer.curToken.token == T_ELSIF ||
+         tokenizer.curToken.token == T_ELSE) {
+    auto tok = tokenizer.curToken.token;
+    std::unique_ptr<ast::Expression> condition;
+
+    tokenizer.nextToken();
+    // 'else' has an implicit true condition
+    if (tok == T_ELSE) {
+      condition =
+          std::make_unique<ast::BoolLiteral>(tokenizer.curTokenLoc, true);
+    }
+    // 'if' and 'elsif' have a specified condition
+    else {
+      condition = parseExpr(state);
+    }
+    conds.push_back(std::move(condition));
+
+    // consume '{'
+    if (tokenizer.curToken.token != T_LBRK) {
+      return errorMan.logError(
+          string_format("expected '{' to begin %s statement body",
+                        tok == T_IF ? "if"
+                                    : (tok == T_ELSIF ? "elsif" : "else")),
+          tokenizer.curTokenLoc, ErrorType::ParseError);
+    }
+    tokenizer.nextToken();
+
+    // setup body's scope
+    auto symbolTable =
+        std::make_shared<ScopeTable<Symbol>>(false, nullptr, true);
+    ast::ScopedBlock body(symbolTable);
+
+    ParserState bodyState(false, symbolTable, state.current_type_scope,
+                          state.current_module, state.in_private_mod);
+
+    while (tokenizer.curToken.token != T_RBRK) {
+      auto stat = parseStatement(bodyState);
+      if (!stat && tokenizer.curToken.token != T_RBRK)
+        return errorMan.logError("expected '}' to end block",
+                                 tokenizer.curTokenLoc, ErrorType::ParseError);
+      body.statements.push_back(std::move(stat));
+    }
+
+    tokenizer.nextToken();
+
+    while (tokenizer.curToken.token == T_SEMICOLON)
+      tokenizer.nextToken();
+
+    bodies.push_back(std::move(body));
+  }
+
+  return std::make_unique<ast::IfStatement>(pos, std::move(conds),
+                                            std::move(bodies));
 }
 
 // error if end of statement (semicolon, which may have been automatically
@@ -844,6 +929,21 @@ Parser::parseStatement(const ParserState &state) {
   case T_SEMICOLON:
     tokenizer.nextToken();
     return parseStatement(state);
+  case T_IF: {
+    auto res = parseIfStatement(state);
+    expectEndStatement();
+    return res;
+  }
+  case T_ELSIF:
+    errorMan.logError("expected elsif to be preceded by if statement",
+                      tokenizer.curTokenLoc, ErrorType::ParseError);
+    tokenizer.nextToken();
+    return nullptr;
+  case T_ELSE:
+    errorMan.logError("expected els to be preceded by if or elsif statement",
+                      tokenizer.curTokenLoc, ErrorType::ParseError);
+    tokenizer.nextToken();
+    return nullptr;
   default: {
     auto res = parseExpr(state);
     expectEndStatement();

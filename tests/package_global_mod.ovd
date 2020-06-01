@@ -1,6 +1,9 @@
 // __ovid_compiler_test
 //__mode: compile
 //__package_name: pkg:name
+
+/* needed due to further errors triggered on line 41 */
+//__ignore_errors: :ParseError
 //__end_header
 
 /* module statement without braces wraps entire file */
@@ -36,4 +39,6 @@ fn test() -> i32 {
     ::sub:mod:a // __error: "use of undeclared identifier `sub:mod:a`"
     ::mod:a // __error: "use of undeclared identifier `mod:a`"
     ::a // __error: "use of undeclared identifier `a`"
+
+    module test {} // __error: "module cannot be declared inside a non global scope"
 }

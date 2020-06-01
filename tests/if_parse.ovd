@@ -1,0 +1,53 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+pub module test
+
+fn test1() -> void {
+    if true {} elsif true {} elsif true {} else {}
+}
+
+fn test2() -> void {
+    val a = true
+
+    if a {
+        pub val test = 1 // __error: "pub variable cannot be declared inside a non global scope"
+        pub type test = i32 // __error: "type cannot be declared inside a non global scope"
+        test1()
+        test1() }
+    elsif a { test1(); test1()
+        test1();
+    }
+}
+
+fn test3() ->
+    void    {
+    if true {
+        val a = 1
+        a
+    } elsif true {
+        val b = 2
+        b
+        a // __error: "use of undeclared identifier `a`"
+    } else {
+        val c = 3
+        c
+        b // __error: "use of undeclared identifier `b`"
+        a // __error: "use of undeclared identifier `a`"
+        if 1 + 1 + 1 {
+            val d = 4
+            d
+            c
+            b // __error: "use of undeclared identifier `b`"
+            a // __error: "use of undeclared identifier `a`"
+        } else {
+            val e = 5
+            e
+            d // __error: "use of undeclared identifier `d`"
+            c
+            b // __error: "use of undeclared identifier `b`"
+            a // __error: "use of undeclared identifier `a`"
+        }
+    }
+}

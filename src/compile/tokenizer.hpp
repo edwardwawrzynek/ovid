@@ -46,6 +46,10 @@ enum TokenType {
 
   T_TYPE = 25,
 
+  T_IF = 26,
+  T_ELSIF = 27,
+  T_ELSE = 28,
+
   T_IDENT = -2,
   T_INTLITERAL = -3,
   T_FLOATLITERAL = -4,

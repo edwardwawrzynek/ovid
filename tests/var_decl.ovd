@@ -7,8 +7,8 @@ pub module test:test
 fn test() -> i32 {
     val a = 1
     mut b = 2
-    pub val c = 3 // __error: "pub variable cannot be declared inside a function"
-    pub mut d = 4 // __error: "pub variable cannot be declared inside a function"
+    pub val c = 3 // __error: "pub variable cannot be declared inside a non global scope"
+    pub mut d = 4 // __error: "pub variable cannot be declared inside a non global scope"
 }
 
 val a1 = 1

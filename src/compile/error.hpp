@@ -63,6 +63,7 @@ enum class ErrorType {
   UndeclaredType,
   UseOfPrivateIdentifier,
   UseOfPrivateType,
+  ModDeclInFunction,
 };
 
 enum class ErrorPrintLevel { Error, Warning, Note };

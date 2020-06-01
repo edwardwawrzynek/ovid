@@ -53,6 +53,8 @@ class Parser {
 
   std::unique_ptr<ast::IntLiteral> parseIntLiteral(const ParserState &state);
 
+  std::unique_ptr<ast::BoolLiteral> parseBoolLiteral(const ParserState &state);
+
   std::unique_ptr<ast::Expression> parseIdentifier(const ParserState &state);
 
   std::unique_ptr<ast::Expression> parseParenExpr(const ParserState &state);
@@ -106,6 +108,8 @@ class Parser {
 
   std::unique_ptr<ast::TypeAliasDecl>
   parseTypeAliasDecl(const ParserState &state, bool is_public);
+
+  std::unique_ptr<ast::IfStatement> parseIfStatement(const ParserState &state);
 
   void addTypeAlias(const ParserState &state, std::string name,
                     std::shared_ptr<TypeAlias> alias);
