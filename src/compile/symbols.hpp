@@ -109,7 +109,8 @@ template <class T> class ScopeTable {
   bool is_public;
   bool is_func_scope;
   // parent scope table, or null if root
-  std::shared_ptr<ScopeTable<T>> parent;
+  // must be weak to break cycle with parent's scope table
+  std::weak_ptr<ScopeTable<T>> parent;
 
 public:
   // return the SymbolTable associated with this scope
@@ -277,7 +278,7 @@ bool ScopeTable<T>::checkAccessible(
       is_in_package = true;
       break;
     }
-    tmp = tmp->parent.get();
+    tmp = tmp->parent.lock().get();
   }
 
   // check if current module is a descendant of containing table
@@ -288,7 +289,7 @@ bool ScopeTable<T>::checkAccessible(
       is_descendant = true;
       break;
     }
-    tmp = tmp->parent.get();
+    tmp = tmp->parent.lock().get();
   }
 
   // if the symbol is contained in a function scope, it is automatically

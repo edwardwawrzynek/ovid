@@ -254,7 +254,7 @@ Parser::parsePrefixOp(const ParserState &state) {
     tokenizer.nextToken();
     auto right = parsePrefixOp(state);
 
-    std::vector<std::unique_ptr<ast::Expression>> args;
+    ast::ExpressionList args;
     args.push_back(std::move(right));
 
     return std::make_unique<ast::FunctionCall>(
@@ -804,7 +804,7 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
 // signifier (semicolon if present)
 std::unique_ptr<ast::IfStatement>
 Parser::parseIfStatement(const ParserState &state) {
-  std::vector<std::unique_ptr<ast::Expression>> conds;
+  ast::ExpressionList conds;
   std::vector<ast::ScopedBlock> bodies;
 
   auto pos = tokenizer.curTokenLoc;
@@ -940,7 +940,7 @@ Parser::parseStatement(const ParserState &state) {
     tokenizer.nextToken();
     return nullptr;
   case T_ELSE:
-    errorMan.logError("expected els to be preceded by if or elsif statement",
+    errorMan.logError("expected else to be preceded by if or elsif statement",
                       tokenizer.curTokenLoc, ErrorType::ParseError);
     tokenizer.nextToken();
     return nullptr;

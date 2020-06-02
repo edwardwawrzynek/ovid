@@ -281,11 +281,11 @@ class IfStatement : public Statement {
 public:
   // if - elsif... - else chain
   // for else, condition is just true
-  std::vector<std::unique_ptr<Expression>> conditions;
+  ExpressionList conditions;
   std::vector<ScopedBlock> bodies;
 
   IfStatement(SourceLocation loc,
-              std::vector<std::unique_ptr<Expression>> conditions,
+              ExpressionList conditions,
               std::vector<ScopedBlock> bodies)
       : Statement(std::move(loc)), conditions(std::move(conditions)),
         bodies(std::move(bodies)){};
