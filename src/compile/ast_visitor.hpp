@@ -45,6 +45,10 @@ T BaseASTVisitor<T, S>::visitNode(Node &node, const S &state) {
   if (dynamic_cast<Statement *>(&node) != nullptr) {
     return visitStatement(dynamic_cast<Statement &>(node), state);
   }
+
+  if (dynamic_cast<Node *>(&node) == nullptr)
+    return defaultValue;
+
   assert(false);
 }
 

@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <iostream>
 #include <map>
+#include "ast_printer.hpp"
 
 namespace ovid::tester {
 /* convert an error type string (eg :ParseError) to the appropriate ErrorType
@@ -284,6 +285,10 @@ int TesterInstance::run() {
   auto parser = ovid::Parser(lexer, errorMan, scopes, packageName);
   auto ast = parser.parseProgram();
   parser.removePushedPackageScope();
+
+  auto printer = ovid::ast::ASTPrinter();
+  printer.visitNodes(ast, ovid::ast::ASTPrinterState());
+
   auto resolvePass = ovid::ast::ResolvePass(scopes, errorMan, packageName);
   resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());
   resolvePass.removePushedPackageScope();

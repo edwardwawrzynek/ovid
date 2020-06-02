@@ -284,8 +284,7 @@ public:
   ExpressionList conditions;
   std::vector<ScopedBlock> bodies;
 
-  IfStatement(SourceLocation loc,
-              ExpressionList conditions,
+  IfStatement(SourceLocation loc, ExpressionList conditions,
               std::vector<ScopedBlock> bodies)
       : Statement(std::move(loc)), conditions(std::move(conditions)),
         bodies(std::move(bodies)){};
