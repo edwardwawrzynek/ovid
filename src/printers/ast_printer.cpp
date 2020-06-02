@@ -9,26 +9,28 @@ ASTPrinterState ASTPrinterState::withIndent() const {
   return res;
 }
 
-void ASTPrinterState::printIndent() const {
-  for(uint64_t i = 0; i < indent_level; i++) {
-    std::cout << "\t";
+void ASTPrinterState::printIndent(std::ostream& output) const {
+  for (uint64_t i = 0; i < indent_level; i++) {
+    output << "    ";
   }
 }
 
 void ASTPrinter::printLoc(const SourceLocation &loc) {
-  std::cout << "(" << loc.row << ":" << loc.col << ")";
+  output << "(" << loc.row << ":" << loc.col << ")";
 }
 
 int ASTPrinter::visitModuleDecl(ModuleDecl &node,
                                 const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " ModuleDecl: ";
-  for(auto &scope: node.scope) {
-    std::cout << scope << ":";
+  output << " ModuleDecl: ";
+  for (size_t i = 0; i < node.scope.size(); i++) {
+    auto& scope = node.scope[i];
+    output << scope;
+    if(i < node.scope.size() - 1) output << ":";
   }
-  std::cout << "\n";
-  for(auto &body: node.body) {
+  output << "\n";
+  for (auto &body : node.body) {
     visitNode(*body, state.withIndent());
   }
 
@@ -36,9 +38,9 @@ int ASTPrinter::visitModuleDecl(ModuleDecl &node,
 }
 
 int ASTPrinter::visitVarDecl(VarDecl &node, const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " VarDecl: " << node.name << "\n";
+  output << " VarDecl: " << node.name << "\n";
   visitNode(*node.initialValue, state.withIndent());
 
   return 0;
@@ -46,26 +48,26 @@ int ASTPrinter::visitVarDecl(VarDecl &node, const ASTPrinterState &state) {
 
 int ASTPrinter::visitFunctionDecl(FunctionDecl &node,
                                   const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " FunctionDecl: " << node.name << "\n";
-  state.printIndent();
-  std::cout << "  retType:\n";
+  output << " FunctionDecl: " << node.name << "\n";
+  state.printIndent(output);
+  output << "  retType:\n";
   typePrinter.visitType(*node.type->type->retType, state.withIndent());
-  state.printIndent();
-  std::cout << "  argNames:";
-  for(auto& argName: node.type->argNames) {
-    std::cout << " " << argName;
+  state.printIndent(output);
+  output << "  argNames:";
+  for (auto &argName : node.type->argNames) {
+    output << " " << argName;
   }
-  std::cout << "\n";
-  state.printIndent();
-  std::cout << "  argTypes:\n";
-  for(auto& type: node.type->type->argTypes) {
+  output << "\n";
+  state.printIndent(output);
+  output << "  argTypes:\n";
+  for (auto &type : node.type->type->argTypes) {
     typePrinter.visitType(*type, state.withIndent());
   }
-  state.printIndent();
-  std::cout << "  body:\n";
-  for(auto& body: node.body.statements) {
+  state.printIndent(output);
+  output << "  body:\n";
+  for (auto &body : node.body.statements) {
     visitNode(*body, state.withIndent());
   }
 
@@ -74,16 +76,16 @@ int ASTPrinter::visitFunctionDecl(FunctionDecl &node,
 
 int ASTPrinter::visitIfStatement(IfStatement &node,
                                  const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " IfStatement\n";
-  for(size_t i = 0; i < node.conditions.size(); i++) {
-    state.printIndent();
-    std::cout << "  condition:\n";
+  output << " IfStatement\n";
+  for (size_t i = 0; i < node.conditions.size(); i++) {
+    state.printIndent(output);
+    output << "  condition:\n";
     visitNode(*node.conditions[i], state.withIndent());
-    state.printIndent();
-    std::cout << "  body:\n";
-    for(auto &statement: node.bodies[i].statements) {
+    state.printIndent(output);
+    output << "  body:\n";
+    for (auto &statement : node.bodies[i].statements) {
       visitNode(*statement, state.withIndent());
     }
   }
@@ -91,15 +93,15 @@ int ASTPrinter::visitIfStatement(IfStatement &node,
 
 int ASTPrinter::visitFunctionCall(FunctionCall &node,
                                   const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " FunctionCall\n";
-  state.printIndent();
-  std::cout << "  function:\n";
+  output << " FunctionCall\n";
+  state.printIndent(output);
+  output << "  function:\n";
   visitNode(*node.funcExpr, state.withIndent());
-  state.printIndent();
-  std::cout << "  args:\n";
-  for(auto& arg: node.args) {
+  state.printIndent(output);
+  output << "  args:\n";
+  for (auto &arg : node.args) {
     visitNode(*arg, state.withIndent());
   }
 
@@ -108,13 +110,16 @@ int ASTPrinter::visitFunctionCall(FunctionCall &node,
 
 int ASTPrinter::visitIdentifier(Identifier &node,
                                 const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " Identifier: ";
-  if(node.is_root_scope) std::cout << "::";
-  for(auto& scope: node.scope) std::cout << scope;
-  std::cout << node.id;
-  std::cout << "\n";
+  output << " Identifier: ";
+  if (node.is_root_scope)
+    output << "::";
+  for (auto &scope : node.scope) {
+    output << scope << ":";
+  }
+  output << node.id;
+  output << "\n";
 
   return 0;
 }
@@ -146,56 +151,55 @@ static std::map<OperatorType, std::string> printOperatorMap = {
     {OperatorType::LESS, "<"},
     {OperatorType::LESS_EQUAL, "<="},
     {OperatorType::LEFT_SHIFT, "<<"},
-    {OperatorType::RIGHT_SHIFT, ">>"}
-};
+    {OperatorType::RIGHT_SHIFT, ">>"}};
 
 int ASTPrinter::visitOperatorSymbol(OperatorSymbol &node,
                                     const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " OperatorSymbol: " << printOperatorMap[node.op] << "\n";
+  output << " OperatorSymbol: " << printOperatorMap[node.op] << "\n";
 
   return 0;
 }
 
 int ASTPrinter::visitAssignment(Assignment &node,
                                 const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " Assignment\n";
-  state.printIndent();
-  std::cout << "  rvalue:\n";
-  visitNode(*node.rvalue, state.withIndent());
-  state.printIndent();
-  std::cout << "  lvalue:\n";
+  output << " Assignment\n";
+  state.printIndent(output);
+  output << "  lvalue:\n";
   visitNode(*node.lvalue, state.withIndent());
+  state.printIndent(output);
+  output << "  rvalue:\n";
+  visitNode(*node.rvalue, state.withIndent());
 
   return 0;
 }
 
 int ASTPrinter::visitIntLiteral(IntLiteral &node,
                                 const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " IntLiteral: " << node.value << "\n";
+  output << " IntLiteral: " << node.value << "\n";
 
   return 0;
 }
 
 int ASTPrinter::visitBoolLiteral(BoolLiteral &node,
                                  const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " BoolLiteral: " << node.value << "\n";
+  output << " BoolLiteral: " << (node.value ? "true" : "false") << "\n";
 
   return 0;
 }
 
 int ASTPrinter::visitTuple(Tuple &node, const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " Tuple\n";
-  for(auto& expr: node.expressions) {
+  output << " Tuple\n";
+  for (auto &expr : node.expressions) {
     visitNode(*expr, state.withIndent());
   }
 
@@ -204,12 +208,113 @@ int ASTPrinter::visitTuple(Tuple &node, const ASTPrinterState &state) {
 
 int ASTPrinter::visitTypeAliasDecl(TypeAliasDecl &node,
                                    const ASTPrinterState &state) {
-  state.printIndent();
+  state.printIndent(output);
   printLoc(node.loc);
-  std::cout << " TypeAliasDecl: " << node.name << "\n";
+  output << " TypeAliasDecl: " << node.name << "\n";
   typePrinter.visitType(*node.type->type, state.withIndent());
 
   return 0;
 }
 
+int ASTTypePrinter::visitVoidType(VoidType &type,
+                                  const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "VoidType\n";
+
+  return 0;
 }
+
+int ASTTypePrinter::visitBoolType(BoolType &type,
+                                  const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "BoolType\n";
+
+  return 0;
+}
+
+int ASTTypePrinter::visitIntType(IntType &type, const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "IntType: " << (type.isUnsigned ? "u": "i") << type.size << "\n";
+
+  return 0;
+}
+
+int ASTTypePrinter::visitFloatType(FloatType &type,
+                                   const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "FloatType: " << "f" << type.size << "\n";
+
+  return 0;
+}
+
+int ASTTypePrinter::visitMutType(MutType &type, const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "MutType\n";
+  visitType(*type.type, state.withIndent());
+
+  return 0;
+}
+
+int ASTTypePrinter::visitPointerType(PointerType &type, const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "PointerType\n";
+  visitType(*type.type, state.withIndent());
+
+  return 0;
+}
+
+int ASTTypePrinter::visitUnresolvedType(UnresolvedType &type,
+                                        const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "UnresolvedType: ";
+  if(type.is_root_scoped) output << "::";
+  for(auto& scope: type.scopes) {
+    output << scope << ":";
+  }
+  output << type.name << "\n";
+
+  return 0;
+}
+
+int ASTTypePrinter::visitResolvedAlias(ResolvedAlias &type, const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "ResolvedAlias\n";
+  visitType(*type.alias->type, state.withIndent());
+
+  return 0;
+}
+
+int ASTTypePrinter::visitFunctionType(FunctionType &type,
+                                      const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "FunctionType\n";
+  state.printIndent(output);
+  output << "  retType:\n";
+  visitType(*type.retType, state.withIndent());
+  state.printIndent(output);
+  output << "  argTypes:\n";
+  for(auto& arg: type.argTypes) {
+    visitType(*arg, state.withIndent());
+  }
+
+  return 0;
+}
+
+int ASTTypePrinter::visitNamedFunctionType(NamedFunctionType &type,
+                                           const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "NamedFunctionType\n";
+  state.printIndent(output);
+  output << "  argNames:";
+  for(auto& name: type.argNames) {
+    output << " " << name;
+  }
+  output << "\n";
+  state.printIndent(output);
+  output << "  type:\n";
+  visitType(*type.type, state.withIndent());
+
+  return 0;
+}
+
+} // namespace ovid::ast

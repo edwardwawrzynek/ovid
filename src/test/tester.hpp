@@ -30,12 +30,13 @@
 namespace ovid::tester {
 /**
  * Types of test to perform
+ * Parse - run the parser and resolve pass
  * Compile - just compile the program and verify errors
  * Run - Compile + run output and make sure it doesn't abort
  * RunCheckOutput - Run + check output from run matches expected output in file
- * TODO
+ * CheckAST - Parse + Resolve + check ast output against expected
  */
-enum class TestMode { Compile, Run, RunCheckOutput };
+enum class TestMode { Parse, Compile, Run, RunCheckOutput, CheckAST };
 
 class TesterInstance {
 
@@ -47,7 +48,7 @@ class TesterInstance {
   std::string filename;
   std::ifstream file;
 
-  TestMode mode;
+  std::set<TestMode> modes;
   int line, pos_in_line;
   int pline, ppos_in_line;
 

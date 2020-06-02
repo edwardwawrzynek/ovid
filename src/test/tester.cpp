@@ -1,5 +1,6 @@
 #include "tester.hpp"
 #include "ast.hpp"
+#include "ast_printer.hpp"
 #include "error.hpp"
 #include "parser.hpp"
 #include "resolve_pass.hpp"
@@ -9,7 +10,6 @@
 #include <filesystem>
 #include <iostream>
 #include <map>
-#include "ast_printer.hpp"
 
 namespace ovid::tester {
 /* convert an error type string (eg :ParseError) to the appropriate ErrorType
@@ -77,7 +77,7 @@ void TesterInstance::doError(const std::string &message) {
 }
 
 TesterInstance::TesterInstance(const std::string &filename)
-    : filename(filename), file(filename), mode(), line(1), pos_in_line(0),
+    : filename(filename), file(filename), modes(), line(1), pos_in_line(0),
       pline(1), ppos_in_line(0), expectedErrors(),
       ignoredErrors(1, ErrorType::Note), packageName(1, "ovidc_test") {}
 
@@ -107,16 +107,28 @@ void TesterInstance::readHeader() {
     return;
   }
 
-  auto mode_str = readToken();
-  if (mode_str == "compile") {
-    mode = TestMode::Compile;
-  } else if (mode_str == "run") {
-    mode = TestMode::Run;
-  } else if (mode_str == "run_check_output") {
-    mode = TestMode::RunCheckOutput;
-  } else {
-    doError("invalid test mode (expected compile, run, or run_check_output)");
-    return;
+  // read in modes
+  std::string arg;
+  while(!(arg = readToken()).empty()) {
+    if(arg == "compile") {
+      modes.insert(TestMode::Parse);
+      modes.insert(TestMode::Compile);
+    } else if (arg == "run") {
+      modes.insert(TestMode::Parse);
+      modes.insert(TestMode::Compile);
+      modes.insert(TestMode::Run);
+    } else if (arg == "run_check_output") {
+      modes.insert(TestMode::Parse);
+      modes.insert(TestMode::Compile);
+      modes.insert(TestMode::Run);
+      modes.insert(TestMode::RunCheckOutput);
+    } else if (arg == "check_ast") {
+      modes.insert(TestMode::Parse);
+      modes.insert(TestMode::CheckAST);
+    } else {
+      doError("invalid test mode (expected compile, run, run_check_output, or check_ast)");
+      return;
+    }
   }
 
   while (readToComment()) {
@@ -278,22 +290,47 @@ int TesterInstance::run() {
   int failed = 0;
   rewind();
 
-  /* compile program */
+  /* setup compilation */
   auto errorMan = ovid::TestErrorManager();
-  auto lexer = ovid::Tokenizer(filename, &file, errorMan);
-  auto scopes = ovid::ActiveScopes(packageName);
-  auto parser = ovid::Parser(lexer, errorMan, scopes, packageName);
-  auto ast = parser.parseProgram();
-  parser.removePushedPackageScope();
 
-  auto printer = ovid::ast::ASTPrinter();
-  printer.visitNodes(ast, ovid::ast::ASTPrinterState());
+  if(modes.count(TestMode::Parse) > 0) {
+    // Parse
+    auto lexer = ovid::Tokenizer(filename, &file, errorMan);
+    auto scopes = ovid::ActiveScopes(packageName);
+    auto parser = ovid::Parser(lexer, errorMan, scopes, packageName);
+    auto ast = parser.parseProgram();
+    parser.removePushedPackageScope();
+    // ResolvePass
+    auto resolvePass = ovid::ast::ResolvePass(scopes, errorMan, packageName);
+    resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());
+    resolvePass.removePushedPackageScope();
 
-  auto resolvePass = ovid::ast::ResolvePass(scopes, errorMan, packageName);
-  resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());
-  resolvePass.removePushedPackageScope();
+    if(modes.count(TestMode::CheckAST) > 0) {
+      // print ast to string
+      std::ostringstream ast_out;
+      auto printer = ovid::ast::ASTPrinter(ast_out);
+      printer.visitNodes(ast, ovid::ast::ASTPrinterState());
+      // read in expected ast
+      auto ast_filename = filename + ".expect.ast";
+      auto ast_file = std::ifstream(ast_filename);
+      if(!ast_file.is_open()) {
+        doError(string_format("failed to open file %s, expected by mode check_ast", ast_filename.c_str()));
+      }
+      std::string expected_ast(std::istreambuf_iterator<char>(ast_file), {});
 
-  // TODO: run + output check
+      // compare parsed ast to expected
+      if(ast_out.str() != expected_ast) {
+        std::cout << "check_ast " << filename << ": parsed ast doesn't match ast in file " << ast_filename << "\n";
+        std::cout << "------------ expected ast ------------\n" << expected_ast << "\n";
+        std::cout << "------------  parsed ast  ------------\n" << ast_out.str() << "\n";
+        failed = 1;
+      }
+    }
+
+    if(modes.count(TestMode::Compile) > 0) {
+      // TODO: further compile + run + run_check_output
+    }
+  }
 
   // error manager to pretty print errors
   auto ppErrorMan = ovid::PrintingErrorManager();
@@ -372,16 +409,20 @@ int testDirectory(const std::string &dirPath) {
 
   int numTests = 0;
   for (auto &entry : std::filesystem::directory_iterator(dirPath)) {
-    numTests++;
+    auto path = entry.path().string();
+    if(!path.compare(path.size() - 4, 4, ".ovd")) numTests++;
   }
 
   std::cout << "         " << numTests << " tests to run\n\n";
 
   for (auto &entry : std::filesystem::directory_iterator(dirPath)) {
+    auto path = entry.path().string();
+    if(path.compare(path.size() - 4, 4, ".ovd")) continue;
+
     std::cout << "\x1b[1m[ .... ]\x1b[m " << entry.path().string()
               << ": beginning test\n";
 
-    auto tester = TesterInstance(entry.path().string());
+    auto tester = TesterInstance(path);
     auto res = tester.run();
     if (res == 0) {
       std::cout << "\x1b[1m[  \x1b[32mOK\x1b[0;1m  ]\x1b[m";
@@ -390,7 +431,7 @@ int testDirectory(const std::string &dirPath) {
       std::cout << "\x1b[1m[ \x1b[31mFAIL\x1b[0;1m ]\x1b[m";
     }
 
-    std::cout << " " << entry.path().string() << ": test "
+    std::cout << " " << path << ": test "
               << ((res == 0) ? "passed" : "failed") << "\n\n";
   }
 

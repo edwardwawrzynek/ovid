@@ -1,0 +1,24 @@
+// __ovid_compiler_test
+//__mode: check_ast
+//__end_header
+/* file basic_parse.ovd.expect.ast contains the ast this file is expected to parse to */
+module mod:sub
+
+module test0 {}
+module test1 {}
+
+type test = *i32
+
+fn test(a i32, b *mut i32) -> *test {
+    mut c = 5
+    val var = 1 + 2 * c - 7
+    ::ovidc_test:mod:sub:test(1, 2)
+    (1, 1 + 1, 3)
+    if 1 {
+        c = 7
+    } elsif 2 {
+
+    } else {
+
+    }
+}

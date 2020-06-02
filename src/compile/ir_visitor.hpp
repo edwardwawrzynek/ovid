@@ -1,3 +1,1 @@
-namespace ovid::ir {
-
-}
+namespace ovid::ir {}
