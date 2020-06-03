@@ -109,8 +109,8 @@ void TesterInstance::readHeader() {
 
   // read in modes
   std::string arg;
-  while(!(arg = readToken()).empty()) {
-    if(arg == "compile") {
+  while (!(arg = readToken()).empty()) {
+    if (arg == "compile") {
       modes.insert(TestMode::Parse);
       modes.insert(TestMode::Compile);
     } else if (arg == "run") {
@@ -126,7 +126,8 @@ void TesterInstance::readHeader() {
       modes.insert(TestMode::Parse);
       modes.insert(TestMode::CheckAST);
     } else {
-      doError("invalid test mode (expected compile, run, run_check_output, or check_ast)");
+      doError("invalid test mode (expected compile, run, run_check_output, or "
+              "check_ast)");
       return;
     }
   }
@@ -293,7 +294,7 @@ int TesterInstance::run() {
   /* setup compilation */
   auto errorMan = ovid::TestErrorManager();
 
-  if(modes.count(TestMode::Parse) > 0) {
+  if (modes.count(TestMode::Parse) > 0) {
     // Parse
     auto lexer = ovid::Tokenizer(filename, &file, errorMan);
     auto scopes = ovid::ActiveScopes(packageName);
@@ -305,7 +306,7 @@ int TesterInstance::run() {
     resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());
     resolvePass.removePushedPackageScope();
 
-    if(modes.count(TestMode::CheckAST) > 0) {
+    if (modes.count(TestMode::CheckAST) > 0) {
       // print ast to string
       std::ostringstream ast_out;
       auto printer = ovid::ast::ASTPrinter(ast_out);
@@ -313,21 +314,27 @@ int TesterInstance::run() {
       // read in expected ast
       auto ast_filename = filename + ".expect.ast";
       auto ast_file = std::ifstream(ast_filename);
-      if(!ast_file.is_open()) {
-        doError(string_format("failed to open file %s, expected by mode check_ast", ast_filename.c_str()));
+      if (!ast_file.is_open()) {
+        doError(
+            string_format("failed to open file %s, expected by mode check_ast",
+                          ast_filename.c_str()));
       }
       std::string expected_ast(std::istreambuf_iterator<char>(ast_file), {});
 
       // compare parsed ast to expected
-      if(ast_out.str() != expected_ast) {
-        std::cout << "check_ast " << filename << ": parsed ast doesn't match ast in file " << ast_filename << "\n";
-        std::cout << "------------ expected ast ------------\n" << expected_ast << "\n";
-        std::cout << "------------  parsed ast  ------------\n" << ast_out.str() << "\n";
+      if (ast_out.str() != expected_ast) {
+        std::cout << "check_ast " << filename
+                  << ": parsed ast doesn't match ast in file " << ast_filename
+                  << "\n";
+        std::cout << "------------ expected ast ------------\n"
+                  << expected_ast << "\n";
+        std::cout << "------------  parsed ast  ------------\n"
+                  << ast_out.str() << "\n";
         failed = 1;
       }
     }
 
-    if(modes.count(TestMode::Compile) > 0) {
+    if (modes.count(TestMode::Compile) > 0) {
       // TODO: further compile + run + run_check_output
     }
   }
@@ -410,14 +417,16 @@ int testDirectory(const std::string &dirPath) {
   int numTests = 0;
   for (auto &entry : std::filesystem::directory_iterator(dirPath)) {
     auto path = entry.path().string();
-    if(!path.compare(path.size() - 4, 4, ".ovd")) numTests++;
+    if (!path.compare(path.size() - 4, 4, ".ovd"))
+      numTests++;
   }
 
   std::cout << "         " << numTests << " tests to run\n\n";
 
   for (auto &entry : std::filesystem::directory_iterator(dirPath)) {
     auto path = entry.path().string();
-    if(path.compare(path.size() - 4, 4, ".ovd")) continue;
+    if (path.compare(path.size() - 4, 4, ".ovd"))
+      continue;
 
     std::cout << "\x1b[1m[ .... ]\x1b[m " << entry.path().string()
               << ": beginning test\n";
@@ -431,8 +440,8 @@ int testDirectory(const std::string &dirPath) {
       std::cout << "\x1b[1m[ \x1b[31mFAIL\x1b[0;1m ]\x1b[m";
     }
 
-    std::cout << " " << path << ": test "
-              << ((res == 0) ? "passed" : "failed") << "\n\n";
+    std::cout << " " << path << ": test " << ((res == 0) ? "passed" : "failed")
+              << "\n\n";
   }
 
   if (failed > 0) {

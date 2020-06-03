@@ -1,3 +1,6 @@
+#ifndef H_TESTER_INCL
+#define H_TESTER_INCL
+
 #include "error.hpp"
 #include <fstream>
 #include <iostream>
@@ -93,3 +96,5 @@ public:
 // run test instances on all files in a directory
 int testDirectory(const std::string &dirPath);
 } // namespace ovid::tester
+
+#endif

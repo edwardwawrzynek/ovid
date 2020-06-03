@@ -1,7 +1,10 @@
+#ifndef H_IR_INCL
+#define H_IR_INCL
+
+#include <functional>
 #include <utility>
 
 #include "ast.hpp"
-#include "ir_visitor.hpp"
 
 /**
  * The higher level intermediate representation in the compiler (the LLVM IR is
@@ -38,11 +41,12 @@
 namespace ovid::ir {
 
 uint64_t next_id();
-class Instruction;
 
-/* a value in the ir -- holds the result of an instruction
- * T must be of type Instruction of derived class */
-template <typename T> class Value {
+class Instruction;
+typedef std::vector<std::unique_ptr<Instruction>> InstructionList;
+
+/* a value in the ir -- holds the result of an instruction */
+class Value {
 public:
   /* name (scoped) from the source code */
   std::vector<std::string> sourceName;
@@ -52,16 +56,10 @@ public:
   // if the value has a source location or is using id
   bool hasSourceName;
 
-  std::unique_ptr<T> instruction;
+  explicit Value(const std::vector<std::string> &sourceName)
+      : sourceName(sourceName), id(0), hasSourceName(true){};
 
-  Value(const std::vector<std::string> &sourceName,
-        std::unique_ptr<T> instruction)
-      : sourceName(sourceName), hasSourceName(true),
-        instruction(std::move(instruction)){};
-
-  explicit Value(std::unique_ptr<Instruction> instruction)
-      : id(next_id()), hasSourceName(false),
-        instruction(std::move(instruction)){};
+  Value() : id(next_id()), hasSourceName(false){};
 };
 
 /* the base instruction type in the ir */
@@ -70,13 +68,18 @@ public:
   SourceLocation loc;
 
   explicit Instruction(SourceLocation loc) : loc(std::move(loc)){};
+
+  virtual ~Instruction() = default;
 };
 
 /* an instruction which produces some kind of value that is usable in
  * computation basically everything but a jump or label */
 class Expression : public Instruction {
 public:
-  explicit Expression(SourceLocation loc) : Instruction(std::move(loc)){};
+  Value val;
+
+  explicit Expression(SourceLocation loc, const Value &val)
+      : Instruction(std::move(loc)), val(val){};
 };
 
 /* a function declaration in the ir
@@ -86,12 +89,12 @@ class FunctionDeclare : public Expression {
 public:
   std::unique_ptr<ast::NamedFunctionType> type;
 
-  std::vector<std::unique_ptr<Value<Instruction>>> body;
+  InstructionList body;
 
-  FunctionDeclare(SourceLocation loc,
+  FunctionDeclare(SourceLocation loc, const Value &val,
                   std::unique_ptr<ast::NamedFunctionType> type,
-                  std::vector<std::unique_ptr<Value<Instruction>>> body)
-      : Expression(std::move(loc)), type(std::move(type)),
+                  InstructionList body)
+      : Expression(std::move(loc), val), type(std::move(type)),
         body(std::move(body)){};
 };
 
@@ -101,9 +104,9 @@ public:
   std::unique_ptr<ast::IntType> type;
   uint64_t value;
 
-  IntLiteral(SourceLocation loc, std::unique_ptr<ast::IntType> type,
-             uint64_t value)
-      : Expression(std::move(loc)), type(std::move(type)), value(value){};
+  IntLiteral(SourceLocation loc, const Value &val,
+             std::unique_ptr<ast::IntType> type, uint64_t value)
+      : Expression(std::move(loc), val), type(std::move(type)), value(value){};
 };
 
 /* a function call (including builtins)
@@ -111,14 +114,14 @@ public:
 class FunctionCall : public Expression {
 public:
   // the function being called
-  std::shared_ptr<Value<FunctionDeclare>> function;
+  const FunctionDeclare &function;
   // arguments to function
-  std::vector<std::shared_ptr<Value<Expression>>> arguments;
+  std::vector<std::reference_wrapper<const Expression>> arguments;
 
-  FunctionCall(SourceLocation loc,
-               std::shared_ptr<Value<FunctionDeclare>> function,
-               const std::vector<std::shared_ptr<Value<Expression>>> &arguments)
-      : Expression(std::move(loc)), function(std::move(function)),
+  FunctionCall(
+      SourceLocation loc, const Value &val, const FunctionDeclare &function,
+      const std::vector<std::reference_wrapper<const Expression>> &arguments)
+      : Expression(std::move(loc), val), function(function),
         arguments(arguments){};
 };
 
@@ -128,26 +131,23 @@ public:
  */
 class Allocation : public Expression {
 public:
-  std::unique_ptr<ast::Type> type;
+  const ast::Type &type;
 
   bool is_heap_allocated;
 
-  Allocation(SourceLocation loc, std::unique_ptr<ast::Type> type)
-      : Expression(std::move(loc)), type(std::move(type)),
-        is_heap_allocated(false){};
+  Allocation(SourceLocation loc, const Value &val, const ast::Type &type)
+      : Expression(std::move(loc), val), type(type), is_heap_allocated(false){};
 };
 
 /* A store into a value (has to be a value produced by Allocation)
  */
 class Store : public Instruction {
 public:
-  std::shared_ptr<Value<Allocation>> storage;
-  std::shared_ptr<Value<Expression>> value;
+  const Allocation &storage;
+  const Expression &value;
 
-  Store(SourceLocation loc, std::shared_ptr<Value<Allocation>> storage,
-        std::shared_ptr<Value<Expression>> value)
-      : Instruction(std::move(loc)), storage(std::move(storage)),
-        value(std::move(value)){};
+  Store(SourceLocation loc, const Allocation &storage, const Expression &value)
+      : Instruction(std::move(loc)), storage(storage), value(value){};
 };
 
 /* A labelled point in code, which can be jumped to */
@@ -159,22 +159,23 @@ public:
 /* an unconditional jump to a label */
 class Jump : public Instruction {
 public:
-  std::shared_ptr<Value<Label>> label;
+  const Label &label;
 
-  Jump(SourceLocation loc, std::shared_ptr<Value<Label>> label)
-      : Instruction(std::move(loc)), label(std::move(label)){};
+  Jump(SourceLocation loc, const Label &label)
+      : Instruction(std::move(loc)), label(label){};
 };
 
 /* a conditional jump to a label */
 class ConditionalJump : public Instruction {
 public:
-  std::shared_ptr<Value<Label>> label;
-  std::shared_ptr<Value<Expression>> condition;
+  const Label &label;
+  const Expression &condition;
 
-  ConditionalJump(SourceLocation loc, std::shared_ptr<Value<Label>> label,
-                  std::shared_ptr<Value<Expression>> condition)
-      : Instruction(std::move(loc)), label(std::move(label)),
-        condition(std::move(condition)){};
+  ConditionalJump(SourceLocation loc, const Label &label,
+                  const Expression &condition)
+      : Instruction(std::move(loc)), label(label), condition(condition){};
 };
 
 } // namespace ovid::ir
+
+#endif

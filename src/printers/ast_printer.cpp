@@ -9,7 +9,7 @@ ASTPrinterState ASTPrinterState::withIndent() const {
   return res;
 }
 
-void ASTPrinterState::printIndent(std::ostream& output) const {
+void ASTPrinterState::printIndent(std::ostream &output) const {
   for (uint64_t i = 0; i < indent_level; i++) {
     output << "    ";
   }
@@ -25,9 +25,10 @@ int ASTPrinter::visitModuleDecl(ModuleDecl &node,
   printLoc(node.loc);
   output << " ModuleDecl: ";
   for (size_t i = 0; i < node.scope.size(); i++) {
-    auto& scope = node.scope[i];
+    auto &scope = node.scope[i];
     output << scope;
-    if(i < node.scope.size() - 1) output << ":";
+    if (i < node.scope.size() - 1)
+      output << ":";
   }
   output << "\n";
   for (auto &body : node.body) {
@@ -234,7 +235,7 @@ int ASTTypePrinter::visitBoolType(BoolType &type,
 
 int ASTTypePrinter::visitIntType(IntType &type, const ASTPrinterState &state) {
   state.printIndent(output);
-  output << "IntType: " << (type.isUnsigned ? "u": "i") << type.size << "\n";
+  output << "IntType: " << (type.isUnsigned ? "u" : "i") << type.size << "\n";
 
   return 0;
 }
@@ -242,7 +243,8 @@ int ASTTypePrinter::visitIntType(IntType &type, const ASTPrinterState &state) {
 int ASTTypePrinter::visitFloatType(FloatType &type,
                                    const ASTPrinterState &state) {
   state.printIndent(output);
-  output << "FloatType: " << "f" << type.size << "\n";
+  output << "FloatType: "
+         << "f" << type.size << "\n";
 
   return 0;
 }
@@ -255,7 +257,8 @@ int ASTTypePrinter::visitMutType(MutType &type, const ASTPrinterState &state) {
   return 0;
 }
 
-int ASTTypePrinter::visitPointerType(PointerType &type, const ASTPrinterState &state) {
+int ASTTypePrinter::visitPointerType(PointerType &type,
+                                     const ASTPrinterState &state) {
   state.printIndent(output);
   output << "PointerType\n";
   visitType(*type.type, state.withIndent());
@@ -267,8 +270,9 @@ int ASTTypePrinter::visitUnresolvedType(UnresolvedType &type,
                                         const ASTPrinterState &state) {
   state.printIndent(output);
   output << "UnresolvedType: ";
-  if(type.is_root_scoped) output << "::";
-  for(auto& scope: type.scopes) {
+  if (type.is_root_scoped)
+    output << "::";
+  for (auto &scope : type.scopes) {
     output << scope << ":";
   }
   output << type.name << "\n";
@@ -276,7 +280,8 @@ int ASTTypePrinter::visitUnresolvedType(UnresolvedType &type,
   return 0;
 }
 
-int ASTTypePrinter::visitResolvedAlias(ResolvedAlias &type, const ASTPrinterState &state) {
+int ASTTypePrinter::visitResolvedAlias(ResolvedAlias &type,
+                                       const ASTPrinterState &state) {
   state.printIndent(output);
   output << "ResolvedAlias\n";
   visitType(*type.alias->type, state.withIndent());
@@ -293,7 +298,7 @@ int ASTTypePrinter::visitFunctionType(FunctionType &type,
   visitType(*type.retType, state.withIndent());
   state.printIndent(output);
   output << "  argTypes:\n";
-  for(auto& arg: type.argTypes) {
+  for (auto &arg : type.argTypes) {
     visitType(*arg, state.withIndent());
   }
 
@@ -306,7 +311,7 @@ int ASTTypePrinter::visitNamedFunctionType(NamedFunctionType &type,
   output << "NamedFunctionType\n";
   state.printIndent(output);
   output << "  argNames:";
-  for(auto& name: type.argNames) {
+  for (auto &name : type.argNames) {
     output << " " << name;
   }
   output << "\n";

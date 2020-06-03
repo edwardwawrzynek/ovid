@@ -1,3 +1,6 @@
+#ifndef H_AST_PRINTER_INCL
+#define H_AST_PRINTER_INCL
+
 #include "ast.hpp"
 #include "ast_visitor.hpp"
 
@@ -11,17 +14,19 @@ public:
   ASTPrinterState withIndent() const;
 
   /* print ident */
-  void printIndent(std::ostream& output) const;
+  void printIndent(std::ostream &output) const;
 
   ASTPrinterState() : indent_level(0){};
 };
 
 class ASTTypePrinter : public BaseTypeVisitor<int, ASTPrinterState> {
 
-  std::ostream& output;
+  std::ostream &output;
 
-  int visitUnresolvedType(UnresolvedType &type, const ASTPrinterState &state) override;
-  int visitResolvedAlias(ResolvedAlias &type, const ASTPrinterState &state) override;
+  int visitUnresolvedType(UnresolvedType &type,
+                          const ASTPrinterState &state) override;
+  int visitResolvedAlias(ResolvedAlias &type,
+                         const ASTPrinterState &state) override;
 
   int visitVoidType(VoidType &type, const ASTPrinterState &state) override;
   int visitBoolType(BoolType &type, const ASTPrinterState &state) override;
@@ -29,18 +34,22 @@ class ASTTypePrinter : public BaseTypeVisitor<int, ASTPrinterState> {
   int visitFloatType(FloatType &type, const ASTPrinterState &state) override;
 
   int visitMutType(MutType &type, const ASTPrinterState &state) override;
-  int visitPointerType(PointerType &type, const ASTPrinterState &state) override;
+  int visitPointerType(PointerType &type,
+                       const ASTPrinterState &state) override;
 
-  int visitFunctionType(FunctionType &type, const ASTPrinterState &state) override;
-  int visitNamedFunctionType(NamedFunctionType &type, const ASTPrinterState &state) override;
+  int visitFunctionType(FunctionType &type,
+                        const ASTPrinterState &state) override;
+  int visitNamedFunctionType(NamedFunctionType &type,
+                             const ASTPrinterState &state) override;
 
 public:
-  explicit ASTTypePrinter(std::ostream& output) : BaseTypeVisitor(0), output(output){};
+  explicit ASTTypePrinter(std::ostream &output)
+      : BaseTypeVisitor(0), output(output){};
 };
 
 class ASTPrinter : public BaseASTVisitor<int, ASTPrinterState> {
   ASTTypePrinter typePrinter;
-  std::ostream& output;
+  std::ostream &output;
 
   int visitVarDecl(VarDecl &node, const ASTPrinterState &state) override;
   int visitFunctionDecl(FunctionDecl &node,
@@ -65,7 +74,10 @@ class ASTPrinter : public BaseASTVisitor<int, ASTPrinterState> {
   void printLoc(const SourceLocation &loc);
 
 public:
-  explicit ASTPrinter(std::ostream& output) : BaseASTVisitor(0), typePrinter(output), output(output){};
+  explicit ASTPrinter(std::ostream &output)
+      : BaseASTVisitor(0), typePrinter(output), output(output){};
 };
 
 } // namespace ovid::ast
+
+#endif

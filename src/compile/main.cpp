@@ -1,9 +1,12 @@
 #include "ast.hpp"
+#include "ast_printer.hpp"
 #include "error.hpp"
 #include "ir.hpp"
+#include "ir_visitor.hpp"
 #include "parser.hpp"
 #include "resolve_pass.hpp"
 #include "tokenizer.hpp"
+#include "type_check.hpp"
 #include <iostream>
 
 int main(int argc, char **argv) {
@@ -29,6 +32,13 @@ int main(int argc, char **argv) {
   auto resolvePass = ovid::ast::ResolvePass(scopes, errorMan, package);
   resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());
   resolvePass.removePushedPackageScope();
+
+  auto astPrinter = ovid::ast::ASTPrinter(std::cout);
+  astPrinter.visitNodes(ast, ovid::ast::ASTPrinterState());
+
+  auto typeCheck = ovid::ast::TypeCheck();
+
+  auto ir = typeCheck.visitNodes(ast, ovid::ast::TypeCheckState());
 
   if (errorMan.errorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";

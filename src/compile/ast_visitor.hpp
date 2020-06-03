@@ -46,9 +46,6 @@ T BaseASTVisitor<T, S>::visitNode(Node &node, const S &state) {
     return visitStatement(dynamic_cast<Statement &>(node), state);
   }
 
-  if (dynamic_cast<Node *>(&node) == nullptr)
-    return defaultValue;
-
   assert(false);
 }
 
@@ -163,7 +160,7 @@ template <class T, class S> class BaseTypeVisitor {
   T defaultValue;
 
   virtual T visitUnresolvedType(UnresolvedType &type, const S &state);
-  virtual T visitResolvedAlias(ResolvedAlias& type, const S &state);
+  virtual T visitResolvedAlias(ResolvedAlias &type, const S &state);
 
   virtual T visitVoidType(VoidType &type, const S &state);
   virtual T visitBoolType(BoolType &type, const S &state);
@@ -205,8 +202,8 @@ T BaseTypeVisitor<T, S>::visitType(Type &type, const S &state) {
   } else if (dynamic_cast<NamedFunctionType *>(&type) != nullptr) {
     return visitNamedFunctionType(dynamic_cast<NamedFunctionType &>(type),
                                   state);
-  } else if(dynamic_cast<ResolvedAlias *>(&type) != nullptr) {
-    return visitResolvedAlias(dynamic_cast<ResolvedAlias&>(type), state);
+  } else if (dynamic_cast<ResolvedAlias *>(&type) != nullptr) {
+    return visitResolvedAlias(dynamic_cast<ResolvedAlias &>(type), state);
   }
 
   assert(false);
@@ -219,7 +216,8 @@ T BaseTypeVisitor<T, S>::visitUnresolvedType(UnresolvedType &type,
 }
 
 template <class T, class S>
-T BaseTypeVisitor<T, S>::visitResolvedAlias(ResolvedAlias &type, const S &state) {
+T BaseTypeVisitor<T, S>::visitResolvedAlias(ResolvedAlias &type,
+                                            const S &state) {
   return std::move(defaultValue);
 }
 
