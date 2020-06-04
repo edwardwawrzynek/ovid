@@ -25,13 +25,13 @@ std::string string_format(const std::string &format, Args... args) {
 /* location in source code */
 struct SourceLocation {
   std::string filename;
-  int64_t col, row;         // start of error
-  int64_t end_col, end_row; // end of error (inclusive)
+  uint64_t col, row;         // start of error
+  uint64_t end_col, end_row; // end of error (inclusive)
   std::istream *file; /* file may be null (if input isn't from a file, or is non
                          seekable (like stdin) */
 
-  SourceLocation(const std::string &filename, int64_t row, int64_t col,
-                 int64_t end_row, int64_t end_col, std::istream *file)
+  SourceLocation(const std::string &filename, uint64_t row, uint64_t col,
+                 uint64_t end_row, uint64_t end_col, std::istream *file)
       : filename(filename), col(col), row(row), end_col(end_col),
         end_row(end_row), file(file){};
 
@@ -64,6 +64,7 @@ enum class ErrorType {
   UseOfPrivateIdentifier,
   UseOfPrivateType,
   ModDeclInFunction,
+  TypeError
 };
 
 enum class ErrorPrintLevel { Error, Warning, Note };

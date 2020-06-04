@@ -71,7 +71,7 @@ int ResolvePass::visitModuleDecl(ModuleDecl &node,
 
   // remove this module's scope from the active scope table
   scopes.popComponentScopesByName(current_module);
-  for (auto &scope : node.scope) {
+  for ([[maybe_unused]] auto &scope : node.scope) {
     current_module.pop_back();
   }
 
@@ -271,7 +271,7 @@ bool ResolvePass::checkTypeShadowed(
   return shadowed != nullptr;
 }
 
-std::unique_ptr<Type>
+std::shared_ptr<Type>
 TypeResolver::visitUnresolvedType(UnresolvedType &type,
                                   const TypeResolverState &state) {
   // lookup type in type tables
@@ -306,41 +306,41 @@ TypeResolver::visitUnresolvedType(UnresolvedType &type,
                       type.loc, ErrorType::UseOfPrivateType);
   }
 
-  return std::make_unique<ResolvedAlias>(type.loc, sym);
+  return std::make_shared<ResolvedAlias>(type.loc, sym);
 }
 
-std::unique_ptr<Type>
+std::shared_ptr<Type>
 TypeResolver::visitVoidType(VoidType &type, const TypeResolverState &state) {
-  return std::make_unique<VoidType>(type.loc);
+  return std::make_shared<VoidType>(type.loc);
 }
 
-std::unique_ptr<Type>
+std::shared_ptr<Type>
 TypeResolver::visitBoolType(BoolType &type, const TypeResolverState &state) {
-  return std::make_unique<BoolType>(type.loc);
+  return std::make_shared<BoolType>(type.loc);
 }
 
-std::unique_ptr<Type>
+std::shared_ptr<Type>
 TypeResolver::visitIntType(IntType &type, const TypeResolverState &state) {
-  return std::make_unique<IntType>(type.loc, type.size, type.isUnsigned);
+  return std::make_shared<IntType>(type.loc, type.size, type.isUnsigned);
 }
 
-std::unique_ptr<Type>
+std::shared_ptr<Type>
 TypeResolver::visitFloatType(FloatType &type, const TypeResolverState &state) {
-  return std::make_unique<FloatType>(type.loc, type.size);
+  return std::make_shared<FloatType>(type.loc, type.size);
 }
 
-std::unique_ptr<Type>
+std::shared_ptr<Type>
 TypeResolver::visitMutType(MutType &type, const TypeResolverState &state) {
-  return std::make_unique<MutType>(type.loc, visitType(*type.type, state));
+  return std::make_shared<MutType>(type.loc, visitType(*type.type, state));
 }
 
-std::unique_ptr<Type>
+std::shared_ptr<Type>
 TypeResolver::visitPointerType(PointerType &type,
                                const TypeResolverState &state) {
-  return std::make_unique<PointerType>(type.loc, visitType(*type.type, state));
+  return std::make_shared<PointerType>(type.loc, visitType(*type.type, state));
 }
 
-std::unique_ptr<FunctionType>
+std::shared_ptr<FunctionType>
 TypeResolver::visitFunctionTypeNonOverload(FunctionType &type,
                                            const TypeResolverState &state) {
   TypeList argTypes;
@@ -348,21 +348,21 @@ TypeResolver::visitFunctionTypeNonOverload(FunctionType &type,
     argTypes.push_back(visitType(*arg, state));
   }
   auto retType = visitType(*type.retType, state);
-  return std::make_unique<FunctionType>(type.loc, std::move(argTypes),
+  return std::make_shared<FunctionType>(type.loc, std::move(argTypes),
                                         std::move(retType));
 }
 
-std::unique_ptr<Type>
+std::shared_ptr<Type>
 TypeResolver::visitFunctionType(FunctionType &type,
                                 const TypeResolverState &state) {
   return visitFunctionTypeNonOverload(type, state);
 }
 
-std::unique_ptr<Type>
+std::shared_ptr<Type>
 TypeResolver::visitNamedFunctionType(NamedFunctionType &type,
                                      const TypeResolverState &state) {
   auto newType = visitFunctionTypeNonOverload(*type.type, state);
-  return std::make_unique<NamedFunctionType>(type.loc, std::move(newType),
+  return std::make_shared<NamedFunctionType>(type.loc, std::move(newType),
                                              type.argNames);
 }
 

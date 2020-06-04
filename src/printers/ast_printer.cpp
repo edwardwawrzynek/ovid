@@ -90,6 +90,8 @@ int ASTPrinter::visitIfStatement(IfStatement &node,
       visitNode(*statement, state.withIndent());
     }
   }
+
+  return 0;
 }
 
 int ASTPrinter::visitFunctionCall(FunctionCall &node,

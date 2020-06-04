@@ -52,20 +52,20 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
     auto oldLoc = location.file->tellg();
     // seek to proper line
     location.file->seekg(std::ios::beg);
-    for (int i = 0; i < location.row - 1; ++i) {
+    for (size_t i = 0; i < location.row - 1; ++i) {
       location.file->ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
 
     // calculate number of lines to print
     auto numLines = (location.end_row - location.row) + 1;
     std::string line;
-    for (auto l = 0; l < numLines; l++) {
+    for (size_t l = 0; l < numLines; l++) {
       // print line header
       std::cout << "\x1b[m" << std::setw(5) << location.row + l << " | ";
       // read line
       getline(*location.file, line);
       // print line, and highlight characters in the error
-      for (auto p = 0; p < line.size(); p++) {
+      for (size_t p = 0; p < line.size(); p++) {
         if ((p < location.col - 1 && l == 0) ||
             (p > location.end_col - 1 && l == numLines - 1))
           std::cout << "\x1b[m";
@@ -79,7 +79,7 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
     // if the error was only one line, print underline bar
     if (numLines == 1) {
       std::cout << "\x1b[m      | ";
-      int i;
+      size_t i;
       for (i = 0; i < location.col - 1; i++) {
         if (isspace(line[i]))
           std::cout << line[i];

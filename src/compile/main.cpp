@@ -37,8 +37,8 @@ int main(int argc, char **argv) {
   auto astPrinter = ovid::ast::ASTPrinter(std::cout);
   astPrinter.visitNodes(ast, ovid::ast::ASTPrinterState());
 
-  auto typeCheck = ovid::ast::TypeCheck();
-  auto ir = typeCheck.produceIR(ast);
+  auto typeCheck = ovid::ast::TypeCheck(errorMan);
+  auto ir = typeCheck.produceIR(ast, ovid::ast::TypeCheckState(package));
 
   std::cout << "\n---- IR ----\n";
   auto irPrinter = ovid::ir::IRPrinter(std::cout);

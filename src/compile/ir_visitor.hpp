@@ -22,9 +22,10 @@ template <class T, class S> class BaseIRVisitor {
 
 public:
   virtual T visitInstruction(Instruction &instruct, const S &state);
-  virtual std::vector<T> visitInstructions(const InstructionList& instructs, const S &state);
+  virtual std::vector<T> visitInstructions(const InstructionList &instructs,
+                                           const S &state);
 
-  BaseIRVisitor(T defaultValue): defaultValue(std::move(defaultValue)) {};
+  BaseIRVisitor(T defaultValue) : defaultValue(std::move(defaultValue)){};
 
   virtual ~BaseIRVisitor() = default;
 };
@@ -49,10 +50,11 @@ T BaseIRVisitor<T, S>::visitInstruction(Instruction &instruct, const S &state) {
 
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
-  if(dynamic_cast<FunctionCall*>(&instruct) != nullptr) {
-    return visitFunctionCall(dynamic_cast<FunctionCall&>(instruct), state);
+  if (dynamic_cast<FunctionCall *>(&instruct) != nullptr) {
+    return visitFunctionCall(dynamic_cast<FunctionCall &>(instruct), state);
   } else if (dynamic_cast<FunctionDeclare *>(&instruct) != nullptr) {
-    return visitFunctionDeclare(dynamic_cast<FunctionDeclare &>(instruct), state);
+    return visitFunctionDeclare(dynamic_cast<FunctionDeclare &>(instruct),
+                                state);
   } else if (dynamic_cast<IntLiteral *>(&instruct) != nullptr) {
     return visitIntLiteral(dynamic_cast<IntLiteral &>(instruct), state);
   } else if (dynamic_cast<Allocation *>(&instruct) != nullptr) {
@@ -106,8 +108,9 @@ T BaseIRVisitor<T, S>::visitConditionalJump(ConditionalJump &instruct,
 }
 
 template <class T, class S>
-std::vector<T> BaseIRVisitor<T, S>::visitInstructions(const InstructionList& instructs,
-                                                      const S &state) {
+std::vector<T>
+BaseIRVisitor<T, S>::visitInstructions(const InstructionList &instructs,
+                                       const S &state) {
   std::vector<T> res;
 
   for (auto &i : instructs) {

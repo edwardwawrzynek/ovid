@@ -1,12 +1,13 @@
 #include "ir_printer.hpp"
 
 void ovid::ir::IRPrinter::printValue(const ovid::ir::Value &val) {
-  if(val.hasSourceName) {
-    for(size_t i = 0; i < val.sourceName.size(); i++) {
-      auto& scope = val.sourceName[i];
+  if (val.hasSourceName) {
+    for (size_t i = 0; i < val.sourceName.size(); i++) {
+      auto &scope = val.sourceName[i];
       output << scope;
 
-      if(i < val.sourceName.size() - 1) output << ":";
+      if (i < val.sourceName.size() - 1)
+        output << ":";
     }
   } else {
     output << "%" << val.id;
@@ -36,7 +37,7 @@ int ovid::ir::IRPrinter::visitAllocation(
   printValue(instruct.val);
 
   output << " = Allocation\n";
-  type_printer.visitType(instruct.type, state.withIndent());
+  type_printer.visitType(*instruct.type, state.withIndent());
 
   return 0;
 }
@@ -97,10 +98,11 @@ int ovid::ir::IRPrinter::visitFunctionCall(
   output << " = FunctionCall ";
   printValue(instruct.function.val);
   output << "(";
-  for(size_t i = 0; i < instruct.arguments.size(); i++) {
-    auto& arg = instruct.arguments[i].get();
+  for (size_t i = 0; i < instruct.arguments.size(); i++) {
+    auto &arg = instruct.arguments[i].get();
     printValue(arg.val);
-    if(i < instruct.arguments.size() - 1) output << ", ";
+    if (i < instruct.arguments.size() - 1)
+      output << ", ";
   }
   output << ")\n";
 
@@ -120,7 +122,7 @@ int ovid::ir::IRPrinter::visitFunctionDeclare(
   type_printer.visitType(*instruct.type, state.withIndent());
   state.printIndent(output);
   output << "{\n";
-  for(auto &body: instruct.body) {
+  for (auto &body : instruct.body) {
     visitInstruction(*body, state.withIndent());
   }
   state.printIndent(output);

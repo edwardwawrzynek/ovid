@@ -12,7 +12,7 @@ set(TEST_FRAMEWORK src/test/tester.cpp)
 # Compiler options
 add_definitions(-D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-set(CCFLAGS -Wall -Wextra -g)
+set(CCFLAGS -Wall -Wextra -pedantic -Wno-unused-parameter -g)
 
 ##################################
 # LLVM stuff

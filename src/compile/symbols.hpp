@@ -210,8 +210,8 @@ std::shared_ptr<ScopeTable<T>>
 ScopeTable<T>::addScopeTable(const std::string &scope, bool is_public,
                              std::shared_ptr<ScopeTable<T>> parent) {
   assert(parent.get() == this);
-  return addScopeTable(scope,
-                       std::make_shared<ScopeTable<T>>(is_public, std::move(parent)));
+  return addScopeTable(
+      scope, std::make_shared<ScopeTable<T>>(is_public, std::move(parent)));
 }
 
 template <class T>
@@ -334,8 +334,7 @@ public:
 
   // remove the most recently pushed scope from the stack, and assert it is the
   // expected scope
-  std::shared_ptr<ScopeTable<T>>
-  popScope(const ScopeTable<T> *expected);
+  std::shared_ptr<ScopeTable<T>> popScope(const ScopeTable<T> *expected);
 
   // search the scope top down for the first symbol with the given scope and
   // name. Returns nullptr if not found

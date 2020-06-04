@@ -342,55 +342,55 @@ Parser::parseBinOpRight(const ParserState &state, int exprPrec,
   }
 }
 
-static std::map<std::string, std::function<std::unique_ptr<ast::Type>(
+static std::map<std::string, std::function<std::shared_ptr<ast::Type>(
                                  const SourceLocation &loc)>>
     builtinTypes = {
         {"i8",
          [](auto loc) {
-           return std::make_unique<ast::IntType>(loc, 8, false);
+           return std::make_shared<ast::IntType>(loc, 8, false);
          }},
         {"i16",
          [](auto loc) {
-           return std::make_unique<ast::IntType>(loc, 16, false);
+           return std::make_shared<ast::IntType>(loc, 16, false);
          }},
         {"i32",
          [](auto loc) {
-           return std::make_unique<ast::IntType>(loc, 32, false);
+           return std::make_shared<ast::IntType>(loc, 32, false);
          }},
         {"i64",
          [](auto loc) {
-           return std::make_unique<ast::IntType>(loc, 64, false);
+           return std::make_shared<ast::IntType>(loc, 64, false);
          }},
         {"u8",
-         [](auto loc) { return std::make_unique<ast::IntType>(loc, 8, true); }},
+         [](auto loc) { return std::make_shared<ast::IntType>(loc, 8, true); }},
         {"u16",
          [](auto loc) {
-           return std::make_unique<ast::IntType>(loc, 16, true);
+           return std::make_shared<ast::IntType>(loc, 16, true);
          }},
         {"u32",
          [](auto loc) {
-           return std::make_unique<ast::IntType>(loc, 32, true);
+           return std::make_shared<ast::IntType>(loc, 32, true);
          }},
         {"u64",
          [](auto loc) {
-           return std::make_unique<ast::IntType>(loc, 64, true);
+           return std::make_shared<ast::IntType>(loc, 64, true);
          }},
         {"f32",
-         [](auto loc) { return std::make_unique<ast::FloatType>(loc, 32); }},
+         [](auto loc) { return std::make_shared<ast::FloatType>(loc, 32); }},
         {"f64",
-         [](auto loc) { return std::make_unique<ast::FloatType>(loc, 64); }},
-        {"bool", [](auto loc) { return std::make_unique<ast::BoolType>(loc); }},
+         [](auto loc) { return std::make_shared<ast::FloatType>(loc, 64); }},
+        {"bool", [](auto loc) { return std::make_shared<ast::BoolType>(loc); }},
         {"void",
-         [](auto loc) { return std::make_unique<ast::VoidType>(loc); }}};
+         [](auto loc) { return std::make_shared<ast::VoidType>(loc); }}};
 
 // typeExpr ::= 'i8' | 'u8' | ... | 'string'
 // typeExpr ::= '*' typeExpr
 // typeExpr ::= 'mut' typeExpr (not at root level)
-std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state) {
+std::shared_ptr<ast::Type> Parser::parseType(const ParserState &state) {
   return parseType(state, true);
 }
 
-std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
+std::shared_ptr<ast::Type> Parser::parseType(const ParserState &state,
                                              bool is_root_of_type) {
 
   auto pos = tokenizer.curTokenLoc;
@@ -404,11 +404,11 @@ std::unique_ptr<ast::Type> Parser::parseType(const ParserState &state,
     }
 
     tokenizer.nextToken();
-    return std::make_unique<ast::MutType>(pos, parseType(state, false));
+    return std::make_shared<ast::MutType>(pos, parseType(state, false));
   }
   if (tokenizer.curToken.token == T_STAR) {
     tokenizer.nextToken();
-    return std::make_unique<ast::PointerType>(pos, parseType(state, false));
+    return std::make_shared<ast::PointerType>(pos, parseType(state, false));
   }
   if (tokenizer.curToken.token != T_IDENT &&
       tokenizer.curToken.token != T_DOUBLE_COLON) {
@@ -566,7 +566,7 @@ Parser::parseFunctionProto(const ParserState &state,
   auto retType = parseType(state);
 
   return std::make_unique<ast::FunctionPrototype>(
-      std::make_unique<ast::FunctionType>(startPos.through(retType->loc),
+      std::make_shared<ast::FunctionType>(startPos.through(retType->loc),
                                           std::move(argTypes),
                                           std::move(retType)),
       std::move(argNames), name);
@@ -629,7 +629,7 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   if (checkRedeclaration(pos, proto->name, state))
     return nullptr;
 
-  auto type = std::make_unique<ast::NamedFunctionType>(
+  auto type = std::make_shared<ast::NamedFunctionType>(
       pos.through(proto->type->loc), std::move(proto->type),
       std::move(proto->argNames));
   auto ast = std::make_unique<ast::FunctionDecl>(pos, std::move(type),

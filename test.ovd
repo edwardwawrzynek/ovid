@@ -1,7 +1,2 @@
-module mod:mod
-
-pub val var = 34
-
-fn sum(a i32, b i32) -> i32 {
-    a + b
-}
+pub mut var = 34
+var = 7

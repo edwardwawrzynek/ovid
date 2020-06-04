@@ -24,7 +24,7 @@ public:
   // declaration or import location
   SourceLocation decl_loc;
   /* type of a the symbol */
-  std::unique_ptr<ast::Type> type;
+  std::shared_ptr<ast::Type> type;
   /* if the symbol is exported out of it's module or not */
   bool is_public;
   // if the declaration point has been reached in resolve_pass
@@ -55,14 +55,14 @@ struct TypeAlias {
 public:
   // declaration or import location
   SourceLocation decl_loc;
-  std::unique_ptr<ast::Type> type;
+  std::shared_ptr<ast::Type> type;
   // if the type is marked pub
   bool is_public;
 
   explicit TypeAlias(SourceLocation decl_loc)
       : decl_loc(std::move(decl_loc)), type(), is_public(false){};
 
-  TypeAlias(SourceLocation decl_loc, std::unique_ptr<ast::Type> type,
+  TypeAlias(SourceLocation decl_loc, std::shared_ptr<ast::Type> type,
             bool is_public)
       : decl_loc(decl_loc), type(std::move(type)), is_public(is_public){};
 };
@@ -90,7 +90,7 @@ class Type;
 
 typedef std::vector<std::unique_ptr<Expression>> ExpressionList;
 typedef std::vector<std::unique_ptr<Statement>> StatementList;
-typedef std::vector<std::unique_ptr<Type>> TypeList;
+typedef std::vector<std::shared_ptr<Type>> TypeList;
 
 /* a scoped block, containing statements as well as a variable symbol table
  * generally used as the container for statement blocks in the ast
@@ -174,9 +174,9 @@ public:
 
 class MutType : public Type {
 public:
-  std::unique_ptr<Type> type;
+  std::shared_ptr<Type> type;
 
-  explicit MutType(SourceLocation loc, std::unique_ptr<Type> type)
+  explicit MutType(SourceLocation loc, std::shared_ptr<Type> type)
       : Type(std::move(loc)), type(std::move(type)){};
 
   Type *withoutMutability() override;
@@ -184,29 +184,29 @@ public:
 
 class PointerType : public Type {
 public:
-  std::unique_ptr<Type> type;
+  std::shared_ptr<Type> type;
 
-  explicit PointerType(SourceLocation loc, std::unique_ptr<Type> type)
+  explicit PointerType(SourceLocation loc, std::shared_ptr<Type> type)
       : Type(std::move(loc)), type(std::move(type)){};
 };
 
 class FunctionType : public Type {
 public:
   TypeList argTypes;
-  std::unique_ptr<Type> retType;
+  std::shared_ptr<Type> retType;
 
   FunctionType(SourceLocation loc, TypeList argTypes,
-               std::unique_ptr<Type> retType)
+               std::shared_ptr<Type> retType)
       : Type(std::move(loc)), argTypes(std::move(argTypes)),
         retType(std::move(retType)){};
 };
 
 class NamedFunctionType : public Type {
 public:
-  std::unique_ptr<FunctionType> type;
+  std::shared_ptr<FunctionType> type;
   std::vector<std::string> argNames;
 
-  NamedFunctionType(SourceLocation loc, std::unique_ptr<FunctionType> type,
+  NamedFunctionType(SourceLocation loc, std::shared_ptr<FunctionType> type,
                     std::vector<std::string> argNames)
       : Type(std::move(loc)), type(std::move(type)),
         argNames(std::move(argNames)){};
@@ -214,11 +214,11 @@ public:
 
 class FunctionPrototype {
 public:
-  std::unique_ptr<FunctionType> type;
+  std::shared_ptr<FunctionType> type;
   std::vector<std::string> argNames;
   std::string name;
 
-  FunctionPrototype(std::unique_ptr<FunctionType> type,
+  FunctionPrototype(std::shared_ptr<FunctionType> type,
                     std::vector<std::string> argNames, const std::string &name)
       : type(std::move(type)), argNames(std::move(argNames)), name(name){};
 };
@@ -255,11 +255,11 @@ public:
 
 class FunctionDecl : public Statement {
 public:
-  std::unique_ptr<NamedFunctionType> type;
+  std::shared_ptr<NamedFunctionType> type;
   std::string name;
   ScopedBlock body;
 
-  FunctionDecl(SourceLocation loc, std::unique_ptr<NamedFunctionType> type,
+  FunctionDecl(SourceLocation loc, std::shared_ptr<NamedFunctionType> type,
                const std::string &name, ScopedBlock body)
       : Statement(std::move(loc)), type(std::move(type)), name(name),
         body(std::move(body)){};

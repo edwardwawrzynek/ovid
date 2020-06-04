@@ -23,33 +23,33 @@ public:
 };
 
 class TypeResolver
-    : public BaseTypeVisitor<std::unique_ptr<Type>, TypeResolverState> {
+    : public BaseTypeVisitor<std::shared_ptr<Type>, TypeResolverState> {
 
   ActiveScopes &scopes;
   ErrorManager &errorMan;
 
-  std::unique_ptr<Type>
+  std::shared_ptr<Type>
   visitUnresolvedType(UnresolvedType &type,
                       const TypeResolverState &state) override;
 
-  std::unique_ptr<Type> visitVoidType(VoidType &type,
+  std::shared_ptr<Type> visitVoidType(VoidType &type,
                                       const TypeResolverState &state) override;
-  std::unique_ptr<Type> visitBoolType(BoolType &type,
+  std::shared_ptr<Type> visitBoolType(BoolType &type,
                                       const TypeResolverState &state) override;
-  std::unique_ptr<Type> visitIntType(IntType &type,
+  std::shared_ptr<Type> visitIntType(IntType &type,
                                      const TypeResolverState &state) override;
-  std::unique_ptr<Type> visitFloatType(FloatType &type,
+  std::shared_ptr<Type> visitFloatType(FloatType &type,
                                        const TypeResolverState &state) override;
 
-  std::unique_ptr<Type> visitMutType(MutType &type,
+  std::shared_ptr<Type> visitMutType(MutType &type,
                                      const TypeResolverState &state) override;
-  std::unique_ptr<Type>
+  std::shared_ptr<Type>
   visitPointerType(PointerType &type, const TypeResolverState &state) override;
 
-  std::unique_ptr<Type>
+  std::shared_ptr<Type>
   visitFunctionType(FunctionType &type,
                     const TypeResolverState &state) override;
-  std::unique_ptr<Type>
+  std::shared_ptr<Type>
   visitNamedFunctionType(NamedFunctionType &type,
                          const TypeResolverState &state) override;
 
@@ -58,7 +58,7 @@ public:
 
   // function must be non overloaded to get the right return type (FunctionType,
   // not just the generic Type
-  std::unique_ptr<FunctionType>
+  std::shared_ptr<FunctionType>
   visitFunctionTypeNonOverload(FunctionType &type,
                                const TypeResolverState &state);
 };

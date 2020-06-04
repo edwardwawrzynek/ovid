@@ -80,8 +80,8 @@ class Parser {
   parseFunctionProto(const ParserState &state,
                      std::vector<SourceLocation> *argLocs);
 
-  std::unique_ptr<ast::Type> parseType(const ParserState &state);
-  std::unique_ptr<ast::Type> parseType(const ParserState &state,
+  std::shared_ptr<ast::Type> parseType(const ParserState &state);
+  std::shared_ptr<ast::Type> parseType(const ParserState &state,
                                        bool is_root_of_type);
 
   std::unique_ptr<ast::Statement> parseVarDecl(const ParserState &state,

@@ -87,12 +87,12 @@ public:
  * object */
 class FunctionDeclare : public Expression {
 public:
-  std::unique_ptr<ast::NamedFunctionType> type;
+  std::shared_ptr<ast::NamedFunctionType> type;
 
   InstructionList body;
 
   FunctionDeclare(SourceLocation loc, const Value &val,
-                  std::unique_ptr<ast::NamedFunctionType> type,
+                  std::shared_ptr<ast::NamedFunctionType> type,
                   InstructionList body)
       : Expression(std::move(loc), val), type(std::move(type)),
         body(std::move(body)){};
@@ -101,11 +101,11 @@ public:
 /* int literal instruction */
 class IntLiteral : public Expression {
 public:
-  std::unique_ptr<ast::IntType> type;
+  std::shared_ptr<ast::IntType> type;
   uint64_t value;
 
   IntLiteral(SourceLocation loc, const Value &val,
-             std::unique_ptr<ast::IntType> type, uint64_t value)
+             std::shared_ptr<ast::IntType> type, uint64_t value)
       : Expression(std::move(loc), val), type(std::move(type)), value(value){};
 };
 
@@ -131,12 +131,14 @@ public:
  */
 class Allocation : public Expression {
 public:
-  ast::Type &type;
+  std::shared_ptr<ast::Type> type;
 
   bool is_heap_allocated;
 
-  Allocation(SourceLocation loc, const Value &val, ast::Type &type)
-      : Expression(std::move(loc), val), type(type), is_heap_allocated(false){};
+  Allocation(SourceLocation loc, const Value &val,
+             std::shared_ptr<ast::Type> type)
+      : Expression(std::move(loc), val), type(std::move(type)),
+        is_heap_allocated(false){};
 };
 
 /* A store into a value (has to be a value produced by Allocation)
@@ -155,7 +157,8 @@ class Label : public Instruction {
 public:
   uint64_t id;
 
-  explicit Label(SourceLocation loc) : Instruction(std::move(loc)), id(next_id()){};
+  explicit Label(SourceLocation loc)
+      : Instruction(std::move(loc)), id(next_id()){};
 };
 
 /* an unconditional jump to a label */
