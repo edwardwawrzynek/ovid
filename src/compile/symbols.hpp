@@ -211,7 +211,7 @@ ScopeTable<T>::addScopeTable(const std::string &scope, bool is_public,
                              std::shared_ptr<ScopeTable<T>> parent) {
   assert(parent.get() == this);
   return addScopeTable(scope,
-                       std::make_shared<ScopeTable<T>>(is_public, parent));
+                       std::make_shared<ScopeTable<T>>(is_public, std::move(parent)));
 }
 
 template <class T>
@@ -335,7 +335,7 @@ public:
   // remove the most recently pushed scope from the stack, and assert it is the
   // expected scope
   std::shared_ptr<ScopeTable<T>>
-  popScope(const std::shared_ptr<ScopeTable<T>> &expected);
+  popScope(const ScopeTable<T> *expected);
 
   // search the scope top down for the first symbol with the given scope and
   // name. Returns nullptr if not found
@@ -383,7 +383,7 @@ public:
 
 template <class T>
 void ActiveScope<T>::pushScope(std::shared_ptr<ScopeTable<T>> scope) {
-  scopes.push_back(scope);
+  scopes.push_back(std::move(scope));
 }
 
 template <class T> std::shared_ptr<ScopeTable<T>> ActiveScope<T>::popScope() {
@@ -394,10 +394,10 @@ template <class T> std::shared_ptr<ScopeTable<T>> ActiveScope<T>::popScope() {
 
 template <class T>
 std::shared_ptr<ScopeTable<T>>
-ActiveScope<T>::popScope(const std::shared_ptr<ScopeTable<T>> &expected) {
+ActiveScope<T>::popScope(const ScopeTable<T> *expected) {
   auto scope = scopes.back();
 
-  assert(scope.get() == expected.get());
+  assert(scope.get() == expected);
   scopes.pop_back();
 
   return scope;
@@ -470,7 +470,7 @@ void ActiveScope<T>::popComponentScopesByNameFromRoot(
   std::vector<std::string> mScopes(scopes);
   // iterate backwards through scopes and pop
   while (!mScopes.empty()) {
-    popScope(root->getScopeTable(mScopes));
+    popScope(root->getScopeTable(mScopes).get());
     mScopes.pop_back();
   }
 }

@@ -2,7 +2,7 @@
 #include "ast_printer.hpp"
 #include "error.hpp"
 #include "ir.hpp"
-#include "ir_visitor.hpp"
+#include "ir_printer.hpp"
 #include "parser.hpp"
 #include "resolve_pass.hpp"
 #include "tokenizer.hpp"
@@ -33,12 +33,16 @@ int main(int argc, char **argv) {
   resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());
   resolvePass.removePushedPackageScope();
 
+  std::cout << "---- AST ----\n";
   auto astPrinter = ovid::ast::ASTPrinter(std::cout);
   astPrinter.visitNodes(ast, ovid::ast::ASTPrinterState());
 
   auto typeCheck = ovid::ast::TypeCheck();
+  auto ir = typeCheck.produceIR(ast);
 
-  auto ir = typeCheck.visitNodes(ast, ovid::ast::TypeCheckState());
+  std::cout << "\n---- IR ----\n";
+  auto irPrinter = ovid::ir::IRPrinter(std::cout);
+  irPrinter.visitInstructions(ir, ovid::ast::ASTPrinterState());
 
   if (errorMan.errorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";

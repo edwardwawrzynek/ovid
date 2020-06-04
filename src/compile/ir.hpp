@@ -131,11 +131,11 @@ public:
  */
 class Allocation : public Expression {
 public:
-  const ast::Type &type;
+  ast::Type &type;
 
   bool is_heap_allocated;
 
-  Allocation(SourceLocation loc, const Value &val, const ast::Type &type)
+  Allocation(SourceLocation loc, const Value &val, ast::Type &type)
       : Expression(std::move(loc), val), type(type), is_heap_allocated(false){};
 };
 
@@ -153,7 +153,9 @@ public:
 /* A labelled point in code, which can be jumped to */
 class Label : public Instruction {
 public:
-  explicit Label(SourceLocation loc) : Instruction(std::move(loc)){};
+  uint64_t id;
+
+  explicit Label(SourceLocation loc) : Instruction(std::move(loc)), id(next_id()){};
 };
 
 /* an unconditional jump to a label */

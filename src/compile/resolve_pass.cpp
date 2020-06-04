@@ -50,7 +50,7 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
 
   is_in_global = pis_in_global;
   // pop function's scope
-  scopes.names.popScope(node.body.symbols);
+  scopes.names.popScope(node.body.symbols.get());
 
   return 0;
 }
@@ -97,7 +97,7 @@ int ResolvePass::visitIfStatement(IfStatement &node,
 
     is_in_global = pis_in_global;
 
-    scopes.names.popScope(body.symbols);
+    scopes.names.popScope(body.symbols.get());
   }
 
   return 0;

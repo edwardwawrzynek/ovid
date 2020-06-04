@@ -16,6 +16,19 @@ TypeCheckState TypeCheckState::withTypeHint(Type *hint) const {
   return res;
 }
 
+ir::InstructionList TypeCheck::produceIR(const StatementList& ast) {
+  auto typeCheckRes = visitNodes(ast, ovid::ast::TypeCheckState());
+
+  ovid::ir::InstructionList ir;
+  for(auto& res: typeCheckRes) {
+    for(auto& instr: res.instructions) {
+      ir.push_back(std::move(instr));
+    }
+  }
+
+  return ir;
+}
+
 TypeCheckResult TypeCheck::visitIntLiteral(IntLiteral &node,
                                            const TypeCheckState &state) {
   std::unique_ptr<IntType> resType;
@@ -75,6 +88,15 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
 TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
                                            const TypeCheckState &state) {
   // load the address of the lvalue
+}
+
+TypeCheckResult TypeCheck::visitModuleDecl(ModuleDecl &node,
+                                           const TypeCheckState &state) {
+  // nothing special needed for modules - just visit each body node
+  for(auto &child: node.body) {
+    visitNode(*child, state.withoutTypeHint());
+  }
+
 }
 
 } // namespace ovid::ast

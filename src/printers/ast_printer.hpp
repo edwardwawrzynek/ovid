@@ -6,6 +6,8 @@
 
 namespace ovid::ast {
 
+void printLoc(std::ostream &output, const SourceLocation &loc);
+
 class ASTPrinterState {
 public:
   uint64_t indent_level;
@@ -70,8 +72,6 @@ class ASTPrinter : public BaseASTVisitor<int, ASTPrinterState> {
   int visitTuple(Tuple &node, const ASTPrinterState &state) override;
   int visitTypeAliasDecl(TypeAliasDecl &node,
                          const ASTPrinterState &state) override;
-
-  void printLoc(const SourceLocation &loc);
 
 public:
   explicit ASTPrinter(std::ostream &output)

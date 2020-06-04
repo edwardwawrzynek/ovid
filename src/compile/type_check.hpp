@@ -14,14 +14,14 @@ namespace ovid::ast {
 class TypeCheckResult {
 public:
   // type of the visited node
-  const Type &resultType;
+  Type &resultType;
   // ir instructions for the node
   ir::InstructionList instructions;
   // instruction corresponding to the result of the expression (null for
   // statements)
   const ir::Expression *resultInstruction;
 
-  TypeCheckResult(const Type &resultType, ir::InstructionList instructions,
+  TypeCheckResult(Type &resultType, ir::InstructionList instructions,
                   ir::Expression *resultInstruction)
       : resultType(resultType), instructions(std::move(instructions)),
         resultInstruction(resultInstruction){};
@@ -51,10 +51,10 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   TypeCheckResult visitVarDecl(VarDecl &node,
                                const TypeCheckState &state) override;
   /*TypeCheckResult visitFunctionDecl(FunctionDecl &node,
-                                    const TypeCheckState &state) override;
+                                    const TypeCheckState &state) override;*/
   TypeCheckResult visitModuleDecl(ModuleDecl &node,
                                   const TypeCheckState &state) override;
-  TypeCheckResult visitIfStatement(IfStatement &node,
+ /* TypeCheckResult visitIfStatement(IfStatement &node,
                                    const TypeCheckState &state) override;
 
   TypeCheckResult visitFunctionCall(FunctionCall &node,
@@ -76,8 +76,11 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
 public:
   TypeCheck()
       : BaseASTVisitor(TypeCheckResult(
-            ast::VoidType(SourceLocation("", 0, 0, 0, 0, nullptr)),
+            *std::make_unique<ast::VoidType>(SourceLocation("", 0, 0, 0, 0, nullptr)),
             ir::InstructionList(), nullptr)){};
+
+  /* visitNodes wrapper that produces one InstructionList */
+  ir::InstructionList produceIR(const StatementList& ast);
 };
 } // namespace ovid::ast
 

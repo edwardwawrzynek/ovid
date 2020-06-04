@@ -15,14 +15,14 @@ void ASTPrinterState::printIndent(std::ostream &output) const {
   }
 }
 
-void ASTPrinter::printLoc(const SourceLocation &loc) {
+void printLoc(std::ostream &output, const SourceLocation &loc) {
   output << "(" << loc.row << ":" << loc.col << ")";
 }
 
 int ASTPrinter::visitModuleDecl(ModuleDecl &node,
                                 const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " ModuleDecl: ";
   for (size_t i = 0; i < node.scope.size(); i++) {
     auto &scope = node.scope[i];
@@ -40,7 +40,7 @@ int ASTPrinter::visitModuleDecl(ModuleDecl &node,
 
 int ASTPrinter::visitVarDecl(VarDecl &node, const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " VarDecl: " << node.name << "\n";
   visitNode(*node.initialValue, state.withIndent());
 
@@ -50,7 +50,7 @@ int ASTPrinter::visitVarDecl(VarDecl &node, const ASTPrinterState &state) {
 int ASTPrinter::visitFunctionDecl(FunctionDecl &node,
                                   const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " FunctionDecl: " << node.name << "\n";
   state.printIndent(output);
   output << "  retType:\n";
@@ -78,7 +78,7 @@ int ASTPrinter::visitFunctionDecl(FunctionDecl &node,
 int ASTPrinter::visitIfStatement(IfStatement &node,
                                  const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " IfStatement\n";
   for (size_t i = 0; i < node.conditions.size(); i++) {
     state.printIndent(output);
@@ -95,7 +95,7 @@ int ASTPrinter::visitIfStatement(IfStatement &node,
 int ASTPrinter::visitFunctionCall(FunctionCall &node,
                                   const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " FunctionCall\n";
   state.printIndent(output);
   output << "  function:\n";
@@ -112,7 +112,7 @@ int ASTPrinter::visitFunctionCall(FunctionCall &node,
 int ASTPrinter::visitIdentifier(Identifier &node,
                                 const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " Identifier: ";
   if (node.is_root_scope)
     output << "::";
@@ -157,7 +157,7 @@ static std::map<OperatorType, std::string> printOperatorMap = {
 int ASTPrinter::visitOperatorSymbol(OperatorSymbol &node,
                                     const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " OperatorSymbol: " << printOperatorMap[node.op] << "\n";
 
   return 0;
@@ -166,7 +166,7 @@ int ASTPrinter::visitOperatorSymbol(OperatorSymbol &node,
 int ASTPrinter::visitAssignment(Assignment &node,
                                 const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " Assignment\n";
   state.printIndent(output);
   output << "  lvalue:\n";
@@ -181,7 +181,7 @@ int ASTPrinter::visitAssignment(Assignment &node,
 int ASTPrinter::visitIntLiteral(IntLiteral &node,
                                 const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " IntLiteral: " << node.value << "\n";
 
   return 0;
@@ -190,7 +190,7 @@ int ASTPrinter::visitIntLiteral(IntLiteral &node,
 int ASTPrinter::visitBoolLiteral(BoolLiteral &node,
                                  const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " BoolLiteral: " << (node.value ? "true" : "false") << "\n";
 
   return 0;
@@ -198,7 +198,7 @@ int ASTPrinter::visitBoolLiteral(BoolLiteral &node,
 
 int ASTPrinter::visitTuple(Tuple &node, const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " Tuple\n";
   for (auto &expr : node.expressions) {
     visitNode(*expr, state.withIndent());
@@ -210,7 +210,7 @@ int ASTPrinter::visitTuple(Tuple &node, const ASTPrinterState &state) {
 int ASTPrinter::visitTypeAliasDecl(TypeAliasDecl &node,
                                    const ASTPrinterState &state) {
   state.printIndent(output);
-  printLoc(node.loc);
+  printLoc(output, node.loc);
   output << " TypeAliasDecl: " << node.name << "\n";
   typePrinter.visitType(*node.type->type, state.withIndent());
 

@@ -8,7 +8,6 @@ namespace ovid::ir {
 template <class T, class S> class BaseIRVisitor {
   T defaultValue;
 
-  virtual T visitInstruction(Instruction &instruct, const S &state);
   virtual T visitExpression(Expression &instruct, const S &state);
 
   virtual T visitFunctionDeclare(FunctionDeclare &instruct, const S &state);
@@ -20,6 +19,14 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitLabel(Label &instruct, const S &state);
   virtual T visitJump(Jump &instruct, const S &state);
   virtual T visitConditionalJump(ConditionalJump &instruct, const S &state);
+
+public:
+  virtual T visitInstruction(Instruction &instruct, const S &state);
+  virtual std::vector<T> visitInstructions(const InstructionList& instructs, const S &state);
+
+  BaseIRVisitor(T defaultValue): defaultValue(std::move(defaultValue)) {};
+
+  virtual ~BaseIRVisitor() = default;
 };
 
 template <class T, class S>
@@ -42,8 +49,10 @@ T BaseIRVisitor<T, S>::visitInstruction(Instruction &instruct, const S &state) {
 
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
-  if (dynamic_cast<FunctionDeclare *>(&instruct) != nullptr) {
-    return visitFunctionCall(dynamic_cast<FunctionDeclare &>(instruct), state);
+  if(dynamic_cast<FunctionCall*>(&instruct) != nullptr) {
+    return visitFunctionCall(dynamic_cast<FunctionCall&>(instruct), state);
+  } else if (dynamic_cast<FunctionDeclare *>(&instruct) != nullptr) {
+    return visitFunctionDeclare(dynamic_cast<FunctionDeclare &>(instruct), state);
   } else if (dynamic_cast<IntLiteral *>(&instruct) != nullptr) {
     return visitIntLiteral(dynamic_cast<IntLiteral &>(instruct), state);
   } else if (dynamic_cast<Allocation *>(&instruct) != nullptr) {
@@ -94,6 +103,18 @@ template <class T, class S>
 T BaseIRVisitor<T, S>::visitConditionalJump(ConditionalJump &instruct,
                                             const S &state) {
   return std::move(defaultValue);
+}
+
+template <class T, class S>
+std::vector<T> BaseIRVisitor<T, S>::visitInstructions(const InstructionList& instructs,
+                                                      const S &state) {
+  std::vector<T> res;
+
+  for (auto &i : instructs) {
+    res.push_back(visitInstruction(*i, state));
+  }
+
+  return res;
 }
 
 } // namespace ovid::ir

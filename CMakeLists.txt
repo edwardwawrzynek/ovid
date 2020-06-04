@@ -3,7 +3,7 @@ project(ovid)
 set(CMAKE_CXX_STANDARD 17)
 
 include_directories(src/compile src/test src/printers)
-set(SOURCES src/compile/parser.cpp src/compile/tokenizer.cpp src/compile/error.cpp src/compile/ast.cpp src/compile/resolve_pass.cpp src/printers/ast_printer.cpp src/compile/type_check.cpp src/compile/ir.cpp)
+set(SOURCES src/compile/parser.cpp src/compile/tokenizer.cpp src/compile/error.cpp src/compile/ast.cpp src/compile/resolve_pass.cpp src/compile/type_check.cpp src/compile/ir.cpp src/printers/ast_printer.cpp src/printers/ir_printer.cpp)
 set(DRIVER src/compile/main.cpp)
 set(UNIT_TESTS src/test/misc_unit.cpp)
 set(TEST_FRAMEWORK src/test/tester.cpp)

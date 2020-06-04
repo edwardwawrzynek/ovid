@@ -1,1 +1,7 @@
-val a = 34
+module mod:mod
+
+pub val var = 34
+
+fn sum(a i32, b i32) -> i32 {
+    a + b
+}
