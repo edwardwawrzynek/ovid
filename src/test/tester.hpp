@@ -1,6 +1,7 @@
 #ifndef H_TESTER_INCL
 #define H_TESTER_INCL
 
+#include "ast.hpp"
 #include "error.hpp"
 #include <fstream>
 #include <iostream>
@@ -85,6 +86,12 @@ class TesterInstance {
   // read in header information (check magic header, read mode)
   void readHeader();
   void readInErrors();
+
+  // run methods:
+  // run parse and generate an ast
+  int runParse(ErrorManager &errorMan, ast::StatementList &astRes);
+  // check ast against expected
+  int runCheckAST(ErrorManager &errorMan, const ast::StatementList &ast);
 
 public:
   explicit TesterInstance(const std::string &filename);

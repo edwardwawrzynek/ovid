@@ -1,5 +1,5 @@
 // __ovid_compiler_test
-//__mode: compile
+//__mode: parse
 //__end_header
 
 module ovidc:test:redef_var {
@@ -13,10 +13,11 @@ module ovidc:test {
         val a = 2 // __error: "redeclaration of `ovidc_test:ovidc:test:redef_var:a`"
     }
 
-    fn test() -> i32 {
+    fn test(d i32) -> i32 {
         val b = 1
         a + c // __error: "use of undeclared identifier `a`" "use of undeclared identifier `c`"
         val b = 2 // __error: "redeclaration of `b`"
+        mut d = 1 // __error: "redeclaration of `d`"
     }
 
     val test = 1 // __error: "redeclaration of `ovidc_test:ovidc:test:test`"

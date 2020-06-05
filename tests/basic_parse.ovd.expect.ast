@@ -1,10 +1,10 @@
-(5:1) ModuleDecl: mod:sub
-    (7:1) ModuleDecl: test0
-    (8:1) ModuleDecl: test1
-    (10:1) TypeAliasDecl: test
+(  5:1) ModuleDecl: mod:sub
+    (  7:1) ModuleDecl: test0
+    (  8:1) ModuleDecl: test1
+    ( 10:1) TypeAliasDecl: test
         PointerType
             IntType: i32
-    (12:1) FunctionDecl: test
+    ( 12:1) FunctionDecl: test
       retType:
         PointerType
             ResolvedAlias
@@ -17,52 +17,52 @@
             MutType
                 IntType: i32
       body:
-        (13:5) VarDecl: c
-            (13:13) IntLiteral: 5
-        (14:5) VarDecl: var
-            (14:15) FunctionCall
+        ( 13:5) VarDecl: c
+            ( 13:13) IntLiteral: 5
+        ( 14:5) VarDecl: var
+            ( 14:15) FunctionCall
               function:
-                (14:25) OperatorSymbol: -
+                ( 14:25) OperatorSymbol: -
               args:
-                (14:15) FunctionCall
+                ( 14:15) FunctionCall
                   function:
-                    (14:17) OperatorSymbol: +
+                    ( 14:17) OperatorSymbol: +
                   args:
-                    (14:15) IntLiteral: 1
-                    (14:19) FunctionCall
+                    ( 14:15) IntLiteral: 1
+                    ( 14:19) FunctionCall
                       function:
-                        (14:21) OperatorSymbol: *
+                        ( 14:21) OperatorSymbol: *
                       args:
-                        (14:19) IntLiteral: 2
-                        (14:23) Identifier: c
-                (14:27) IntLiteral: 7
-        (15:5) FunctionCall
+                        ( 14:19) IntLiteral: 2
+                        ( 14:23) Identifier: c
+                ( 14:27) IntLiteral: 7
+        ( 15:5) FunctionCall
           function:
-            (15:5) Identifier: ::ovidc_test:mod:sub:test
+            ( 15:5) Identifier: ::ovidc_test:mod:sub:test
           args:
-            (15:31) IntLiteral: 1
-            (15:34) IntLiteral: 2
-        (16:5) Tuple
-            (16:6) IntLiteral: 1
-            (16:9) FunctionCall
+            ( 15:31) IntLiteral: 1
+            ( 15:34) IntLiteral: 2
+        ( 16:5) Tuple
+            ( 16:6) IntLiteral: 1
+            ( 16:9) FunctionCall
               function:
-                (16:11) OperatorSymbol: +
+                ( 16:11) OperatorSymbol: +
               args:
-                (16:9) IntLiteral: 1
-                (16:13) IntLiteral: 1
-            (16:16) IntLiteral: 3
-        (17:5) IfStatement
+                ( 16:9) IntLiteral: 1
+                ( 16:13) IntLiteral: 1
+            ( 16:16) IntLiteral: 3
+        ( 17:5) IfStatement
           condition:
-            (17:8) IntLiteral: 1
+            ( 17:8) IntLiteral: 1
           body:
-            (18:9) Assignment
+            ( 18:9) Assignment
               lvalue:
-                (18:9) Identifier: c
+                ( 18:9) Identifier: c
               rvalue:
-                (18:13) IntLiteral: 7
+                ( 18:13) IntLiteral: 7
           condition:
-            (19:13) IntLiteral: 2
+            ( 19:13) IntLiteral: 2
           body:
           condition:
-            (21:12) BoolLiteral: true
+            ( 21:12) BoolLiteral: true
           body:

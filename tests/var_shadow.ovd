@@ -4,7 +4,7 @@
 
 module test0 {
     /* this shadows the a declared at root scope */
-    val a = 1 // __error: "declaration of `ovidc_test:test0:a` shadows higher declaration"
+    mut a = 1 // __error: "declaration of `ovidc_test:test0:a` shadows higher declaration"
 
     a = 2
 
@@ -16,7 +16,6 @@ module test0 {
     fn test(c i32) -> i32 {
         val b = 2
         val a = 2 // __error: "declaration of `a` shadows higher declaration"
-        val c = 2 // __error: "redeclaration of `c`"
     }
 
     fn test2(a i32) -> i32 { // __error: "declaration of argument `a` shadows higher declaration"

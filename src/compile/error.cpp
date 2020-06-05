@@ -6,7 +6,7 @@
 
 namespace ovid {
 
-ErrorPrintLevel PrintingErrorManager::errorTypeToPrintLevel(ErrorType type) {
+ErrorPrintLevel errorTypeToPrintLevel(ErrorType type) {
   switch (type) {
   case ErrorType::Note:
     return ErrorPrintLevel::Note;
@@ -24,6 +24,9 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
                                               bool emitNewline) {
   didError = true;
   auto printType = errorTypeToPrintLevel(type);
+  if (printType == ErrorPrintLevel::Error)
+    didCriticalError = true;
+
   std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":"
             << location.col << ": ";
 
@@ -116,18 +119,9 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
   return logError(msg, location, type, true);
 }
 
-bool PrintingErrorManager::errorOccurred() { return didError; }
+bool PrintingErrorManager::anyErrorOccurred() { return didError; }
 
-std::string PrintingErrorManager::errorTypeToCode(ErrorType type) {
-  switch (type) {
-  case ErrorType::ParseError:
-    return "parse_error";
-  case ErrorType::NestedFunctionError:
-    return "nested_functions";
-  default:
-    return "unidentified error";
-  }
-}
+bool PrintingErrorManager::criticalErrorOccurred() { return didCriticalError; }
 
 ErrorManager::~ErrorManager() {}
 
@@ -143,7 +137,15 @@ std::nullptr_t TestErrorManager::logError(const std::string &msg,
   return nullptr;
 }
 
-bool TestErrorManager::errorOccurred() { return !errors.empty(); }
+bool TestErrorManager::anyErrorOccurred() { return !errors.empty(); }
+
+bool TestErrorManager::criticalErrorOccurred() {
+  for (auto &error : errors) {
+    if (errorTypeToPrintLevel(error.type) == ErrorPrintLevel::Error)
+      return true;
+  }
+  return false;
+}
 
 bool TestErrorManager::errorOccurred(ErrorType type) {
   for (auto &e : errors) {

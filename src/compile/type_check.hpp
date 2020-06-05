@@ -15,17 +15,13 @@ class TypeCheckResult {
 public:
   // type of the visited node
   std::shared_ptr<Type> resultType;
-  // ir instructions for the node
-  ir::InstructionList instructions;
   // instruction corresponding to the result of the expression (null for
   // statements)
   const ir::Expression *resultInstruction;
 
   TypeCheckResult(std::shared_ptr<Type> resultType,
-                  ir::InstructionList instructions,
                   const ir::Expression *resultInstruction)
       : resultType(std::move(resultType)),
-        instructions(std::move(instructions)),
         resultInstruction(resultInstruction){};
 };
 
@@ -36,24 +32,23 @@ public:
    * if no particular type is expected, typeHint is null */
   Type *typeHint;
 
-  // used to put source name info on nodes
-  std::vector<std::string> current_module;
+  /* the current instruction list to be inserted into */
+  ir::InstructionList &curInstructionList;
 
-  TypeCheckState(const std::vector<std::string> &package)
-      : typeHint(nullptr), current_module(package){};
+  explicit TypeCheckState(ir::InstructionList &curInstructionList)
+      : typeHint(nullptr), curInstructionList(curInstructionList){};
 
-  TypeCheckState(const std::vector<std::string> &package, Type *typeHint)
-      : typeHint(typeHint), current_module(package){};
+  TypeCheckState(ir::InstructionList &curInstructionList, Type *typeHint)
+      : typeHint(typeHint), curInstructionList(curInstructionList){};
 
   // return the state will a null typeHint
   TypeCheckState withoutTypeHint() const;
   // return the state with a typeHint set
   TypeCheckState withTypeHint(Type *hint) const;
 
-  // return the state with modules added
-  TypeCheckState withModuleNames(const std::vector<std::string> &scopes);
-  // return the state with the given modules popped
-  TypeCheckState withoutModuleNames(const std::vector<std::string> &scopes);
+  // return the state with a new instruction list
+  TypeCheckState
+  withNewInstructionList(ir::InstructionList &instructionList) const;
 };
 
 /*
@@ -62,6 +57,7 @@ public:
  */
 class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   ErrorManager &errorMan;
+  std::vector<std::string> currentModule;
 
   // apply a MutType wrapper around a type if is_mut
   std::shared_ptr<Type> addMutType(const std::shared_ptr<Type> &type,
@@ -69,8 +65,8 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
 
   TypeCheckResult visitVarDecl(VarDecl &node,
                                const TypeCheckState &state) override;
-  /*TypeCheckResult visitFunctionDecl(FunctionDecl &node,
-                                    const TypeCheckState &state) override;*/
+  TypeCheckResult visitFunctionDecl(FunctionDecl &node,
+                                    const TypeCheckState &state) override;
   TypeCheckResult visitModuleDecl(ModuleDecl &node,
                                   const TypeCheckState &state) override;
   /* TypeCheckResult visitIfStatement(IfStatement &node,
@@ -93,17 +89,19 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                      const TypeCheckState &state) override;*/
 
 public:
-  TypeCheck(ErrorManager &errorMan)
+  TypeCheck(ErrorManager &errorMan, const std::vector<std::string> package)
       : BaseASTVisitor(
             TypeCheckResult(std::make_shared<ast::VoidType>(
                                 SourceLocation("", 0, 0, 0, 0, nullptr)),
-                            ir::InstructionList(), nullptr)),
-        errorMan(errorMan){};
+                            nullptr)),
+        errorMan(errorMan), currentModule(package){};
 
   /* visitNodes wrapper that produces one InstructionList */
-  ir::InstructionList produceIR(const StatementList &ast,
-                                const TypeCheckState &state);
+  ir::InstructionList produceIR(const StatementList &ast);
 };
+
+/* type check type equality pass */
+
 } // namespace ovid::ast
 
 #endif

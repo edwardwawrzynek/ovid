@@ -89,7 +89,7 @@ TEST(TokenizerTest, Tokens) {
   EXPECT_EQ(tokenizer.curToken.token, T_CHARLITERAL);
   EXPECT_EQ(tokenizer.curToken.char_literal, '\n');
 
-  EXPECT_FALSE(testError.errorOccurred());
+  EXPECT_FALSE(testError.criticalErrorOccurred());
 }
 
 /* make sure semicolons are inserted correctly */
@@ -124,12 +124,12 @@ TEST(SemicolonInsertion, Tokens) {
   tokenizer.nextToken();
   EXPECT_EQ(tokenizer.curToken.token, T_RPAREN);
 
-  EXPECT_FALSE(testError.errorOccurred());
+  EXPECT_FALSE(testError.criticalErrorOccurred());
 }
 
 /* basic ScopeTable test (make sure namespace nesting works) */
 TEST(BasicScopeTable, Symbols) {
-  auto table = std::make_shared<ScopeTable<int>>(true, nullptr);
+  auto table = std::make_shared<ScopeTable<int>>(true, nullptr, "");
   table->addSymbol(std::vector<std::string>(), "test",
                    std::make_shared<int>(1));
   EXPECT_EQ(*table->findSymbol(std::vector<std::string>(), "test"), 1);
@@ -217,9 +217,10 @@ TEST(ActiveScopesDeathTest, Symbols) {
   t2->addScopeTable("test2", true, t2);
   scopes.pushComponentScopesByName(mods);
 
-  scopes.names.pushScope(std::make_shared<ScopeTable<Symbol>>(true, nullptr));
+  scopes.names.pushScope(
+      std::make_shared<ScopeTable<Symbol>>(true, nullptr, ""));
   scopes.types.pushScope(
-      std::make_shared<ScopeTable<TypeAlias>>(true, nullptr));
+      std::make_shared<ScopeTable<TypeAlias>>(true, nullptr, ""));
 
   // blank tables were pushed and not popped
   EXPECT_EXIT(scopes.popComponentScopesByName(mods),

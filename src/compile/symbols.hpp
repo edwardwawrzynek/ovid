@@ -210,8 +210,8 @@ std::shared_ptr<ScopeTable<T>>
 ScopeTable<T>::addScopeTable(const std::string &scope, bool is_public,
                              std::shared_ptr<ScopeTable<T>> parent) {
   assert(parent.get() == this);
-  return addScopeTable(
-      scope, std::make_shared<ScopeTable<T>>(is_public, std::move(parent)));
+  return addScopeTable(scope, std::make_shared<ScopeTable<T>>(
+                                  is_public, std::move(parent)));
 }
 
 template <class T>

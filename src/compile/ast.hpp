@@ -205,11 +205,12 @@ class NamedFunctionType : public Type {
 public:
   std::shared_ptr<FunctionType> type;
   std::vector<std::string> argNames;
+  std::vector<std::shared_ptr<Symbol>> resolvedArgs;
 
   NamedFunctionType(SourceLocation loc, std::shared_ptr<FunctionType> type,
                     std::vector<std::string> argNames)
       : Type(std::move(loc)), type(std::move(type)),
-        argNames(std::move(argNames)){};
+        argNames(std::move(argNames)), resolvedArgs(){};
 };
 
 class FunctionPrototype {

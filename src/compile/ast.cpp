@@ -33,9 +33,9 @@ ActiveScopes::ActiveScopes(const std::vector<std::string> &packageName)
     : names(), types() {
   // add root scopes
   names.pushScope(
-      std::make_shared<ovid::ScopeTable<ovid::Symbol>>(true, nullptr));
+      std::make_shared<ovid::ScopeTable<ovid::Symbol>>(true, nullptr, ""));
   types.pushScope(
-      std::make_shared<ovid::ScopeTable<ovid::TypeAlias>>(true, nullptr));
+      std::make_shared<ovid::ScopeTable<ovid::TypeAlias>>(true, nullptr, ""));
 
   // add package scopes
   auto curNameScope = names.getRootScope();

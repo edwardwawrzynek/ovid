@@ -2,9 +2,11 @@
 #include "ast.hpp"
 #include "ast_printer.hpp"
 #include "error.hpp"
+#include "ir_printer.hpp"
 #include "parser.hpp"
 #include "resolve_pass.hpp"
 #include "tokenizer.hpp"
+#include "type_check.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -37,7 +39,8 @@ TesterInstance::errorStringSpecifierToErrorType(const std::string &str) {
       {":TypeDeclShadowed", ErrorType::TypeDeclShadowed},
       {":UndeclaredType", ErrorType::UndeclaredType},
       {":UseOfPrivateIdentifier", ErrorType::UseOfPrivateIdentifier},
-      {":UseOfPrivateType", ErrorType::UseOfPrivateType}};
+      {":UseOfPrivateType", ErrorType::UseOfPrivateType},
+      {":TypeError", ErrorType::TypeError}};
   if (types.count(str) == 0) {
     doError(string_format("invalid error type %s", str.c_str()));
   }
@@ -60,7 +63,8 @@ std::string TesterInstance::errorTypeToString(ErrorType type) {
       {ErrorType::TypeDeclShadowed, ":TypeDeclShadowed"},
       {ErrorType::UndeclaredType, ":UndeclaredType"},
       {ErrorType::UseOfPrivateIdentifier, ":UseOfPrivateIdentifier"},
-      {ErrorType::UseOfPrivateType, ":UseOfPrivateType"}};
+      {ErrorType::UseOfPrivateType, ":UseOfPrivateType"},
+      {ErrorType::TypeError, ":TypeError"}};
 
   return types[type];
 }
@@ -110,7 +114,9 @@ void TesterInstance::readHeader() {
   // read in modes
   std::string arg;
   while (!(arg = readToken()).empty()) {
-    if (arg == "compile") {
+    if (arg == "parse") {
+      modes.insert(TestMode::Parse);
+    } else if (arg == "compile") {
       modes.insert(TestMode::Parse);
       modes.insert(TestMode::Compile);
     } else if (arg == "run") {
@@ -126,7 +132,8 @@ void TesterInstance::readHeader() {
       modes.insert(TestMode::Parse);
       modes.insert(TestMode::CheckAST);
     } else {
-      doError("invalid test mode (expected compile, run, run_check_output, or "
+      doError("invalid test mode (expected parse, compile, run, "
+              "run_check_output, or "
               "check_ast)");
       return;
     }
@@ -285,6 +292,56 @@ int TesterInstance::readToComment() {
   }
 }
 
+int TesterInstance::runParse(ErrorManager &errorMan,
+                             ast::StatementList &astRes) {
+  // Parse
+  auto lexer = Tokenizer(filename, &file, errorMan);
+  auto scopes = ActiveScopes(packageName);
+  auto parser = Parser(lexer, errorMan, scopes, packageName);
+  astRes = parser.parseProgram();
+  parser.removePushedPackageScope();
+
+  // ResolvePass
+  auto resolvePass = ast::ResolvePass(scopes, errorMan, packageName);
+  resolvePass.visitNodes(astRes, ast::ResolvePassState());
+  resolvePass.removePushedPackageScope();
+
+  if (errorMan.criticalErrorOccurred())
+    return 1;
+
+  return 0;
+}
+
+int TesterInstance::runCheckAST(ErrorManager &errorMan,
+                                const ast::StatementList &ast) {
+  // print ast to string
+  std::ostringstream ast_out;
+  auto printer = ast::ASTPrinter(ast_out);
+  printer.visitNodes(ast, ast::ASTPrinterState());
+  // read in expected ast
+  auto ast_filename = filename + ".expect.ast";
+  auto ast_file = std::ifstream(ast_filename);
+  if (!ast_file.is_open()) {
+    doError(string_format("failed to open file %s, expected by mode check_ast",
+                          ast_filename.c_str()));
+  }
+  std::string expected_ast(std::istreambuf_iterator<char>(ast_file), {});
+
+  // compare parsed ast to expected
+  if (ast_out.str() != expected_ast) {
+    std::cout << "check_ast " << filename
+              << ": parsed ast doesn't match ast in file " << ast_filename
+              << "\n";
+    std::cout << "------------ expected ast ------------\n"
+              << expected_ast << "\n";
+    std::cout << "------------  parsed ast  ------------\n"
+              << ast_out.str() << "\n";
+    return 1;
+  }
+
+  return 0;
+}
+
 int TesterInstance::run() {
   readHeader();
 
@@ -295,47 +352,33 @@ int TesterInstance::run() {
   auto errorMan = ovid::TestErrorManager();
 
   if (modes.count(TestMode::Parse) > 0) {
-    // Parse
-    auto lexer = ovid::Tokenizer(filename, &file, errorMan);
-    auto scopes = ovid::ActiveScopes(packageName);
-    auto parser = ovid::Parser(lexer, errorMan, scopes, packageName);
-    auto ast = parser.parseProgram();
-    parser.removePushedPackageScope();
-    // ResolvePass
-    auto resolvePass = ovid::ast::ResolvePass(scopes, errorMan, packageName);
-    resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());
-    resolvePass.removePushedPackageScope();
+    ast::StatementList ast;
+    auto parseDidError = runParse(errorMan, ast);
 
     if (modes.count(TestMode::CheckAST) > 0) {
-      // print ast to string
-      std::ostringstream ast_out;
-      auto printer = ovid::ast::ASTPrinter(ast_out);
-      printer.visitNodes(ast, ovid::ast::ASTPrinterState());
-      // read in expected ast
-      auto ast_filename = filename + ".expect.ast";
-      auto ast_file = std::ifstream(ast_filename);
-      if (!ast_file.is_open()) {
-        doError(
-            string_format("failed to open file %s, expected by mode check_ast",
-                          ast_filename.c_str()));
-      }
-      std::string expected_ast(std::istreambuf_iterator<char>(ast_file), {});
-
-      // compare parsed ast to expected
-      if (ast_out.str() != expected_ast) {
-        std::cout << "check_ast " << filename
-                  << ": parsed ast doesn't match ast in file " << ast_filename
-                  << "\n";
-        std::cout << "------------ expected ast ------------\n"
-                  << expected_ast << "\n";
-        std::cout << "------------  parsed ast  ------------\n"
-                  << ast_out.str() << "\n";
+      if (parseDidError) {
+        std::cout << "\x1b[1;31mparse pass raised errors, cannot run "
+                     "check_ast\x1b[m\n";
         failed = 1;
+      } else {
+        if (runCheckAST(errorMan, ast))
+          failed = 1;
       }
     }
 
     if (modes.count(TestMode::Compile) > 0) {
-      // TODO: further compile + run + run_check_output
+      if (parseDidError) {
+        std::cout
+            << "\x1b[1;31mparse pass raised errors, cannot run compile\x1b[m\n";
+        failed = 1;
+      } else {
+        // generate ir
+        auto typeCheck = ast::TypeCheck(errorMan, packageName);
+        auto ir = typeCheck.produceIR(ast);
+
+        auto printer = ir::IRPrinter(std::cout);
+        printer.visitInstructions(ir, ovid::ast::ASTPrinterState());
+      }
     }
   }
 

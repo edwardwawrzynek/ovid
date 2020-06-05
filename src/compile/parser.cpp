@@ -600,7 +600,8 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   tokenizer.nextToken();
 
   // construct scope table for function (private, function scope)
-  auto symbolTable = std::make_shared<ScopeTable<Symbol>>(false, nullptr, true);
+  auto symbolTable =
+      std::make_shared<ScopeTable<Symbol>>(false, nullptr, true);
   ast::ScopedBlock body(symbolTable);
   // the current type scope is copied, as function's can't contain type alias
   // declarations inside them

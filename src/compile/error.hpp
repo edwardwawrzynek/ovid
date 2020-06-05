@@ -77,21 +77,22 @@ public:
   virtual std::nullptr_t logError(const std::string &msg,
                                   const SourceLocation &location,
                                   ErrorType type, bool emitNewline) = 0;
-  virtual bool errorOccurred() = 0;
+  virtual bool criticalErrorOccurred() = 0;
+
+  virtual bool anyErrorOccurred() = 0;
 
   virtual ~ErrorManager() = 0;
 };
 
+ErrorPrintLevel errorTypeToPrintLevel(ErrorType type);
+
 class PrintingErrorManager : public ErrorManager {
 private:
   bool didError;
-
-  static ErrorPrintLevel errorTypeToPrintLevel(ErrorType type);
-
-  static std::string errorTypeToCode(ErrorType type);
+  bool didCriticalError;
 
 public:
-  PrintingErrorManager() : didError(false){};
+  PrintingErrorManager() : didError(false), didCriticalError(false){};
 
   std::nullptr_t logError(const std::string &msg,
                           const SourceLocation &location,
@@ -100,7 +101,8 @@ public:
                           const SourceLocation &location, ErrorType type,
                           bool emitNewline) override;
 
-  bool errorOccurred() override;
+  bool criticalErrorOccurred() override;
+  bool anyErrorOccurred() override;
 
   ~PrintingErrorManager() override = default;
 };
@@ -126,7 +128,8 @@ public:
   std::nullptr_t logError(const std::string &msg,
                           const SourceLocation &location, ErrorType type,
                           bool emitNewline) override;
-  bool errorOccurred() override;
+  bool criticalErrorOccurred() override;
+  bool anyErrorOccurred() override;
 
   bool errorOccurred(ErrorType type);
 

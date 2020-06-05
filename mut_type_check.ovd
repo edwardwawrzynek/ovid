@@ -1,0 +1,14 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+module test {
+    val a = 1
+    mut b = 2
+
+    fn test(c i32) -> void {
+        a = 3 // __error: "left side of assignment is non mutable"
+        b = 4
+        //c = 5
+    }
+}

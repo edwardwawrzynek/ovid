@@ -37,6 +37,8 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
     auto sym = node.body.symbols->getDirectScopeTable().findSymbol(name);
     assert(sym != nullptr);
     sym->resolve_pass_declared_yet = true;
+    // make function type refer to resolved symbols
+    node.type->resolvedArgs.push_back(sym);
   }
 
   auto typeResolveState = TypeResolverState(package, current_module);

@@ -37,14 +37,14 @@ int main(int argc, char **argv) {
   auto astPrinter = ovid::ast::ASTPrinter(std::cout);
   astPrinter.visitNodes(ast, ovid::ast::ASTPrinterState());
 
-  auto typeCheck = ovid::ast::TypeCheck(errorMan);
-  auto ir = typeCheck.produceIR(ast, ovid::ast::TypeCheckState(package));
+  auto typeCheck = ovid::ast::TypeCheck(errorMan, package);
+  auto ir = typeCheck.produceIR(ast);
 
   std::cout << "\n---- IR ----\n";
   auto irPrinter = ovid::ir::IRPrinter(std::cout);
   irPrinter.visitInstructions(ir, ovid::ast::ASTPrinterState());
 
-  if (errorMan.errorOccurred()) {
+  if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";
     return 1;
   } else {

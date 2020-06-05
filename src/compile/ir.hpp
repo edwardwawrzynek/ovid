@@ -82,20 +82,38 @@ public:
       : Instruction(std::move(loc)), val(val){};
 };
 
+/* An allocation of storage space (either stack or heap) with the given type
+ * Type of allocation is unknown at instantiation (later determined by escape
+ * analysis)
+ */
+class Allocation : public Expression {
+public:
+  std::shared_ptr<ast::Type> type;
+
+  bool is_heap_allocated;
+
+  Allocation(SourceLocation loc, const Value &val,
+             std::shared_ptr<ast::Type> type)
+      : Expression(std::move(loc), val), type(std::move(type)),
+        is_heap_allocated(false){};
+};
+
 /* a function declaration in the ir
  * The function declaration is an expression b/c it produces a usable function
  * object */
 class FunctionDeclare : public Expression {
 public:
   std::shared_ptr<ast::NamedFunctionType> type;
+  std::vector<const Allocation *> argAllocs;
 
   InstructionList body;
 
   FunctionDeclare(SourceLocation loc, const Value &val,
                   std::shared_ptr<ast::NamedFunctionType> type,
+                  const std::vector<const Allocation *> &argAllocs,
                   InstructionList body)
       : Expression(std::move(loc), val), type(std::move(type)),
-        body(std::move(body)){};
+        argAllocs(argAllocs), body(std::move(body)){};
 };
 
 /* int literal instruction */
@@ -123,22 +141,6 @@ public:
       const std::vector<std::reference_wrapper<const Expression>> &arguments)
       : Expression(std::move(loc), val), function(function),
         arguments(arguments){};
-};
-
-/* An allocation of storage space (either stack or heap) with the given type
- * Type of allocation is unknown at instantiation (later determined by escape
- * analysis)
- */
-class Allocation : public Expression {
-public:
-  std::shared_ptr<ast::Type> type;
-
-  bool is_heap_allocated;
-
-  Allocation(SourceLocation loc, const Value &val,
-             std::shared_ptr<ast::Type> type)
-      : Expression(std::move(loc), val), type(std::move(type)),
-        is_heap_allocated(false){};
 };
 
 /* A store into a value (has to be a value produced by Allocation)

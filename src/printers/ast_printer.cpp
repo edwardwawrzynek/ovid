@@ -1,4 +1,5 @@
 #include "ast_printer.hpp"
+#include <iomanip>
 #include <iostream>
 
 namespace ovid::ast {
@@ -16,7 +17,7 @@ void ASTPrinterState::printIndent(std::ostream &output) const {
 }
 
 void printLoc(std::ostream &output, const SourceLocation &loc) {
-  output << "(" << loc.row << ":" << loc.col << ")";
+  output << "(" << std::setw(3) << loc.row << ":" << loc.col << ")";
 }
 
 int ASTPrinter::visitModuleDecl(ModuleDecl &node,
