@@ -17,6 +17,7 @@ int main(int argc, char **argv) {
   auto filein = std::fstream(argv[1]);
 
   auto errorMan = ovid::PrintingErrorManager();
+  ovid::ir::reset_id();
   auto lexer = ovid::Tokenizer(argv[1], &filein, errorMan);
 
   std::vector<std::string> package;

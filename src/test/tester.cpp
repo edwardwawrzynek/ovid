@@ -346,7 +346,8 @@ int TesterInstance::runCheckAST(ErrorManager &errorMan,
   return 0;
 }
 
-int TesterInstance::runCheckIR(ErrorManager &errorMan, const ir::InstructionList &ir) {
+int TesterInstance::runCheckIR(ErrorManager &errorMan,
+                               const ir::InstructionList &ir) {
   // print ir to string
   std::ostringstream ir_out;
   auto printer = ir::IRPrinter(ir_out);
@@ -363,11 +364,10 @@ int TesterInstance::runCheckIR(ErrorManager &errorMan, const ir::InstructionList
   // compare parsed ast to expected
   if (ir_out.str() != expected_ir) {
     std::cout << "check_ir " << filename
-              << ": parsed ir doesn't match ir in file " << ir_filename
-              << "\n";
+              << ": generated ir doesn't match ir in file " << ir_filename << "\n";
     std::cout << "------------ expected ir ------------\n"
               << expected_ir << "\n";
-    std::cout << "------------  parsed ir  ------------\n"
+    std::cout << "------------  generated ir  ------------\n"
               << ir_out.str() << "\n";
     return 1;
   }
@@ -383,6 +383,7 @@ int TesterInstance::run() {
 
   /* setup compilation */
   auto errorMan = ovid::TestErrorManager();
+  ir::reset_id();
 
   if (modes.count(TestMode::Parse) > 0) {
     ast::StatementList ast;
@@ -409,17 +410,16 @@ int TesterInstance::run() {
         auto typeCheck = ast::TypeCheck(errorMan, packageName);
         auto ir = typeCheck.produceIR(ast);
 
-        if(modes.count(TestMode::CheckIR) > 0) {
-          if(errorMan.criticalErrorOccurred()) {
-            std::cout << "\x1b[1;31mcompile pass raised errors, cannot run check_ir\x1b[m\n";
+        if (modes.count(TestMode::CheckIR) > 0) {
+          if (errorMan.criticalErrorOccurred()) {
+            std::cout << "\x1b[1;31mcompile pass raised errors, cannot run "
+                         "check_ir\x1b[m\n";
             failed = 1;
           } else {
-            if(runCheckIR(errorMan, ir)) failed = 1;
+            if (runCheckIR(errorMan, ir))
+              failed = 1;
           }
         }
-
-        auto printer = ir::IRPrinter(std::cout);
-        printer.visitInstructions(ir, ovid::ast::ASTPrinterState());
       }
     }
   }

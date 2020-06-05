@@ -41,6 +41,7 @@
 namespace ovid::ir {
 
 uint64_t next_id();
+void reset_id();
 
 class Instruction;
 typedef std::vector<std::unique_ptr<Instruction>> InstructionList;
@@ -112,7 +113,8 @@ public:
   // type should be a UNRESOLVED_* type
   Allocation(SourceLocation loc, const Value &val,
              std::shared_ptr<ast::Type> type, AllocationType allocType)
-      : Expression(std::move(loc), val, std::move(type)), allocType(allocType){};
+      : Expression(std::move(loc), val, std::move(type)),
+        allocType(allocType){};
 };
 
 /* a function declaration in the ir
