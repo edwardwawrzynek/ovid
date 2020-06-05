@@ -3,11 +3,12 @@
 
 #include "ast_printer.hpp"
 #include "ir_visitor.hpp"
+#include "type_check.hpp"
 
 namespace ovid::ir {
 class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
   std::ostream &output;
-  ast::ASTTypePrinter type_printer;
+  ast::TypePrinter type_printer;
 
   void printValue(const Value &val);
 
@@ -15,6 +16,8 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
                            const ast::ASTPrinterState &state) override;
   int visitIntLiteral(IntLiteral &instruct,
                       const ast::ASTPrinterState &state) override;
+  int visitBoolLiteral(BoolLiteral &instruct,
+                       const ast::ASTPrinterState &state) override;
   int visitFunctionCall(FunctionCall &instruct,
                         const ast::ASTPrinterState &state) override;
   int visitAllocation(Allocation &instruct,
@@ -28,7 +31,7 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
 
 public:
   IRPrinter(std::ostream &output)
-      : BaseIRVisitor(0), output(output), type_printer(output){};
+      : BaseIRVisitor(0), output(output), type_printer(){};
 };
 } // namespace ovid::ir
 

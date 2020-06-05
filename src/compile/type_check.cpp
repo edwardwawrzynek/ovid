@@ -34,6 +34,17 @@ ir::InstructionList TypeCheck::produceIR(const StatementList &ast) {
   return ir;
 }
 
+TypeCheckResult TypeCheck::visitBoolLiteral(BoolLiteral &node,
+                                            const TypeCheckState &state) {
+  auto instr =
+      std::make_unique<ir::BoolLiteral>(node.loc, ir::Value(), node.value);
+  auto instrPointer = instr.get();
+
+  state.curInstructionList.push_back(std::move(instr));
+
+  return TypeCheckResult(instrPointer->type, instrPointer);
+}
+
 TypeCheckResult TypeCheck::visitIntLiteral(IntLiteral &node,
                                            const TypeCheckState &state) {
   std::shared_ptr<IntType> resType;
@@ -69,12 +80,15 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
   auto initial = visitNode(*node.initialValue, state.withoutTypeHint());
 
   // recreate source name
-  std::vector<std::string> sourceName = currentModule;
+  auto sourceName =
+      (node.resolved_symbol->is_global ? currentModule
+                                       : std::vector<std::string>());
   sourceName.push_back(node.name);
 
-  // create the allocation instruction and add to initial.instructions
-  auto alloc = std::make_unique<ir::Allocation>(node.loc, ir::Value(sourceName),
-                                                initial.resultType);
+  // create the allocation instruction and add to initial.instruction
+  auto alloc = std::make_unique<ir::Allocation>(
+      node.loc, ir::Value(sourceName), initial.resultType,
+      ir::AllocationType::UNRESOLVED_STD);
   const auto allocPointer = alloc.get();
   const auto &allocRef = *alloc;
   state.curInstructionList.push_back(std::move(alloc));
@@ -196,7 +210,8 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
     argNameSource.push_back(name);
 
     auto argAlloc = std::make_unique<ir::Allocation>(
-        type->loc, ir::Value(argNameSource), type);
+        type->loc, ir::Value(argNameSource), type,
+        ir::AllocationType::UNRESOLVED_FUNC_ARG);
     auto argAllocPointer = argAlloc.get();
 
     body.push_back(std::move(argAlloc));
@@ -217,6 +232,139 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   state.curInstructionList.push_back(std::move(instr));
 
   return TypeCheckResult(node.type, instrPointer);
+}
+
+TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
+                                            const TypeCheckState &state) {
+  // create end label
+  auto end = std::make_unique<ir::Label>(node.loc);
+  auto &endRef = *end;
+
+  auto condTypeHint = BoolType(node.loc);
+
+  assert(node.conditions.size() == node.bodies.size());
+  for (size_t i = 0; i < node.conditions.size(); i++) {
+    auto &cond = node.conditions[i];
+    auto &body = node.bodies[i];
+
+    auto condRes = visitNode(*cond, state.withTypeHint(&condTypeHint));
+    if (condRes.resultInstruction == nullptr) {
+      errorMan.logError("condition does not have a value", cond->loc,
+                        ErrorType::TypeError);
+      return TypeCheckResult(nullptr, nullptr);
+    }
+    // TODO: check that condRes is a bool
+
+    auto startCondLabel = std::make_unique<ir::Label>(cond->loc);
+    auto &startCondLabelRef = *startCondLabel;
+    auto nextCondLabel = std::make_unique<ir::Label>(cond->loc);
+    auto &nextCondLabelRef = *nextCondLabel;
+
+    auto condJump = std::make_unique<ir::ConditionalJump>(
+        cond->loc, startCondLabelRef, nextCondLabelRef,
+        *condRes.resultInstruction);
+
+    state.curInstructionList.push_back(std::move(condJump));
+    state.curInstructionList.push_back(std::move(startCondLabel));
+    // visit body
+    for (auto &child : body.statements) {
+      visitNode(*child, state.withoutTypeHint());
+    }
+    // jump to end of node
+    state.curInstructionList.emplace_back(
+        std::make_unique<ir::Jump>(cond->loc, endRef));
+    state.curInstructionList.push_back(std::move(nextCondLabel));
+  }
+
+  state.curInstructionList.push_back(std::move(end));
+
+  return TypeCheckResult(nullptr, nullptr);
+}
+
+/* --- type printer --- */
+void TypePrinter::clear() { res = ""; }
+
+std::string TypePrinter::getRes() { return res; }
+
+std::string TypePrinter::getType(Type &type) {
+  clear();
+  visitType(type, TypePrinterState());
+  return getRes();
+}
+
+int TypePrinter::visitResolvedAlias(ResolvedAlias &type,
+                                    const TypePrinterState &state) {
+  assert(type.alias->type != nullptr);
+  visitType(*type.alias->type, state);
+
+  return 0;
+}
+
+int TypePrinter::visitVoidType(VoidType &type, const TypePrinterState &state) {
+  res.append("void");
+  return 0;
+}
+
+int TypePrinter::visitBoolType(BoolType &type, const TypePrinterState &state) {
+  res.append("bool");
+  return 0;
+}
+
+int TypePrinter::visitIntType(IntType &type, const TypePrinterState &state) {
+  res.push_back(type.isUnsigned ? 'u' : 'i');
+  res.append(std::to_string(type.size));
+  return 0;
+}
+
+int TypePrinter::visitFloatType(FloatType &type,
+                                const TypePrinterState &state) {
+  res.push_back('f');
+  res.append(std::to_string(type.size));
+
+  return 0;
+}
+
+int TypePrinter::visitMutType(MutType &type, const TypePrinterState &state) {
+  res.append("mut ");
+  visitType(*type.type, state);
+  return 0;
+}
+
+int TypePrinter::visitPointerType(PointerType &type,
+                                  const TypePrinterState &state) {
+  res.append("*");
+  visitType(*type.type, state);
+  return 0;
+}
+
+int TypePrinter::visitFunctionType(FunctionType &type,
+                                   const TypePrinterState &state) {
+  res.push_back('(');
+  for (size_t i = 0; i < type.argTypes.size(); i++) {
+    visitType(*type.argTypes[i], state);
+    if (i < type.argTypes.size() - 1)
+      res.append(", ");
+  }
+  res.append(") -> ");
+  visitType(*type.retType, state);
+
+  return 0;
+}
+
+int TypePrinter::visitNamedFunctionType(NamedFunctionType &type,
+                                        const TypePrinterState &state) {
+  res.push_back('(');
+  for (size_t i = 0; i < type.type->argTypes.size(); i++) {
+    res.append(type.argNames[i]);
+    res.push_back(' ');
+    visitType(*type.type->argTypes[i], state);
+    if (i < type.type->argTypes.size() - 1)
+      res.append(", ");
+  }
+  res.append(") -> ");
+  visitType(*type.type->retType, state);
+
+  return 0;
 }
 
 } // namespace ovid::ast

@@ -12,6 +12,7 @@ template <class T, class S> class BaseIRVisitor {
 
   virtual T visitFunctionDeclare(FunctionDeclare &instruct, const S &state);
   virtual T visitIntLiteral(IntLiteral &instruct, const S &state);
+  virtual T visitBoolLiteral(BoolLiteral &instruct, const S &state);
   virtual T visitFunctionCall(FunctionCall &instruct, const S &state);
   virtual T visitAllocation(Allocation &instruct, const S &state);
 
@@ -57,6 +58,8 @@ T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
                                 state);
   } else if (dynamic_cast<IntLiteral *>(&instruct) != nullptr) {
     return visitIntLiteral(dynamic_cast<IntLiteral &>(instruct), state);
+  } else if (dynamic_cast<BoolLiteral *>(&instruct) != nullptr) {
+    return visitBoolLiteral(dynamic_cast<BoolLiteral &>(instruct), state);
   } else if (dynamic_cast<Allocation *>(&instruct) != nullptr) {
     return visitAllocation(dynamic_cast<Allocation &>(instruct), state);
   }
@@ -72,6 +75,11 @@ T BaseIRVisitor<T, S>::visitFunctionDeclare(FunctionDeclare &instruct,
 
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitIntLiteral(IntLiteral &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitBoolLiteral(BoolLiteral &instruct, const S &state) {
   return std::move(defaultValue);
 }
 

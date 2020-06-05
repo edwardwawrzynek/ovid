@@ -1,5 +1,7 @@
 #include "ir_printer.hpp"
 
+namespace ovid::ir {
+
 void ovid::ir::IRPrinter::printValue(const ovid::ir::Value &val) {
   if (val.hasSourceName) {
     for (size_t i = 0; i < val.sourceName.size(); i++) {
@@ -19,11 +21,25 @@ int ovid::ir::IRPrinter::visitIntLiteral(
   state.printIndent(output);
 
   ast::printLoc(output, instruct.loc);
-  output << " ";
+  output << "\t";
   printValue(instruct.val);
 
-  output << " = IntLiteral " << instruct.value << "\n";
-  type_printer.visitType(*instruct.type, state.withIndent());
+  output << " = INTLITERAL " << type_printer.getType(*instruct.type) << " "
+         << instruct.value << "\n";
+
+  return 0;
+}
+
+int IRPrinter::visitBoolLiteral(BoolLiteral &instruct,
+                                const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printValue(instruct.val);
+
+  output << " = BOOLLITERAL " << type_printer.getType(*instruct.type) << " "
+         << (instruct.value ? "true" : "false") << "\n";
 
   return 0;
 }
@@ -33,11 +49,10 @@ int ovid::ir::IRPrinter::visitAllocation(
   state.printIndent(output);
 
   ast::printLoc(output, instruct.loc);
-  output << " ";
+  output << "\t";
   printValue(instruct.val);
 
-  output << " = Allocation\n";
-  type_printer.visitType(*instruct.type, state.withIndent());
+  output << " = ALLOCATION " << type_printer.getType(*instruct.type) << "\n";
 
   return 0;
 }
@@ -47,7 +62,7 @@ int ovid::ir::IRPrinter::visitLabel(ovid::ir::Label &instruct,
   state.printIndent(output);
 
   ast::printLoc(output, instruct.loc);
-  output << " Label @" << instruct.id << "\n";
+  output << "\tLABEL @" << instruct.id << "\n";
 
   return 0;
 }
@@ -57,7 +72,7 @@ int ovid::ir::IRPrinter::visitJump(ovid::ir::Jump &instruct,
   state.printIndent(output);
 
   ast::printLoc(output, instruct.loc);
-  output << " Jump @" << instruct.label.id << "\n";
+  output << "\tJUMP @" << instruct.label.id << "\n";
 
   return 0;
 }
@@ -68,8 +83,10 @@ int ovid::ir::IRPrinter::visitConditionalJump(
   state.printIndent(output);
 
   ast::printLoc(output, instruct.loc);
-  output << " ConditionalJump @" << instruct.label.id << " if ";
+  output << "\tCONDITIONALJUMP ";
   printValue(instruct.condition.val);
+  output << " @" << instruct.true_label.id << "(true) @"
+         << instruct.false_label.id << "(false)\n";
 
   return 0;
 }
@@ -79,7 +96,7 @@ int ovid::ir::IRPrinter::visitStore(ovid::ir::Store &instruct,
   state.printIndent(output);
 
   ast::printLoc(output, instruct.loc);
-  output << " Store ";
+  output << "\tSTORE ";
   printValue(instruct.storage.val);
   output << " <- ";
   printValue(instruct.value.val);
@@ -93,9 +110,9 @@ int ovid::ir::IRPrinter::visitFunctionCall(
   state.printIndent(output);
 
   ast::printLoc(output, instruct.loc);
-  output << " ";
+  output << "\t";
   printValue(instruct.val);
-  output << " = FunctionCall ";
+  output << " = FUNCTIONCALL ";
   printValue(instruct.function.val);
   output << "(";
   for (size_t i = 0; i < instruct.arguments.size(); i++) {
@@ -115,11 +132,11 @@ int ovid::ir::IRPrinter::visitFunctionDeclare(
   state.printIndent(output);
 
   ast::printLoc(output, instruct.loc);
-  output << " ";
+  output << "\t";
   printValue(instruct.val);
 
-  output << " = FunctionDeclare\n";
-  type_printer.visitType(*instruct.type, state.withIndent());
+  output << " = FUNCTIONDECLARE " << type_printer.getType(*instruct.type)
+         << " ";
   state.printIndent(output);
   output << "{\n";
   for (auto &body : instruct.body) {
@@ -130,3 +147,4 @@ int ovid::ir::IRPrinter::visitFunctionDeclare(
 
   return 0;
 }
+} // namespace ovid::ir

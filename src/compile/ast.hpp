@@ -37,18 +37,20 @@ public:
   /* the symbol's declaration location in the ir
    * set and used by the type checker */
   const ir::Expression *ir_decl_instruction;
+  /* if the symbol is in a global scope */
+  bool is_global;
   /* TODO: escape analysis metadata and other information loaded from headers */
 
   Symbol(SourceLocation decl_loc, bool is_public,
-         bool resolve_pass_declared_yet, bool is_mut)
+         bool resolve_pass_declared_yet, bool is_mut, bool is_global)
       : decl_loc(std::move(decl_loc)), type(), is_public(is_public),
         resolve_pass_declared_yet(resolve_pass_declared_yet), is_mut(is_mut),
-        ir_decl_instruction(nullptr){};
+        ir_decl_instruction(nullptr), is_global(is_global){};
 
   explicit Symbol(SourceLocation decl_loc)
       : decl_loc(std::move(decl_loc)), type(), is_public(false),
         resolve_pass_declared_yet(false), is_mut(false),
-        ir_decl_instruction(nullptr){};
+        ir_decl_instruction(nullptr), is_global(false){};
 };
 /* a type alias and its metadata */
 struct TypeAlias {

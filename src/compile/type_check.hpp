@@ -9,6 +9,38 @@
  * lowers the AST into the Ovid IR */
 
 namespace ovid::ast {
+/* the type pretty printer for the type checking pass */
+class TypePrinterState {};
+class TypePrinter : public BaseTypeVisitor<int, TypePrinterState> {
+
+  std::string res;
+
+  int visitResolvedAlias(ResolvedAlias &type,
+                         const TypePrinterState &state) override;
+
+  int visitVoidType(VoidType &type, const TypePrinterState &state) override;
+  int visitBoolType(BoolType &type, const TypePrinterState &state) override;
+  int visitIntType(IntType &type, const TypePrinterState &state) override;
+  int visitFloatType(FloatType &type, const TypePrinterState &state) override;
+
+  int visitMutType(MutType &type, const TypePrinterState &state) override;
+  int visitPointerType(PointerType &type,
+                       const TypePrinterState &state) override;
+
+  int visitFunctionType(FunctionType &type,
+                        const TypePrinterState &state) override;
+  int visitNamedFunctionType(NamedFunctionType &type,
+                             const TypePrinterState &state) override;
+
+public:
+  void clear();
+  std::string getRes();
+
+  std::string getType(Type &type);
+
+  explicit TypePrinter() : BaseTypeVisitor(0){};
+};
+
 /* The result of a type checker visit to a node
  * The type of the node and the ir it generated*/
 class TypeCheckResult {
@@ -69,10 +101,10 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                     const TypeCheckState &state) override;
   TypeCheckResult visitModuleDecl(ModuleDecl &node,
                                   const TypeCheckState &state) override;
-  /* TypeCheckResult visitIfStatement(IfStatement &node,
-                                    const TypeCheckState &state) override;
+  TypeCheckResult visitIfStatement(IfStatement &node,
+                                   const TypeCheckState &state) override;
 
-   TypeCheckResult visitFunctionCall(FunctionCall &node,
+  /*TypeCheckResult visitFunctionCall(FunctionCall &node,
                                      const TypeCheckState &state) override;*/
   TypeCheckResult visitIdentifier(Identifier &node,
                                   const TypeCheckState &state) override;
@@ -82,11 +114,11 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                   const TypeCheckState &state) override;
   TypeCheckResult visitIntLiteral(IntLiteral &node,
                                   const TypeCheckState &state) override;
-  /*TypeCheckResult visitBoolLiteral(BoolLiteral &node,
+  TypeCheckResult visitBoolLiteral(BoolLiteral &node,
                                    const TypeCheckState &state) override;
-  TypeCheckResult visitTuple(Tuple &node, const TypeCheckState &state) override;
-  TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node,
-                                     const TypeCheckState &state) override;*/
+  /*TypeCheckResult visitTuple(Tuple &node, const TypeCheckState &state)
+  override; TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node, const
+  TypeCheckState &state) override;*/
 
 public:
   TypeCheck(ErrorManager &errorMan, const std::vector<std::string> package)

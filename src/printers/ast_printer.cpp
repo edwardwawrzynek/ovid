@@ -17,7 +17,7 @@ void ASTPrinterState::printIndent(std::ostream &output) const {
 }
 
 void printLoc(std::ostream &output, const SourceLocation &loc) {
-  output << "(" << std::setw(3) << loc.row << ":" << loc.col << ")";
+  output << "(" << loc.row << ":" << loc.col << ")";
 }
 
 int ASTPrinter::visitModuleDecl(ModuleDecl &node,

@@ -600,8 +600,7 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   tokenizer.nextToken();
 
   // construct scope table for function (private, function scope)
-  auto symbolTable =
-      std::make_shared<ScopeTable<Symbol>>(false, nullptr, true);
+  auto symbolTable = std::make_shared<ScopeTable<Symbol>>(false, nullptr, true);
   ast::ScopedBlock body(symbolTable);
   // the current type scope is copied, as function's can't contain type alias
   // declarations inside them
@@ -613,7 +612,7 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
     auto &arg = proto->argNames[i];
     auto &loc = argLocs[i];
 
-    auto sym = std::make_shared<Symbol>(loc, false, false, false);
+    auto sym = std::make_shared<Symbol>(loc, false, false, false, false);
     bodyState.current_scope->getDirectScopeTable().addSymbol(arg, sym);
   }
 
@@ -636,7 +635,8 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   auto ast = std::make_unique<ast::FunctionDecl>(pos, std::move(type),
                                                  proto->name, std::move(body));
 
-  auto fun_sym = std::make_shared<Symbol>(pos, is_public, true, false);
+  auto fun_sym = std::make_shared<Symbol>(pos, is_public, true, false,
+                                          state.is_global_level);
   state.current_scope->getDirectScopeTable().addSymbol(proto->name, fun_sym);
 
   if (did_error)
@@ -792,7 +792,8 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
     // if at global level, set the symbol to be valid before it's declaration
     // for resolve pass
     auto sym = std::make_shared<Symbol>(pos.through(endNamePos), is_public,
-                                        state.is_global_level, is_mut);
+                                        state.is_global_level, is_mut,
+                                        state.is_global_level);
     state.current_scope->getDirectScopeTable().addSymbol(name, sym);
   }
 

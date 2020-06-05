@@ -77,25 +77,44 @@ public:
 class Expression : public Instruction {
 public:
   Value val;
+  std::shared_ptr<ast::Type> type;
 
-  explicit Expression(SourceLocation loc, const Value &val)
-      : Instruction(std::move(loc)), val(val){};
+  explicit Expression(SourceLocation loc, const Value &val,
+                      std::shared_ptr<ast::Type> type)
+      : Instruction(std::move(loc)), val(val), type(std::move(type)){};
 };
 
 /* An allocation of storage space (either stack or heap) with the given type
  * Type of allocation is unknown at instantiation (later determined by escape
  * analysis)
  */
+
+// Allocation types
+enum class AllocationType {
+  /* unresolved allocation types (type before escape analysis) */
+  UNRESOLVED_FUNC_ARG, // a function argument
+  UNRESOLVED_STD,      // normal variable decl
+
+  /* resolved allocation types */
+  STATIC,           /* static memory (global) */
+  STACK,            /* allocated on stack */
+  HEAP,             /* allocated on heap */
+  ARG,              /* llvm function argument */
+  ARG_COPY_TO_STACK /* an llvm argument copied to stack (needs address) */
+
+};
+
 class Allocation : public Expression {
 public:
-  std::shared_ptr<ast::Type> type;
-
   bool is_heap_allocated;
 
+  AllocationType allocType;
+
+  // type should be a UNRESOLVED_* type
   Allocation(SourceLocation loc, const Value &val,
-             std::shared_ptr<ast::Type> type)
-      : Expression(std::move(loc), val), type(std::move(type)),
-        is_heap_allocated(false){};
+             std::shared_ptr<ast::Type> type, AllocationType allocType)
+      : Expression(std::move(loc), val, std::move(type)),
+        is_heap_allocated(false), allocType(allocType){};
 };
 
 /* a function declaration in the ir
@@ -103,7 +122,6 @@ public:
  * object */
 class FunctionDeclare : public Expression {
 public:
-  std::shared_ptr<ast::NamedFunctionType> type;
   std::vector<const Allocation *> argAllocs;
 
   InstructionList body;
@@ -112,19 +130,29 @@ public:
                   std::shared_ptr<ast::NamedFunctionType> type,
                   const std::vector<const Allocation *> &argAllocs,
                   InstructionList body)
-      : Expression(std::move(loc), val), type(std::move(type)),
-        argAllocs(argAllocs), body(std::move(body)){};
+      : Expression(std::move(loc), val, std::move(type)), argAllocs(argAllocs),
+        body(std::move(body)){};
 };
 
 /* int literal instruction */
 class IntLiteral : public Expression {
 public:
-  std::shared_ptr<ast::IntType> type;
   uint64_t value;
 
   IntLiteral(SourceLocation loc, const Value &val,
              std::shared_ptr<ast::IntType> type, uint64_t value)
-      : Expression(std::move(loc), val), type(std::move(type)), value(value){};
+      : Expression(std::move(loc), val, std::move(type)), value(value){};
+};
+
+/* boolean literal */
+class BoolLiteral : public Expression {
+public:
+  bool value;
+
+  BoolLiteral(SourceLocation loc, const Value &val, bool value)
+      : Expression(std::move(loc), val,
+                   std::make_shared<ast::BoolType>(std::move(loc))),
+        value(value){};
 };
 
 /* a function call (including builtins)
@@ -138,8 +166,9 @@ public:
 
   FunctionCall(
       SourceLocation loc, const Value &val, const FunctionDeclare &function,
-      const std::vector<std::reference_wrapper<const Expression>> &arguments)
-      : Expression(std::move(loc), val), function(function),
+      const std::vector<std::reference_wrapper<const Expression>> &arguments,
+      std::shared_ptr<ast::Type> type)
+      : Expression(std::move(loc), val, std::move(type)), function(function),
         arguments(arguments){};
 };
 
@@ -175,12 +204,14 @@ public:
 /* a conditional jump to a label */
 class ConditionalJump : public Instruction {
 public:
-  const Label &label;
+  const Label &true_label;
+  const Label &false_label;
   const Expression &condition;
 
-  ConditionalJump(SourceLocation loc, const Label &label,
-                  const Expression &condition)
-      : Instruction(std::move(loc)), label(label), condition(condition){};
+  ConditionalJump(SourceLocation loc, const Label &true_label,
+                  const Label &false_label, const Expression &condition)
+      : Instruction(std::move(loc)), true_label(true_label),
+        false_label(false_label), condition(condition){};
 };
 
 } // namespace ovid::ir
