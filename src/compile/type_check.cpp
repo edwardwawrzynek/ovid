@@ -88,7 +88,8 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
   // create the allocation instruction and add to initial.instruction
   auto alloc = std::make_unique<ir::Allocation>(
       node.loc, ir::Value(sourceName), initial.resultType,
-      ir::AllocationType::UNRESOLVED_STD);
+      (node.resolved_symbol->is_global ? ir::AllocationType::UNRESOLVED_GLOBAL
+                                       : ir::AllocationType::UNRESOLVED_LOCAL));
   const auto allocPointer = alloc.get();
   const auto &allocRef = *alloc;
   state.curInstructionList.push_back(std::move(alloc));
@@ -135,6 +136,8 @@ TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
   // TODO: allow use of global variables before they have been visited (esp
   // those in another compilation unit)
   assert(node.resolved_symbol->ir_decl_instruction != nullptr);
+
+  assert(node.resolved_symbol->type != nullptr);
   // use of the identifier doesn't generate any ir -- it just selects the
   // appropriate node
   auto alloc_node = node.resolved_symbol->ir_decl_instruction;

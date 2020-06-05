@@ -93,7 +93,8 @@ public:
 enum class AllocationType {
   /* unresolved allocation types (type before escape analysis) */
   UNRESOLVED_FUNC_ARG, // a function argument
-  UNRESOLVED_STD,      // normal variable decl
+  UNRESOLVED_GLOBAL,   // global var declare
+  UNRESOLVED_LOCAL,    // local variable declare
 
   /* resolved allocation types */
   STATIC,           /* static memory (global) */
@@ -106,15 +107,12 @@ enum class AllocationType {
 
 class Allocation : public Expression {
 public:
-  bool is_heap_allocated;
-
   AllocationType allocType;
 
   // type should be a UNRESOLVED_* type
   Allocation(SourceLocation loc, const Value &val,
              std::shared_ptr<ast::Type> type, AllocationType allocType)
-      : Expression(std::move(loc), val, std::move(type)),
-        is_heap_allocated(false), allocType(allocType){};
+      : Expression(std::move(loc), val, std::move(type)), allocType(allocType){};
 };
 
 /* a function declaration in the ir

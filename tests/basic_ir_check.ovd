@@ -1,0 +1,23 @@
+// __ovid_compiler_test
+//__mode: check_ir
+//__end_header
+/* file basic_ir_check.ovd.expect.ir contains the ast this file is expected to parse to */
+
+module mod
+
+pub mut a = 10
+
+fn test(b i32) -> i32 {
+    a = 2
+    val c = b
+}
+
+fn cond_test(cond bool) -> void {
+    if cond {
+        val v1 = 1
+    } elsif true {
+        val v2 = 2
+    } else {
+        val v3 = 3
+    }
+}

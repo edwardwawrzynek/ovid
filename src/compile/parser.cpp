@@ -613,6 +613,7 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
     auto &loc = argLocs[i];
 
     auto sym = std::make_shared<Symbol>(loc, false, false, false, false);
+    sym->type = proto->type->argTypes[i];
     bodyState.current_scope->getDirectScopeTable().addSymbol(arg, sym);
   }
 

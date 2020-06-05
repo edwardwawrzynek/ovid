@@ -131,10 +131,14 @@ void TesterInstance::readHeader() {
     } else if (arg == "check_ast") {
       modes.insert(TestMode::Parse);
       modes.insert(TestMode::CheckAST);
+    } else if (arg == "check_ir") {
+      modes.insert(TestMode::Parse);
+      modes.insert(TestMode::Compile);
+      modes.insert(TestMode::CheckIR);
     } else {
       doError("invalid test mode (expected parse, compile, run, "
-              "run_check_output, or "
-              "check_ast)");
+              "run_check_output, "
+              "check_ast, and/or check_ir)");
       return;
     }
   }
@@ -342,6 +346,35 @@ int TesterInstance::runCheckAST(ErrorManager &errorMan,
   return 0;
 }
 
+int TesterInstance::runCheckIR(ErrorManager &errorMan, const ir::InstructionList &ir) {
+  // print ir to string
+  std::ostringstream ir_out;
+  auto printer = ir::IRPrinter(ir_out);
+  printer.visitInstructions(ir, ast::ASTPrinterState());
+  // read in expected ast
+  auto ir_filename = filename + ".expect.ir";
+  auto ir_file = std::ifstream(ir_filename);
+  if (!ir_file.is_open()) {
+    doError(string_format("failed to open file %s, expected by mode check_ir",
+                          ir_filename.c_str()));
+  }
+  std::string expected_ir(std::istreambuf_iterator<char>(ir_file), {});
+
+  // compare parsed ast to expected
+  if (ir_out.str() != expected_ir) {
+    std::cout << "check_ir " << filename
+              << ": parsed ir doesn't match ir in file " << ir_filename
+              << "\n";
+    std::cout << "------------ expected ir ------------\n"
+              << expected_ir << "\n";
+    std::cout << "------------  parsed ir  ------------\n"
+              << ir_out.str() << "\n";
+    return 1;
+  }
+
+  return 0;
+}
+
 int TesterInstance::run() {
   readHeader();
 
@@ -375,6 +408,15 @@ int TesterInstance::run() {
         // generate ir
         auto typeCheck = ast::TypeCheck(errorMan, packageName);
         auto ir = typeCheck.produceIR(ast);
+
+        if(modes.count(TestMode::CheckIR) > 0) {
+          if(errorMan.criticalErrorOccurred()) {
+            std::cout << "\x1b[1;31mcompile pass raised errors, cannot run check_ir\x1b[m\n";
+            failed = 1;
+          } else {
+            if(runCheckIR(errorMan, ir)) failed = 1;
+          }
+        }
 
         auto printer = ir::IRPrinter(std::cout);
         printer.visitInstructions(ir, ovid::ast::ASTPrinterState());

@@ -117,11 +117,12 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   TypeCheckResult visitBoolLiteral(BoolLiteral &node,
                                    const TypeCheckState &state) override;
   /*TypeCheckResult visitTuple(Tuple &node, const TypeCheckState &state)
-  override; TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node, const
+  override;
+   TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node, const
   TypeCheckState &state) override;*/
 
 public:
-  TypeCheck(ErrorManager &errorMan, const std::vector<std::string> package)
+  TypeCheck(ErrorManager &errorMan, const std::vector<std::string>& package)
       : BaseASTVisitor(
             TypeCheckResult(std::make_shared<ast::VoidType>(
                                 SourceLocation("", 0, 0, 0, 0, nullptr)),

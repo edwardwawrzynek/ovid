@@ -14,15 +14,5 @@ module test {
         mut e = 7
         d = 8 // __error: "left side of assignment is non mutable"
         e = 9
-
-        if a {
-            mut f = 1
-            f = 2
-        } elsif b {
-            e = 10
-        } else {
-            e = 11
-            e = 12
-        }
     }
 }

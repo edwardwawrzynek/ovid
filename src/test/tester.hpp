@@ -3,6 +3,7 @@
 
 #include "ast.hpp"
 #include "error.hpp"
+#include "ir.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -39,8 +40,9 @@ namespace ovid::tester {
  * Run - Compile + run output and make sure it doesn't abort
  * RunCheckOutput - Run + check output from run matches expected output in file
  * CheckAST - Parse + Resolve + check ast output against expected
+ * CheckIR - Compile + check ir output against expected
  */
-enum class TestMode { Parse, Compile, Run, RunCheckOutput, CheckAST };
+enum class TestMode { Parse, Compile, Run, RunCheckOutput, CheckAST, CheckIR };
 
 class TesterInstance {
 
@@ -92,6 +94,8 @@ class TesterInstance {
   int runParse(ErrorManager &errorMan, ast::StatementList &astRes);
   // check ast against expected
   int runCheckAST(ErrorManager &errorMan, const ast::StatementList &ast);
+  // check ir against expected
+  int runCheckIR(ErrorManager &errorMan, const ir::InstructionList &ir);
 
 public:
   explicit TesterInstance(const std::string &filename);

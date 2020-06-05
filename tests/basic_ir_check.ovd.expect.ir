@@ -1,0 +1,37 @@
+(8:13)	%17 = INTLITERAL i64 10
+(8:5)	ovidc_test:mod:a = ALLOCATION i64
+(8:5)	STORE ovidc_test:mod:a <- %17
+(10:1)	ovidc_test:mod:test = FUNCTIONDECLARE (b i32) -> i32 {
+    (10:11)	b = ALLOCATION i32
+    (11:9)	%18 = INTLITERAL i64 2
+    (11:5)	STORE ovidc_test:mod:a <- %18
+    (12:5)	c = ALLOCATION i32
+    (12:5)	STORE c <- b
+}
+(15:1)	ovidc_test:mod:cond_test = FUNCTIONDECLARE (cond bool) -> void {
+    (15:19)	cond = ALLOCATION bool
+    (16:8)	CONDITIONALJUMP cond @20(true) @21(false)
+    (16:8)	LABEL @20
+    (17:18)	%22 = INTLITERAL i64 1
+    (17:9)	v1 = ALLOCATION i64
+    (17:9)	STORE v1 <- %22
+    (16:8)	JUMP @19
+    (16:8)	LABEL @21
+    (18:13)	%23 = BOOLLITERAL bool true
+    (18:13)	CONDITIONALJUMP %23 @24(true) @25(false)
+    (18:13)	LABEL @24
+    (19:18)	%26 = INTLITERAL i64 2
+    (19:9)	v2 = ALLOCATION i64
+    (19:9)	STORE v2 <- %26
+    (18:13)	JUMP @19
+    (18:13)	LABEL @25
+    (20:12)	%27 = BOOLLITERAL bool true
+    (20:12)	CONDITIONALJUMP %27 @28(true) @29(false)
+    (20:12)	LABEL @28
+    (21:18)	%30 = INTLITERAL i64 3
+    (21:9)	v3 = ALLOCATION i64
+    (21:9)	STORE v3 <- %30
+    (20:12)	JUMP @19
+    (20:12)	LABEL @29
+    (16:5)	LABEL @19
+}
