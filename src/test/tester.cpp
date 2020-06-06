@@ -364,7 +364,8 @@ int TesterInstance::runCheckIR(ErrorManager &errorMan,
   // compare parsed ast to expected
   if (ir_out.str() != expected_ir) {
     std::cout << "check_ir " << filename
-              << ": generated ir doesn't match ir in file " << ir_filename << "\n";
+              << ": generated ir doesn't match ir in file " << ir_filename
+              << "\n";
     std::cout << "------------ expected ir ------------\n"
               << expected_ir << "\n";
     std::cout << "------------  generated ir  ------------\n"

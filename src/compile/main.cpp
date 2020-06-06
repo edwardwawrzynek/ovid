@@ -41,6 +41,11 @@ int main(int argc, char **argv) {
   auto typeCheck = ovid::ast::TypeCheck(errorMan, package);
   auto ir = typeCheck.produceIR(ast);
 
+  if (errorMan.criticalErrorOccurred()) {
+    std::cout << "\x1b[1;31mtype checking failed";
+    return 1;
+  }
+
   std::cout << "\n---- IR ----\n";
   auto irPrinter = ovid::ir::IRPrinter(std::cout);
   irPrinter.visitInstructions(ir, ovid::ast::ASTPrinterState());

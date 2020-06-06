@@ -114,13 +114,19 @@ public:
 
 /* ast types */
 class Type {
+  virtual const Type &withoutMutability() const;
+
 public:
   SourceLocation loc;
   virtual ~Type() = default;
 
-  virtual Type *withoutMutability();
+  // check if a type is equivalent to the given expected type
+  // if this type has a mut (anywhere in the chain) that isn't in expected,
+  // valid (mut -> non mut is valid) if the expected type has a mut that this
+  // type doesn't, invalid (non mut -> mut invalid)
+  virtual bool equalToExpected(const Type &expected);
 
-  explicit Type(SourceLocation loc) : loc(std::move(loc)){};
+  explicit Type(const SourceLocation &loc) : loc(loc){};
 };
 
 /* an unresolved type
@@ -132,10 +138,12 @@ public:
   // if the type began with ::
   bool is_root_scoped;
 
-  UnresolvedType(SourceLocation loc, const std::vector<std::string> &scopes,
+  bool equalToExpected(const Type &expected) override;
+
+  UnresolvedType(const SourceLocation &loc,
+                 const std::vector<std::string> &scopes,
                  const std::string &name, bool is_root_scoped)
-      : Type(std::move(loc)), scopes(scopes), name(name),
-        is_root_scoped(is_root_scoped){};
+      : Type(loc), scopes(scopes), name(name), is_root_scoped(is_root_scoped){};
 };
 
 /* a usage of an aliased type that has been resolved to it's entry in the type
@@ -144,18 +152,24 @@ class ResolvedAlias : public Type {
 public:
   std::shared_ptr<TypeAlias> alias;
 
-  ResolvedAlias(SourceLocation loc, std::shared_ptr<TypeAlias> alias)
-      : Type(std::move(loc)), alias(std::move(alias)){};
+  bool equalToExpected(const Type &expected) override;
+
+  ResolvedAlias(const SourceLocation &loc, std::shared_ptr<TypeAlias> alias)
+      : Type(loc), alias(std::move(alias)){};
 };
 
 class VoidType : public Type {
 public:
-  VoidType(SourceLocation loc) : Type(std::move(loc)){};
+  bool equalToExpected(const Type &expected) override;
+
+  VoidType(const SourceLocation &loc) : Type(loc){};
 };
 
 class BoolType : public Type {
 public:
-  BoolType(SourceLocation loc) : Type(std::move(loc)){};
+  bool equalToExpected(const Type &expected) override;
+
+  BoolType(const SourceLocation &loc) : Type(loc){};
 };
 
 class IntType : public Type {
@@ -163,33 +177,42 @@ public:
   int size; // in bits
   bool isUnsigned;
 
-  IntType(SourceLocation loc, int size, bool isUnsigned)
-      : Type(std::move(loc)), size(size), isUnsigned(isUnsigned){};
+  bool equalToExpected(const Type &expected) override;
+
+  IntType(const SourceLocation &loc, int size, bool isUnsigned)
+      : Type(loc), size(size), isUnsigned(isUnsigned){};
 };
 
 class FloatType : public Type {
 public:
   int size; // in bits
-  explicit FloatType(SourceLocation loc, int size)
-      : Type(std::move(loc)), size(size){};
+
+  bool equalToExpected(const Type &expected) override;
+
+  explicit FloatType(const SourceLocation &loc, int size)
+      : Type(loc), size(size){};
 };
 
 class MutType : public Type {
+  const Type &withoutMutability() const override;
+
 public:
   std::shared_ptr<Type> type;
 
-  explicit MutType(SourceLocation loc, std::shared_ptr<Type> type)
-      : Type(std::move(loc)), type(std::move(type)){};
+  bool equalToExpected(const Type &expected) override;
 
-  Type *withoutMutability() override;
+  explicit MutType(const SourceLocation &loc, std::shared_ptr<Type> type)
+      : Type(loc), type(std::move(type)){};
 };
 
 class PointerType : public Type {
 public:
   std::shared_ptr<Type> type;
 
-  explicit PointerType(SourceLocation loc, std::shared_ptr<Type> type)
-      : Type(std::move(loc)), type(std::move(type)){};
+  bool equalToExpected(const Type &expected) override;
+
+  explicit PointerType(const SourceLocation &loc, std::shared_ptr<Type> type)
+      : Type(loc), type(std::move(type)){};
 };
 
 class FunctionType : public Type {
@@ -197,10 +220,11 @@ public:
   TypeList argTypes;
   std::shared_ptr<Type> retType;
 
-  FunctionType(SourceLocation loc, TypeList argTypes,
+  bool equalToExpected(const Type &expected) override;
+
+  FunctionType(const SourceLocation &loc, TypeList argTypes,
                std::shared_ptr<Type> retType)
-      : Type(std::move(loc)), argTypes(std::move(argTypes)),
-        retType(std::move(retType)){};
+      : Type(loc), argTypes(std::move(argTypes)), retType(std::move(retType)){};
 };
 
 class NamedFunctionType : public Type {
@@ -209,10 +233,13 @@ public:
   std::vector<std::string> argNames;
   std::vector<std::shared_ptr<Symbol>> resolvedArgs;
 
-  NamedFunctionType(SourceLocation loc, std::shared_ptr<FunctionType> type,
+  bool equalToExpected(const Type &expected) override;
+
+  NamedFunctionType(const SourceLocation &loc,
+                    std::shared_ptr<FunctionType> type,
                     std::vector<std::string> argNames)
-      : Type(std::move(loc)), type(std::move(type)),
-        argNames(std::move(argNames)), resolvedArgs(){};
+      : Type(loc), type(std::move(type)), argNames(std::move(argNames)),
+        resolvedArgs(){};
 };
 
 class FunctionPrototype {
@@ -231,7 +258,7 @@ class Node {
 public:
   SourceLocation loc;
 
-  explicit Node(SourceLocation loc) : loc(std::move(loc)){};
+  explicit Node(const SourceLocation &loc) : loc(loc){};
 
   virtual ~Node() = default;
 };
@@ -239,7 +266,7 @@ public:
 /* ast statements */
 class Statement : public Node {
 public:
-  explicit Statement(SourceLocation loc) : Node(std::move(loc)){};
+  explicit Statement(const SourceLocation &loc) : Node(loc){};
 };
 
 class VarDecl : public Statement {
@@ -250,10 +277,10 @@ public:
   // resolved reference to entry for this symbol
   std::shared_ptr<Symbol> resolved_symbol;
 
-  VarDecl(SourceLocation loc, std::string &name,
+  VarDecl(const SourceLocation &loc, std::string &name,
           std::unique_ptr<Expression> initialValue)
-      : Statement(std::move(loc)), name(name),
-        initialValue(std::move(initialValue)), resolved_symbol(){};
+      : Statement(loc), name(name), initialValue(std::move(initialValue)),
+        resolved_symbol(){};
 };
 
 class FunctionDecl : public Statement {
@@ -262,9 +289,10 @@ public:
   std::string name;
   ScopedBlock body;
 
-  FunctionDecl(SourceLocation loc, std::shared_ptr<NamedFunctionType> type,
-               const std::string &name, ScopedBlock body)
-      : Statement(std::move(loc)), type(std::move(type)), name(name),
+  FunctionDecl(const SourceLocation &loc,
+               std::shared_ptr<NamedFunctionType> type, const std::string &name,
+               ScopedBlock body)
+      : Statement(loc), type(std::move(type)), name(name),
         body(std::move(body)){};
 };
 
@@ -273,10 +301,9 @@ public:
   std::vector<std::string> scope;
   StatementList body;
 
-  ModuleDecl(SourceLocation loc, std::vector<std::string> scope,
+  ModuleDecl(const SourceLocation &loc, std::vector<std::string> scope,
              StatementList body)
-      : Statement(std::move(loc)), scope(std::move(scope)),
-        body(std::move(body)){};
+      : Statement(loc), scope(std::move(scope)), body(std::move(body)){};
 };
 
 class TypeAliasDecl : public Statement {
@@ -284,9 +311,9 @@ public:
   std::string name;
   std::shared_ptr<TypeAlias> type;
 
-  TypeAliasDecl(SourceLocation loc, const std::string &name,
+  TypeAliasDecl(const SourceLocation &loc, const std::string &name,
                 std::shared_ptr<TypeAlias> type)
-      : Statement(std::move(loc)), name(name), type(std::move(type)){};
+      : Statement(loc), name(name), type(std::move(type)){};
 };
 
 class IfStatement : public Statement {
@@ -296,16 +323,16 @@ public:
   ExpressionList conditions;
   std::vector<ScopedBlock> bodies;
 
-  IfStatement(SourceLocation loc, ExpressionList conditions,
+  IfStatement(const SourceLocation &loc, ExpressionList conditions,
               std::vector<ScopedBlock> bodies)
-      : Statement(std::move(loc)), conditions(std::move(conditions)),
+      : Statement(loc), conditions(std::move(conditions)),
         bodies(std::move(bodies)){};
 };
 
 /* ast expressions */
 class Expression : public Statement {
 public:
-  explicit Expression(SourceLocation loc) : Statement(std::move(loc)){};
+  explicit Expression(const SourceLocation &loc) : Statement(loc){};
 };
 
 class FunctionCall : public Expression {
@@ -313,10 +340,9 @@ public:
   std::unique_ptr<Expression> funcExpr;
   ExpressionList args;
 
-  FunctionCall(SourceLocation loc, std::unique_ptr<Expression> funcExpr,
+  FunctionCall(const SourceLocation &loc, std::unique_ptr<Expression> funcExpr,
                ExpressionList args)
-      : Expression(std::move(loc)), funcExpr(std::move(funcExpr)),
-        args(std::move(args)){};
+      : Expression(loc), funcExpr(std::move(funcExpr)), args(std::move(args)){};
 };
 
 class Identifier : public Expression {
@@ -328,9 +354,9 @@ public:
   /* -- resolved symbol info -- */
   std::shared_ptr<Symbol> resolved_symbol;
 
-  Identifier(SourceLocation loc, const std::string &id,
+  Identifier(const SourceLocation &loc, const std::string &id,
              std::vector<std::string> scope, bool is_root_scope)
-      : Expression(std::move(loc)), scope(std::move(scope)), id(id),
+      : Expression(loc), scope(std::move(scope)), id(id),
         is_root_scope(is_root_scope), resolved_symbol(){};
 };
 
@@ -368,8 +394,8 @@ class OperatorSymbol : public Expression {
 public:
   OperatorType op;
 
-  OperatorSymbol(SourceLocation loc, OperatorType op)
-      : Expression(std::move(loc)), op(op){};
+  OperatorSymbol(const SourceLocation &loc, OperatorType op)
+      : Expression(loc), op(op){};
 };
 
 class Assignment : public Expression {
@@ -377,39 +403,38 @@ public:
   std::unique_ptr<Expression> lvalue;
   std::unique_ptr<Expression> rvalue;
 
-  Assignment(SourceLocation loc, std::unique_ptr<Expression> lvalue,
+  Assignment(const SourceLocation &loc, std::unique_ptr<Expression> lvalue,
              std::unique_ptr<Expression> rvalue)
-      : Expression(std::move(loc)), lvalue(std::move(lvalue)),
-        rvalue(std::move(rvalue)){};
+      : Expression(loc), lvalue(std::move(lvalue)), rvalue(std::move(rvalue)){};
 };
 
 class Literal : public Expression {
 public:
-  explicit Literal(SourceLocation loc) : Expression(std::move(loc)){};
+  explicit Literal(const SourceLocation &loc) : Expression(loc){};
 };
 
 class IntLiteral : public Literal {
 public:
   const int64_t value;
 
-  IntLiteral(SourceLocation loc, const int64_t value)
-      : Literal(std::move(loc)), value(value){};
+  IntLiteral(const SourceLocation &loc, const int64_t value)
+      : Literal(loc), value(value){};
 };
 
 class BoolLiteral : public Literal {
 public:
   const bool value;
 
-  BoolLiteral(SourceLocation loc, const bool value)
-      : Literal(std::move(loc)), value(value){};
+  BoolLiteral(const SourceLocation &loc, const bool value)
+      : Literal(loc), value(value){};
 };
 
 class Tuple : public Expression {
 public:
   ExpressionList expressions;
 
-  explicit Tuple(SourceLocation loc, ExpressionList expressions)
-      : Expression(std::move(loc)), expressions(std::move(expressions)){};
+  explicit Tuple(const SourceLocation &loc, ExpressionList expressions)
+      : Expression(loc), expressions(std::move(expressions)){};
 };
 
 } // namespace ovid::ast

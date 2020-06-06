@@ -15,6 +15,8 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitBoolLiteral(BoolLiteral &instruct, const S &state);
   virtual T visitFunctionCall(FunctionCall &instruct, const S &state);
   virtual T visitAllocation(Allocation &instruct, const S &state);
+  virtual T visitAddress(Address &instruct, const S &state);
+  virtual T visitDereference(Dereference &instruct, const S &state);
 
   virtual T visitStore(Store &instruct, const S &state);
   virtual T visitLabel(Label &instruct, const S &state);
@@ -62,6 +64,10 @@ T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
     return visitBoolLiteral(dynamic_cast<BoolLiteral &>(instruct), state);
   } else if (dynamic_cast<Allocation *>(&instruct) != nullptr) {
     return visitAllocation(dynamic_cast<Allocation &>(instruct), state);
+  } else if (dynamic_cast<Address *>(&instruct) != nullptr) {
+    return visitAddress(dynamic_cast<Address &>(instruct), state);
+  } else if (dynamic_cast<Dereference *>(&instruct) != nullptr) {
+    return visitDereference(dynamic_cast<Dereference &>(instruct), state);
   }
 
   assert(false);
@@ -112,6 +118,16 @@ T BaseIRVisitor<T, S>::visitJump(Jump &instruct, const S &state) {
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitConditionalJump(ConditionalJump &instruct,
                                             const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitAddress(Address &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitDereference(Dereference &instruct, const S &state) {
   return std::move(defaultValue);
 }
 

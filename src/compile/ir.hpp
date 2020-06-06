@@ -68,7 +68,7 @@ class Instruction {
 public:
   SourceLocation loc;
 
-  explicit Instruction(SourceLocation loc) : loc(std::move(loc)){};
+  explicit Instruction(const SourceLocation &loc) : loc(loc){};
 
   virtual ~Instruction() = default;
 };
@@ -80,9 +80,9 @@ public:
   Value val;
   std::shared_ptr<ast::Type> type;
 
-  explicit Expression(SourceLocation loc, const Value &val,
+  explicit Expression(const SourceLocation &loc, const Value &val,
                       std::shared_ptr<ast::Type> type)
-      : Instruction(std::move(loc)), val(val), type(std::move(type)){};
+      : Instruction(loc), val(val), type(std::move(type)){};
 };
 
 /* An allocation of storage space (either stack or heap) with the given type
@@ -111,10 +111,9 @@ public:
   AllocationType allocType;
 
   // type should be a UNRESOLVED_* type
-  Allocation(SourceLocation loc, const Value &val,
+  Allocation(const SourceLocation &loc, const Value &val,
              std::shared_ptr<ast::Type> type, AllocationType allocType)
-      : Expression(std::move(loc), val, std::move(type)),
-        allocType(allocType){};
+      : Expression(loc, val, std::move(type)), allocType(allocType){};
 };
 
 /* a function declaration in the ir
@@ -126,11 +125,11 @@ public:
 
   InstructionList body;
 
-  FunctionDeclare(SourceLocation loc, const Value &val,
+  FunctionDeclare(const SourceLocation &loc, const Value &val,
                   std::shared_ptr<ast::NamedFunctionType> type,
                   const std::vector<const Allocation *> &argAllocs,
                   InstructionList body)
-      : Expression(std::move(loc), val, std::move(type)), argAllocs(argAllocs),
+      : Expression(loc, val, std::move(type)), argAllocs(argAllocs),
         body(std::move(body)){};
 };
 
@@ -139,9 +138,9 @@ class IntLiteral : public Expression {
 public:
   uint64_t value;
 
-  IntLiteral(SourceLocation loc, const Value &val,
+  IntLiteral(const SourceLocation &loc, const Value &val,
              std::shared_ptr<ast::IntType> type, uint64_t value)
-      : Expression(std::move(loc), val, std::move(type)), value(value){};
+      : Expression(loc, val, std::move(type)), value(value){};
 };
 
 /* boolean literal */
@@ -149,9 +148,8 @@ class BoolLiteral : public Expression {
 public:
   bool value;
 
-  BoolLiteral(SourceLocation loc, const Value &val, bool value)
-      : Expression(std::move(loc), val,
-                   std::make_shared<ast::BoolType>(std::move(loc))),
+  BoolLiteral(const SourceLocation &loc, const Value &val, bool value)
+      : Expression(loc, val, std::make_shared<ast::BoolType>(std::move(loc))),
         value(value){};
 };
 
@@ -165,11 +163,32 @@ public:
   std::vector<std::reference_wrapper<const Expression>> arguments;
 
   FunctionCall(
-      SourceLocation loc, const Value &val, const FunctionDeclare &function,
+      const SourceLocation &loc, const Value &val,
+      const FunctionDeclare &function,
       const std::vector<std::reference_wrapper<const Expression>> &arguments,
       std::shared_ptr<ast::Type> type)
-      : Expression(std::move(loc), val, std::move(type)), function(function),
+      : Expression(loc, val, std::move(type)), function(function),
         arguments(arguments){};
+};
+
+/* operation taking the address of a value */
+class Address : public Expression {
+public:
+  const Allocation &expr;
+
+  Address(const SourceLocation &loc, const Value &val, const Allocation &expr,
+          std::shared_ptr<ast::Type> type)
+      : Expression(loc, val, std::move(type)), expr(expr){};
+};
+
+/* dereference operation on a pointer */
+class Dereference : public Expression {
+public:
+  const Expression &expr;
+
+  Dereference(const SourceLocation &loc, const Value &val,
+              const Expression &expr, std::shared_ptr<ast::Type> type)
+      : Expression(loc, val, std::move(type)), expr(expr){};
 };
 
 /* A store into a value (has to be a value produced by Allocation)
@@ -179,8 +198,9 @@ public:
   const Allocation &storage;
   const Expression &value;
 
-  Store(SourceLocation loc, const Allocation &storage, const Expression &value)
-      : Instruction(std::move(loc)), storage(storage), value(value){};
+  Store(const SourceLocation &loc, const Allocation &storage,
+        const Expression &value)
+      : Instruction(loc), storage(storage), value(value){};
 };
 
 /* A labelled point in code, which can be jumped to */
@@ -188,8 +208,7 @@ class Label : public Instruction {
 public:
   uint64_t id;
 
-  explicit Label(SourceLocation loc)
-      : Instruction(std::move(loc)), id(next_id()){};
+  explicit Label(const SourceLocation &loc) : Instruction(loc), id(next_id()){};
 };
 
 /* an unconditional jump to a label */
@@ -197,8 +216,8 @@ class Jump : public Instruction {
 public:
   const Label &label;
 
-  Jump(SourceLocation loc, const Label &label)
-      : Instruction(std::move(loc)), label(label){};
+  Jump(const SourceLocation &loc, const Label &label)
+      : Instruction(loc), label(label){};
 };
 
 /* a conditional jump to a label */
@@ -208,10 +227,10 @@ public:
   const Label &false_label;
   const Expression &condition;
 
-  ConditionalJump(SourceLocation loc, const Label &true_label,
+  ConditionalJump(const SourceLocation &loc, const Label &true_label,
                   const Label &false_label, const Expression &condition)
-      : Instruction(std::move(loc)), true_label(true_label),
-        false_label(false_label), condition(condition){};
+      : Instruction(loc), true_label(true_label), false_label(false_label),
+        condition(condition){};
 };
 
 } // namespace ovid::ir

@@ -1,2 +1,11 @@
 pub mut var = 34
-var = 7
+
+fn test() -> void {
+    var = 1
+    val addr = &var
+    val addr2 = &addr
+    val addr3 = *addr2
+    val var1 = *addr3
+
+    var1 = 6
+}

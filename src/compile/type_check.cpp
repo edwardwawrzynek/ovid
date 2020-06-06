@@ -1,13 +1,15 @@
 #include "type_check.hpp"
 
+#include <utility>
+
 namespace ovid::ast {
 
 TypeCheckState TypeCheckState::withoutTypeHint() const {
   return TypeCheckState(curInstructionList, nullptr);
 }
 
-TypeCheckState TypeCheckState::withTypeHint(Type *hint) const {
-  return TypeCheckState(curInstructionList, hint);
+TypeCheckState TypeCheckState::withTypeHint(std::shared_ptr<Type> hint) const {
+  return TypeCheckState(curInstructionList, std::move(hint));
 }
 
 TypeCheckState TypeCheckState::withNewInstructionList(
@@ -25,6 +27,15 @@ std::shared_ptr<Type> TypeCheck::addMutType(const std::shared_ptr<Type> &type,
   }
 
   return res;
+}
+
+std::shared_ptr<Type>
+TypeCheck::withoutMutType(const std::shared_ptr<Type> &type) {
+  auto mutType = dynamic_cast<MutType *>(type.get());
+  if (mutType == nullptr)
+    return type;
+  else
+    return mutType->type;
 }
 
 ir::InstructionList TypeCheck::produceIR(const StatementList &ast) {
@@ -51,20 +62,18 @@ TypeCheckResult TypeCheck::visitIntLiteral(IntLiteral &node,
   /* if no type hint is present or type hint isn't IntType, the integer is of
    * type i64 */
   if (state.typeHint == nullptr ||
-      dynamic_cast<IntType *>(state.typeHint) == nullptr) {
+      dynamic_cast<IntType *>(state.typeHint.get()) == nullptr) {
     resType = std::make_shared<IntType>(node.loc, 64, false);
   }
   /* otherwise, follow type hint */
   else {
-    auto hint = dynamic_cast<IntType *>(state.typeHint);
-
+    auto hint = dynamic_cast<IntType *>(state.typeHint.get());
     resType = std::make_shared<IntType>(node.loc, hint->size, hint->isUnsigned);
   }
 
   auto instr = std::make_unique<ir::IntLiteral>(node.loc, ir::Value(), resType,
                                                 node.value);
   auto instrPointer = instr.get();
-
   state.curInstructionList.push_back(std::move(instr));
 
   return TypeCheckResult(resType, instrPointer);
@@ -78,6 +87,8 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
 
   // visit initial value
   auto initial = visitNode(*node.initialValue, state.withoutTypeHint());
+  // remove mut (if present) from inferred type
+  auto initialType = withoutMutType(initial.resultType);
 
   // recreate source name
   auto sourceName =
@@ -87,7 +98,7 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
 
   // create the allocation instruction and add to initial.instruction
   auto alloc = std::make_unique<ir::Allocation>(
-      node.loc, ir::Value(sourceName), initial.resultType,
+      node.loc, ir::Value(sourceName), initialType,
       (node.resolved_symbol->is_global ? ir::AllocationType::UNRESOLVED_GLOBAL
                                        : ir::AllocationType::UNRESOLVED_LOCAL));
   const auto allocPointer = alloc.get();
@@ -102,7 +113,7 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
   node.resolved_symbol->ir_decl_instruction = allocPointer;
 
   // if variable is mutable, add MutType wrapper
-  auto varType = addMutType(initial.resultType, node.resolved_symbol->is_mut);
+  auto varType = addMutType(initialType, node.resolved_symbol->is_mut);
 
   // copy inferred type to symbol table (TODO: handle explicitly specified type)
   assert(node.resolved_symbol->type == nullptr);
@@ -168,7 +179,7 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
 
   // load rvalue, and set type hint to type of lvalue
   auto rvalueRes =
-      visitNode(*node.rvalue, state.withTypeHint(lvalueRes.resultType.get()));
+      visitNode(*node.rvalue, state.withTypeHint(lvalueRes.resultType));
 
   if (lvalueRes.resultInstruction == nullptr) {
     errorMan.logError("expression doesn't have a value", node.rvalue->loc,
@@ -176,7 +187,18 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
     return TypeCheckResult(lvalueRes.resultType, nullptr);
   }
 
-  // TODO: check that types match
+  auto lvalueExpected = withoutMutType(lvalueRes.resultType);
+
+  if (!rvalueRes.resultType->equalToExpected(*lvalueExpected)) {
+    errorMan.logError(
+        string_format("type of expression (\x1b[1m%s\x1b[m) does not match "
+                      "expected type \x1b[1m%s\x1b[m",
+                      type_printer.getType(*rvalueRes.resultType).c_str(),
+                      type_printer.getType(*lvalueExpected).c_str()),
+        node.rvalue->loc, ErrorType::TypeError);
+
+    return TypeCheckResult(nullptr, nullptr);
+  }
 
   // create store instruction
   auto store = std::make_unique<ir::Store>(
@@ -219,7 +241,7 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
 
     body.push_back(std::move(argAlloc));
     argAllocs.push_back(argAllocPointer);
-
+    // set symbol table entries to refer to ir nodes
     node.type->resolvedArgs[i]->ir_decl_instruction = argAllocPointer;
   }
 
@@ -227,7 +249,7 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   for (auto &child : node.body.statements) {
     visitNode(*child, state.withoutTypeHint().withNewInstructionList(body));
   }
-
+  // construct the function declaration instruction
   auto instr = std::make_unique<ir::FunctionDeclare>(
       node.loc, ir::Value(sourceName), node.type, argAllocs, std::move(body));
   auto instrPointer = instr.get();
@@ -243,20 +265,27 @@ TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
   auto end = std::make_unique<ir::Label>(node.loc);
   auto &endRef = *end;
 
-  auto condTypeHint = BoolType(node.loc);
-
+  auto condTypeHint = std::make_shared<BoolType>(node.loc);
+  // go through each condition and body
   assert(node.conditions.size() == node.bodies.size());
   for (size_t i = 0; i < node.conditions.size(); i++) {
     auto &cond = node.conditions[i];
     auto &body = node.bodies[i];
 
-    auto condRes = visitNode(*cond, state.withTypeHint(&condTypeHint));
+    auto condRes = visitNode(*cond, state.withTypeHint(condTypeHint));
     if (condRes.resultInstruction == nullptr) {
       errorMan.logError("condition does not have a value", cond->loc,
                         ErrorType::TypeError);
       return TypeCheckResult(nullptr, nullptr);
     }
-    // TODO: check that condRes is a bool
+
+    // check that condRes is a bool
+    if (!condRes.resultType->equalToExpected(*condTypeHint)) {
+      errorMan.logError("condition is not a boolean", cond->loc,
+                        ErrorType::TypeError);
+
+      return TypeCheckResult(nullptr, nullptr);
+    }
 
     auto startCondLabel = std::make_unique<ir::Label>(cond->loc);
     auto &startCondLabelRef = *startCondLabel;
@@ -282,6 +311,83 @@ TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
   state.curInstructionList.push_back(std::move(end));
 
   return TypeCheckResult(nullptr, nullptr);
+}
+
+TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
+                                             const TypeCheckState &state) {
+  /* special handling for address of and dereference operators */
+  if (dynamic_cast<OperatorSymbol *>(node.funcExpr.get()) != nullptr) {
+    auto opNode = dynamic_cast<OperatorSymbol &>(*node.funcExpr);
+    if (opNode.op == OperatorType::DEREF) {
+      return visitFunctionCallDeref(node, state);
+    } else if (opNode.op == OperatorType::ADDR) {
+      return visitFunctionCallAddress(node, state);
+    }
+  }
+
+  assert(false);
+}
+TypeCheckResult
+TypeCheck::visitFunctionCallAddress(const FunctionCall &node,
+                                    const TypeCheckState &state) {
+  assert(node.args.size() == 1);
+  // if type hint is a pointer, construct a type hint with that type
+  std::shared_ptr<Type> typeHint;
+  if (dynamic_cast<PointerType *>(state.typeHint.get()) != nullptr) {
+    typeHint = dynamic_cast<PointerType *>(state.typeHint.get())->type;
+  } else {
+    typeHint = nullptr;
+  }
+  // visit expression
+  auto valueRes = visitNode(*node.args[0], state.withTypeHint(typeHint));
+  // make sure expression is an allocation
+  auto allocRes =
+      dynamic_cast<const ir::Allocation *>(valueRes.resultInstruction);
+  if (allocRes == nullptr) {
+    errorMan.logError("cannot take address of expression", node.args[0]->loc,
+                      ErrorType::TypeError);
+
+    return TypeCheckResult(nullptr, nullptr);
+  }
+  // construct instruction
+  auto resType =
+      std::make_shared<PointerType>(node.funcExpr->loc, valueRes.resultType);
+  auto instr = std::make_unique<ir::Address>(node.funcExpr->loc, ir::Value(),
+                                             *allocRes, resType);
+  auto instrPointer = instr.get();
+
+  state.curInstructionList.push_back(std::move(instr));
+
+  return TypeCheckResult(resType, instrPointer);
+}
+
+TypeCheckResult TypeCheck::visitFunctionCallDeref(const FunctionCall &node,
+                                                  const TypeCheckState &state) {
+  assert(node.args.size() == 1);
+  // visit expression, setting type hint to a pointer to the expected type
+  auto typeHint = std::make_shared<PointerType>(node.loc, state.typeHint);
+  auto valueRes = visitNode(*node.args[0], state.withTypeHint(typeHint));
+  // make sure expression is a pointer
+  auto typeRes =
+      dynamic_cast<PointerType *>(withoutMutType(valueRes.resultType).get());
+  if (typeRes == nullptr) {
+    errorMan.logError(
+        string_format("cannot dereference non pointer type \x1b[1m%s\x1b[m",
+                      type_printer.getType(*valueRes.resultType).c_str()),
+        node.args[0]->loc, ErrorType::TypeError);
+
+    return TypeCheckResult(nullptr, nullptr);
+  }
+  // construct expression
+  auto instr = std::make_unique<ir::Dereference>(
+      node.funcExpr->loc, ir::Value(), *valueRes.resultInstruction,
+      typeRes->type);
+  auto instrPointer = instr.get();
+
+  state.curInstructionList.push_back(std::move(instr));
+  // TOOD: do implicit type conversion if needed
+
+  return TypeCheckResult(typeRes->type, instrPointer);
 }
 
 /* --- type printer --- */

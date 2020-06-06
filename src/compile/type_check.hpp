@@ -1,6 +1,8 @@
 #ifndef H_TYPE_CHECK_INCL
 #define H_TYPE_CHECK_INCL
 
+#include <utility>
+
 #include "ast_visitor.hpp"
 #include "ir.hpp"
 
@@ -62,7 +64,7 @@ public:
   /* a type hint for the currently visited node -- what type is expected
    * primarily used to resolve ambiguity during type inference
    * if no particular type is expected, typeHint is null */
-  Type *typeHint;
+  std::shared_ptr<Type> typeHint;
 
   /* the current instruction list to be inserted into */
   ir::InstructionList &curInstructionList;
@@ -70,13 +72,14 @@ public:
   explicit TypeCheckState(ir::InstructionList &curInstructionList)
       : typeHint(nullptr), curInstructionList(curInstructionList){};
 
-  TypeCheckState(ir::InstructionList &curInstructionList, Type *typeHint)
-      : typeHint(typeHint), curInstructionList(curInstructionList){};
+  TypeCheckState(ir::InstructionList &curInstructionList,
+                 std::shared_ptr<Type> typeHint)
+      : typeHint(std::move(typeHint)), curInstructionList(curInstructionList){};
 
   // return the state will a null typeHint
   TypeCheckState withoutTypeHint() const;
   // return the state with a typeHint set
-  TypeCheckState withTypeHint(Type *hint) const;
+  TypeCheckState withTypeHint(std::shared_ptr<Type> typeHint) const;
 
   // return the state with a new instruction list
   TypeCheckState
@@ -90,10 +93,13 @@ public:
 class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   ErrorManager &errorMan;
   std::vector<std::string> currentModule;
+  TypePrinter type_printer;
 
   // apply a MutType wrapper around a type if is_mut
-  std::shared_ptr<Type> addMutType(const std::shared_ptr<Type> &type,
-                                   bool is_mut);
+  static std::shared_ptr<Type> addMutType(const std::shared_ptr<Type> &type,
+                                          bool is_mut);
+  // remove a MutType wrapper, if present
+  std::shared_ptr<Type> withoutMutType(const std::shared_ptr<Type> &type);
 
   TypeCheckResult visitVarDecl(VarDecl &node,
                                const TypeCheckState &state) override;
@@ -104,8 +110,8 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   TypeCheckResult visitIfStatement(IfStatement &node,
                                    const TypeCheckState &state) override;
 
-  /*TypeCheckResult visitFunctionCall(FunctionCall &node,
-                                     const TypeCheckState &state) override;*/
+  TypeCheckResult visitFunctionCall(FunctionCall &node,
+                                    const TypeCheckState &state) override;
   TypeCheckResult visitIdentifier(Identifier &node,
                                   const TypeCheckState &state) override;
   /*TypeCheckResult visitOperatorSymbol(OperatorSymbol &node,
@@ -127,10 +133,14 @@ public:
             TypeCheckResult(std::make_shared<ast::VoidType>(
                                 SourceLocation("", 0, 0, 0, 0, nullptr)),
                             nullptr)),
-        errorMan(errorMan), currentModule(package){};
+        errorMan(errorMan), currentModule(package), type_printer(){};
 
   /* visitNodes wrapper that produces one InstructionList */
   ir::InstructionList produceIR(const StatementList &ast);
+  TypeCheckResult visitFunctionCallDeref(const FunctionCall &node,
+                                         const TypeCheckState &state);
+  TypeCheckResult visitFunctionCallAddress(const FunctionCall &node,
+                                           const TypeCheckState &state);
 };
 
 /* type check type equality pass */

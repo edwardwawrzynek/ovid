@@ -22,6 +22,10 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
                         const ast::ASTPrinterState &state) override;
   int visitAllocation(Allocation &instruct,
                       const ast::ASTPrinterState &state) override;
+  int visitAddress(Address &instruct,
+                   const ast::ASTPrinterState &state) override;
+  int visitDereference(Dereference &instruct,
+                       const ast::ASTPrinterState &state) override;
 
   int visitStore(Store &instruct, const ast::ASTPrinterState &state) override;
   int visitLabel(Label &instruct, const ast::ASTPrinterState &state) override;

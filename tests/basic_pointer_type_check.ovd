@@ -1,0 +1,37 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+module mod
+
+pub mut value = 10
+pub val valueImut = 9
+
+fn test() -> void {
+    value = 11
+
+    val addr1 = &value
+    val addr2 = &value
+
+    val addr1Imut = &valueImut
+
+    mut addr3 = &addr1
+    addr3 = &addr2
+
+    addr3 = &addr1Imut // __error: "type of expression (**i64) does not match expected type **mut i64"
+
+    addr3 = &value // __error: "type of expression (*mut i64) does not match expected type **mut i64"
+
+    addr1 = &value // __error: "left side of assignment is non mutable"
+
+    val addr4 = *addr3
+    val value2 = *addr4
+    value2 = 10 // __error: "left side of assignment is non mutable"
+
+    mut value3 = **addr3
+    value3 = 11
+
+    val value4 = ***addr3 // __error: "cannot dereference non pointer type mut i64"
+
+    val value5 = *value // __error: "cannot dereference non pointer type mut i64"
+}
