@@ -106,14 +106,21 @@ enum class AllocationType {
 
 };
 
-class Allocation : public Expression {
+class Storage: public Expression {
+public:
+
+  Storage(const SourceLocation &loc, const Value &val,
+          std::shared_ptr<ast::Type> type): Expression(loc, val, std::move(type)) {};
+};
+
+class Allocation : public Storage {
 public:
   AllocationType allocType;
 
   // type should be a UNRESOLVED_* type
   Allocation(const SourceLocation &loc, const Value &val,
              std::shared_ptr<ast::Type> type, AllocationType allocType)
-      : Expression(loc, val, std::move(type)), allocType(allocType){};
+      : Storage(loc, val, std::move(type)), allocType(allocType){};
 };
 
 /* a function declaration in the ir
@@ -158,13 +165,13 @@ public:
 class FunctionCall : public Expression {
 public:
   // the function being called
-  const FunctionDeclare &function;
+  const Expression &function;
   // arguments to function
   std::vector<std::reference_wrapper<const Expression>> arguments;
 
   FunctionCall(
       const SourceLocation &loc, const Value &val,
-      const FunctionDeclare &function,
+      const Expression &function,
       const std::vector<std::reference_wrapper<const Expression>> &arguments,
       std::shared_ptr<ast::Type> type)
       : Expression(loc, val, std::move(type)), function(function),
@@ -174,31 +181,31 @@ public:
 /* operation taking the address of a value */
 class Address : public Expression {
 public:
-  const Allocation &expr;
+  const Storage &expr;
 
-  Address(const SourceLocation &loc, const Value &val, const Allocation &expr,
+  Address(const SourceLocation &loc, const Value &val, const Storage &expr,
           std::shared_ptr<ast::Type> type)
       : Expression(loc, val, std::move(type)), expr(expr){};
 };
 
 /* dereference operation on a pointer */
-class Dereference : public Expression {
+class Dereference : public Storage {
 public:
   const Expression &expr;
 
   Dereference(const SourceLocation &loc, const Value &val,
               const Expression &expr, std::shared_ptr<ast::Type> type)
-      : Expression(loc, val, std::move(type)), expr(expr){};
+      : Storage(loc, val, std::move(type)), expr(expr){};
 };
 
 /* A store into a value (has to be a value produced by Allocation)
  */
 class Store : public Instruction {
 public:
-  const Allocation &storage;
+  const Storage &storage;
   const Expression &value;
 
-  Store(const SourceLocation &loc, const Allocation &storage,
+  Store(const SourceLocation &loc, const Storage &storage,
         const Expression &value)
       : Instruction(loc), storage(storage), value(value){};
 };

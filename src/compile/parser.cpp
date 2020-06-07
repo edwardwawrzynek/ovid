@@ -633,11 +633,14 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   auto type = std::make_shared<ast::NamedFunctionType>(
       pos.through(proto->type->loc), std::move(proto->type),
       std::move(proto->argNames));
-  auto ast = std::make_unique<ast::FunctionDecl>(pos, std::move(type),
+  auto ast = std::make_unique<ast::FunctionDecl>(pos, type,
                                                  proto->name, std::move(body));
 
   auto fun_sym = std::make_shared<Symbol>(pos, is_public, true, false,
                                           state.is_global_level);
+  fun_sym->type = type;
+  ast->resolved_symbol = fun_sym;
+
   state.current_scope->getDirectScopeTable().addSymbol(proto->name, fun_sym);
 
   if (did_error)
@@ -787,6 +790,9 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
   tokenizer.nextToken();
   auto initialVal = parseExpr(state);
 
+  auto ast = std::make_unique<ast::VarDecl>(pos.through(endNamePos), name,
+                                            std::move(initialVal));
+
   if (!checkRedeclaration(pos.through(endNamePos), name, state)) {
     // add entry to symbol table
 
@@ -796,10 +802,17 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
                                         state.is_global_level, is_mut,
                                         state.is_global_level);
     state.current_scope->getDirectScopeTable().addSymbol(name, sym);
+
+    ast->resolved_symbol = sym;
+  } else {
+    // refer ast resolved symbol to previous declaration
+    auto prevSym = state.current_scope->getDirectScopeTable().findSymbol(name);
+    assert(prevSym != nullptr);
+
+    ast->resolved_symbol = prevSym;
   }
 
-  return std::make_unique<ast::VarDecl>(pos.through(endNamePos), name,
-                                        std::move(initialVal));
+  return ast;
 }
 
 // ifstatement = 'if' expr '{' statement* '}' ('elsif' expr '{' statement* '}')*

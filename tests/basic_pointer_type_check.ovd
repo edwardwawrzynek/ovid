@@ -7,7 +7,21 @@ module mod
 pub mut value = 10
 pub val valueImut = 9
 
-fn test() -> void {
+fn test1(a *i64, b *mut i64) -> void {
+    *a = 1 // __error: "left side of assignment is non mutable"
+    *b = 1
+
+    *&*a = 1 // __error: "left side of assignment is non mutable"
+    *&*b = 1
+
+    **&a = 1 // __error: "left side of assignment is non mutable"
+    **&b = 1
+
+    &**a // __error: "cannot dereference non pointer type i64"
+    &**b // __error: "cannot dereference non pointer type i64"
+}
+
+fn test2() -> void {
     value = 11
 
     val addr1 = &value
@@ -31,7 +45,8 @@ fn test() -> void {
     mut value3 = **addr3
     value3 = 11
 
-    val value4 = ***addr3 // __error: "cannot dereference non pointer type mut i64"
+    val value4 = ***addr3 // __error: "cannot dereference non pointer type i64"
+    val value5 = ****addr4 // __error: "cannot dereference non pointer type i64"
 
-    val value5 = *value // __error: "cannot dereference non pointer type mut i64"
+    val value6 = *value // __error: "cannot dereference non pointer type i64"
 }

@@ -1,7 +1,7 @@
 // __ovid_compiler_test
 //__mode: check_ir
 //__end_header
-/* file basic_ir_check.ovd.expect.ir contains the ast this file is expected to parse to */
+/* file ir_check1.ovd.expect.ir contains the ast this file is expected to parse to */
 
 module mod
 

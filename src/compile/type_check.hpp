@@ -99,7 +99,10 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   static std::shared_ptr<Type> addMutType(const std::shared_ptr<Type> &type,
                                           bool is_mut);
   // remove a MutType wrapper, if present
-  std::shared_ptr<Type> withoutMutType(const std::shared_ptr<Type> &type);
+  static std::shared_ptr<Type> withoutMutType(const std::shared_ptr<Type> &type);
+
+  // extract a FunctionType from either NamedFunctionType of Function Type
+  static std::shared_ptr<FunctionType> functionTypeFromType(const std::shared_ptr<Type>& type);
 
   TypeCheckResult visitVarDecl(VarDecl &node,
                                const TypeCheckState &state) override;

@@ -112,7 +112,7 @@ int ovid::ir::IRPrinter::visitFunctionCall(
   ast::printLoc(output, instruct.loc);
   output << "\t";
   printValue(instruct.val);
-  output << " = FUNCTIONCALL ";
+  output << " = FUNCTIONCALL " << type_printer.getType(*instruct.type) << " ";
   printValue(instruct.function.val);
   output << "(";
   for (size_t i = 0; i < instruct.arguments.size(); i++) {

@@ -289,11 +289,13 @@ public:
   std::string name;
   ScopedBlock body;
 
+  std::shared_ptr<Symbol> resolved_symbol;
+
   FunctionDecl(const SourceLocation &loc,
                std::shared_ptr<NamedFunctionType> type, const std::string &name,
                ScopedBlock body)
       : Statement(loc), type(std::move(type)), name(name),
-        body(std::move(body)){};
+        body(std::move(body)), resolved_symbol(){};
 };
 
 class ModuleDecl : public Statement {

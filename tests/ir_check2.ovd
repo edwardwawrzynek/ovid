@@ -1,3 +1,8 @@
+// __ovid_compiler_test
+//__mode: check_ir
+//__end_header
+/* file ir_check2.ovd.expect.ir contains the ast this file is expected to parse to */
+
 pub mut var = 34
 
 fn sum(a *i64, b *mut i64) -> *i32 {

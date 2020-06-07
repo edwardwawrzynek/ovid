@@ -9,6 +9,7 @@ template <class T, class S> class BaseIRVisitor {
   T defaultValue;
 
   virtual T visitExpression(Expression &instruct, const S &state);
+  virtual T visitStorage(Storage &instruct, const S &state);
 
   virtual T visitFunctionDeclare(FunctionDeclare &instruct, const S &state);
   virtual T visitIntLiteral(IntLiteral &instruct, const S &state);
@@ -62,16 +63,26 @@ T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
     return visitIntLiteral(dynamic_cast<IntLiteral &>(instruct), state);
   } else if (dynamic_cast<BoolLiteral *>(&instruct) != nullptr) {
     return visitBoolLiteral(dynamic_cast<BoolLiteral &>(instruct), state);
-  } else if (dynamic_cast<Allocation *>(&instruct) != nullptr) {
-    return visitAllocation(dynamic_cast<Allocation &>(instruct), state);
-  } else if (dynamic_cast<Address *>(&instruct) != nullptr) {
+  }  else if (dynamic_cast<Address *>(&instruct) != nullptr) {
     return visitAddress(dynamic_cast<Address &>(instruct), state);
+  } else if (dynamic_cast<Storage *>(&instruct) != nullptr) {
+    return visitStorage(dynamic_cast<Storage &>(instruct), state);
+  }
+
+  assert(false);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitStorage(Storage &instruct, const S &state) {
+  if (dynamic_cast<Allocation *>(&instruct) != nullptr) {
+    return visitAllocation(dynamic_cast<Allocation &>(instruct), state);
   } else if (dynamic_cast<Dereference *>(&instruct) != nullptr) {
     return visitDereference(dynamic_cast<Dereference &>(instruct), state);
   }
 
   assert(false);
 }
+
 
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitFunctionDeclare(FunctionDeclare &instruct,

@@ -9,14 +9,9 @@ int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
       node.loc, node.name, [](const Symbol &sym) -> bool { return true; },
       false);
 
-  // lookup variable being declared, and mark as declared (only after initial
-  // value visited)
-  auto declaredSym =
-      scopes.names.findSymbol(std::vector<std::string>(), node.name);
-  assert(declaredSym != nullptr);
-  declaredSym->resolve_pass_declared_yet = true;
-  // change node from referring to name to refer to symbol
-  node.resolved_symbol = declaredSym;
+  // mark as declared (only after initial value visited)
+  assert(node.resolved_symbol != nullptr);
+  node.resolved_symbol->resolve_pass_declared_yet = true;
 
   return 0;
 }
