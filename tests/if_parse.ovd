@@ -50,4 +50,16 @@ fn test3() ->
             a // __error: "use of undeclared identifier `a`"
         }
     }
+
+    if true {
+
+    } else {
+
+    } elsif true { // __error: "expected elsif to be preceded by if statement"
+
+    }
+
+    if true {} else {} else {} // __error: "expected else to be preceded by if or elsif statement"
+
+    if true {} else {}
 }

@@ -633,8 +633,8 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   auto type = std::make_shared<ast::NamedFunctionType>(
       pos.through(proto->type->loc), std::move(proto->type),
       std::move(proto->argNames));
-  auto ast = std::make_unique<ast::FunctionDecl>(pos, type,
-                                                 proto->name, std::move(body));
+  auto ast = std::make_unique<ast::FunctionDecl>(pos, type, proto->name,
+                                                 std::move(body));
 
   auto fun_sym = std::make_shared<Symbol>(pos, is_public, true, false,
                                           state.is_global_level);
@@ -825,10 +825,20 @@ Parser::parseIfStatement(const ParserState &state) {
 
   auto pos = tokenizer.curTokenLoc;
 
+  bool hitIf = false;
+
   while (tokenizer.curToken.token == T_IF ||
          tokenizer.curToken.token == T_ELSIF ||
          tokenizer.curToken.token == T_ELSE) {
     auto tok = tokenizer.curToken.token;
+
+    // if current token is if and we already saw it, new statement
+    if (tok == T_IF && hitIf)
+      break;
+
+    if (tok == T_IF)
+      hitIf = true;
+
     std::unique_ptr<ast::Expression> condition;
 
     tokenizer.nextToken();
@@ -875,6 +885,9 @@ Parser::parseIfStatement(const ParserState &state) {
       tokenizer.nextToken();
 
     bodies.push_back(std::move(body));
+
+    if (tok == T_ELSE)
+      break;
   }
 
   return std::make_unique<ast::IfStatement>(pos, std::move(conds),
@@ -945,21 +958,16 @@ Parser::parseStatement(const ParserState &state) {
   case T_SEMICOLON:
     tokenizer.nextToken();
     return parseStatement(state);
-  case T_IF: {
-    auto res = parseIfStatement(state);
-    expectEndStatement();
-    return res;
-  }
+  case T_IF:
+    return parseIfStatement(state);
   case T_ELSIF:
     errorMan.logError("expected elsif to be preceded by if statement",
                       tokenizer.curTokenLoc, ErrorType::ParseError);
-    tokenizer.nextToken();
-    return nullptr;
+    return parseIfStatement(state);
   case T_ELSE:
     errorMan.logError("expected else to be preceded by if or elsif statement",
                       tokenizer.curTokenLoc, ErrorType::ParseError);
-    tokenizer.nextToken();
-    return nullptr;
+    return parseIfStatement(state);
   default: {
     auto res = parseExpr(state);
     expectEndStatement();

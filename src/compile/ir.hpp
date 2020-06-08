@@ -106,11 +106,11 @@ enum class AllocationType {
 
 };
 
-class Storage: public Expression {
+class Storage : public Expression {
 public:
-
   Storage(const SourceLocation &loc, const Value &val,
-          std::shared_ptr<ast::Type> type): Expression(loc, val, std::move(type)) {};
+          std::shared_ptr<ast::Type> type)
+      : Expression(loc, val, std::move(type)){};
 };
 
 class Allocation : public Storage {
@@ -170,8 +170,7 @@ public:
   std::vector<std::reference_wrapper<const Expression>> arguments;
 
   FunctionCall(
-      const SourceLocation &loc, const Value &val,
-      const Expression &function,
+      const SourceLocation &loc, const Value &val, const Expression &function,
       const std::vector<std::reference_wrapper<const Expression>> &arguments,
       std::shared_ptr<ast::Type> type)
       : Expression(loc, val, std::move(type)), function(function),

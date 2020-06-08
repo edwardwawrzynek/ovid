@@ -202,8 +202,7 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
 
   // create store instruction
   auto store = std::make_unique<ir::Store>(
-      node.loc,
-      dynamic_cast<const ir::Storage &>(*lvalueRes.resultInstruction),
+      node.loc, dynamic_cast<const ir::Storage &>(*lvalueRes.resultInstruction),
       *rvalueRes.resultInstruction);
 
   state.curInstructionList.push_back(std::move(store));
@@ -315,11 +314,14 @@ TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
   return TypeCheckResult(nullptr, nullptr);
 }
 
-std::shared_ptr<FunctionType> TypeCheck::functionTypeFromType(const std::shared_ptr<Type>& type) {
+std::shared_ptr<FunctionType>
+TypeCheck::functionTypeFromType(const std::shared_ptr<Type> &type) {
   auto funcType = std::dynamic_pointer_cast<FunctionType>(type);
-  if(funcType != nullptr) return funcType;
+  if (funcType != nullptr)
+    return funcType;
   auto namedFuncType = std::dynamic_pointer_cast<NamedFunctionType>(type);
-  if(namedFuncType != nullptr) return namedFuncType->type;
+  if (namedFuncType != nullptr)
+    return namedFuncType->type;
 
   return nullptr;
 }
@@ -337,34 +339,50 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
 
     assert(false);
   } else {
-    // visit function expression (TODO: construct type hint from type of arguments)
+    // visit function expression (TODO: construct type hint from type of
+    // arguments)
     auto funcRes = visitNode(*node.funcExpr, state.withoutTypeHint());
-    if(funcRes.resultType == nullptr) return TypeCheckResult(nullptr, nullptr);
+    if (funcRes.resultType == nullptr)
+      return TypeCheckResult(nullptr, nullptr);
     auto funcType = functionTypeFromType(funcRes.resultType);
 
-    if(funcType == nullptr) {
-      errorMan.logError(string_format("cannot do a function call on non function type \x1b[1m%s\x1b[m", type_printer.getType(*funcRes.resultType).c_str()), node.funcExpr->loc, ErrorType::TypeError);
+    if (funcType == nullptr) {
+      errorMan.logError(
+          string_format(
+              "cannot do a function call on non function type \x1b[1m%s\x1b[m",
+              type_printer.getType(*funcRes.resultType).c_str()),
+          node.funcExpr->loc, ErrorType::TypeError);
 
       return TypeCheckResult(nullptr, nullptr);
     }
 
-    if(funcType->argTypes.size() != node.args.size()) {
-      errorMan.logError(string_format("invalid number of arguments for function call (expected %i, found %i)", funcType->argTypes.size(), node.args.size()), node.loc, ErrorType::TypeError);
+    if (funcType->argTypes.size() != node.args.size()) {
+      errorMan.logError(string_format("invalid number of arguments for "
+                                      "function call (expected %i, found %i)",
+                                      funcType->argTypes.size(),
+                                      node.args.size()),
+                        node.loc, ErrorType::TypeError);
 
       return TypeCheckResult(nullptr, nullptr);
     }
 
     std::vector<std::reference_wrapper<const ir::Expression>> args;
     // visit each arg
-    for(size_t i = 0; i < node.args.size(); i++) {
-      auto& arg = node.args[i];
-      auto& argType = funcType->argTypes[i];
+    for (size_t i = 0; i < node.args.size(); i++) {
+      auto &arg = node.args[i];
+      auto &argType = funcType->argTypes[i];
 
       auto argRes = visitNode(*arg, state.withTypeHint(argType));
-      if(argRes.resultType == nullptr || argRes.resultInstruction == nullptr) return TypeCheckResult(nullptr, nullptr);
+      if (argRes.resultType == nullptr || argRes.resultInstruction == nullptr)
+        return TypeCheckResult(nullptr, nullptr);
 
-      if(!argRes.resultType->equalToExpected(*argType)) {
-        errorMan.logError(string_format("type of expression (\x1b[1m%s\x1b[m) doesn't match expected type \x1b[1m%s\x1b[m", type_printer.getType(*argRes.resultType).c_str(), type_printer.getType(*argType).c_str()), arg->loc, ErrorType::TypeError);
+      if (!argRes.resultType->equalToExpected(*argType)) {
+        errorMan.logError(
+            string_format("type of expression (\x1b[1m%s\x1b[m) doesn't match "
+                          "expected type \x1b[1m%s\x1b[m",
+                          type_printer.getType(*argRes.resultType).c_str(),
+                          type_printer.getType(*argType).c_str()),
+            arg->loc, ErrorType::TypeError);
 
         return TypeCheckResult(nullptr, nullptr);
       }
@@ -373,7 +391,9 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
     }
 
     // construct expression
-    auto instr = std::make_unique<ir::FunctionCall>(node.loc, ir::Value(), *funcRes.resultInstruction, args, funcType->retType);
+    auto instr = std::make_unique<ir::FunctionCall>(node.loc, ir::Value(),
+                                                    *funcRes.resultInstruction,
+                                                    args, funcType->retType);
     auto instrPointer = instr.get();
 
     state.curInstructionList.push_back(std::move(instr));
@@ -397,7 +417,8 @@ TypeCheck::visitFunctionCallAddress(const FunctionCall &node,
   }
   // visit expression
   auto valueRes = visitNode(*node.args[0], state.withTypeHint(typeHint));
-  if(valueRes.resultType == nullptr) return TypeCheckResult(nullptr, nullptr);
+  if (valueRes.resultType == nullptr)
+    return TypeCheckResult(nullptr, nullptr);
   // make sure expression is a storage
   auto storageRes =
       dynamic_cast<const ir::Storage *>(valueRes.resultInstruction);
@@ -426,7 +447,8 @@ TypeCheckResult TypeCheck::visitFunctionCallDeref(const FunctionCall &node,
   auto typeHint = std::make_shared<PointerType>(node.loc, state.typeHint);
   auto valueRes = visitNode(*node.args[0], state.withTypeHint(typeHint));
 
-  if(valueRes.resultType == nullptr) return TypeCheckResult(nullptr, nullptr);
+  if (valueRes.resultType == nullptr)
+    return TypeCheckResult(nullptr, nullptr);
   // make sure expression is a pointer
   auto typeRes =
       dynamic_cast<PointerType *>(withoutMutType(valueRes.resultType).get());
@@ -457,8 +479,8 @@ std::string TypePrinter::getRes() { return res; }
 
 std::string TypePrinter::getType(Type &type) {
   clear();
-  if(dynamic_cast<MutType *>(&type) != nullptr) {
-    visitType(*dynamic_cast<MutType&>(type).type, TypePrinterState());
+  if (dynamic_cast<MutType *>(&type) != nullptr) {
+    visitType(*dynamic_cast<MutType &>(type).type, TypePrinterState());
   } else {
     visitType(type, TypePrinterState());
   }

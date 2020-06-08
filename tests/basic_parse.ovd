@@ -21,4 +21,5 @@ fn test(a i32, b *mut i32) -> *test {
     } else {
 
     }
+    if 2 {}
 }

@@ -66,3 +66,7 @@
           condition:
             (21:12) BoolLiteral: true
           body:
+        (24:5) IfStatement
+          condition:
+            (24:8) IntLiteral: 2
+          body:
