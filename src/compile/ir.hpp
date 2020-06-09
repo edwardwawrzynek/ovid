@@ -188,6 +188,16 @@ public:
       : Expression(loc, val, std::move(type)), opType(opType){};
 };
 
+/* builtin cast function (casts between int's, float's, etc) */
+class BuiltinCast : public Expression {
+public:
+  const Expression &expr;
+
+  BuiltinCast(const SourceLocation &loc, const Value &val,
+              const Expression &expr, std::shared_ptr<ast::Type> type)
+      : Expression(loc, val, std::move(type)), expr(expr){};
+};
+
 /* operation taking the address of a value */
 class Address : public Expression {
 public:

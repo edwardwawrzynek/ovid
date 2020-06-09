@@ -4,9 +4,14 @@
 
 module test
 
-fn test(a i32, b *mut f64, c i32) -> void {
+fn test(a i32, b *mut f64, c i32, d *i64, e *mut *u8, f bool) -> void {
     a + *b //__error: "no overloaded variant of operator + with argument types i32 and f64"
     a + c
     *b + *b
     b + b //__error: "no overloaded variant of operator + with argument types *mut f64 and *mut f64"
+    c + *d
+    *d - **e
+    **e + **e - *d + a
+    f + a //__error: "no overloaded variant of operator + with argument types bool and i32"
+    f + b //__error: "no overloaded variant of operator + with argument types bool and *mut f64"
 }

@@ -40,7 +40,8 @@ TesterInstance::errorStringSpecifierToErrorType(const std::string &str) {
       {":UndeclaredType", ErrorType::UndeclaredType},
       {":UseOfPrivateIdentifier", ErrorType::UseOfPrivateIdentifier},
       {":UseOfPrivateType", ErrorType::UseOfPrivateType},
-      {":TypeError", ErrorType::TypeError}};
+      {":TypeError", ErrorType::TypeError},
+      {":NarrowingConversion", ErrorType::NarrowingConversion}};
   if (types.count(str) == 0) {
     doError(string_format("invalid error type %s", str.c_str()));
   }
@@ -64,7 +65,8 @@ std::string TesterInstance::errorTypeToString(ErrorType type) {
       {ErrorType::UndeclaredType, ":UndeclaredType"},
       {ErrorType::UseOfPrivateIdentifier, ":UseOfPrivateIdentifier"},
       {ErrorType::UseOfPrivateType, ":UseOfPrivateType"},
-      {ErrorType::TypeError, ":TypeError"}};
+      {ErrorType::TypeError, ":TypeError"},
+      {ErrorType::NarrowingConversion, ":NarrowingConversion"}};
 
   return types[type];
 }

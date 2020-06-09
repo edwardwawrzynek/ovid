@@ -1,0 +1,19 @@
+// __ovid_compiler_test
+//__mode: check_ir
+//__end_header
+
+fn test1(a i32, b *u8) -> void {
+    a + *b - a
+}
+
+fn test2(a *mut f32, b f64) -> void {
+    b - *a
+}
+
+fn test3(a f32, b ***f32) -> void {
+    -a + ***b
+}
+
+fn test4(a f32, b f64) -> void {
+    -a + b
+}

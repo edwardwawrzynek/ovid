@@ -64,7 +64,8 @@ enum class ErrorType {
   UseOfPrivateIdentifier,
   UseOfPrivateType,
   ModDeclInFunction,
-  TypeError
+  TypeError,
+  NarrowingConversion
 };
 
 enum class ErrorPrintLevel { Error, Warning, Note };

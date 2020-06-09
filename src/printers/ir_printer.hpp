@@ -28,6 +28,8 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
                        const ast::ASTPrinterState &state) override;
   int visitBuiltinOperator(BuiltinOperator &instruct,
                            const ast::ASTPrinterState &state) override;
+  int visitBuiltinCast(BuiltinCast &instruct,
+                       const ast::ASTPrinterState &state) override;
 
   int visitStore(Store &instruct, const ast::ASTPrinterState &state) override;
   int visitLabel(Label &instruct, const ast::ASTPrinterState &state) override;

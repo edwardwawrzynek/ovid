@@ -1,0 +1,17 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+module test
+
+fn test1() -> i64 {}
+
+fn test2(a u8) -> void {}
+
+fn test3(a *mut i32) -> void {
+    *a = test1() // __error: "narrowing conversion from type i64 to i32"
+    test2(8)
+    test2(*a) // __error: "narrowing conversion from type i32 to u8"
+
+    test2(*a + *a) // __error: "narrowing conversion from type i32 to u8"
+}

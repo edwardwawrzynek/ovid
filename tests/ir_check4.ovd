@@ -1,0 +1,14 @@
+// __ovid_compiler_test
+//__mode: check_ir
+//__end_header
+
+fn test1(a i32) -> void {}
+
+fn test2() -> u16 {}
+
+fn test3(v *mut i16) -> void {
+    val a = 54
+    test1(a) // __error: "narrowing conversion from type i64 to i32"
+    test1(test2())
+    *v = test2()
+}

@@ -19,6 +19,7 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitAddress(Address &instruct, const S &state);
   virtual T visitDereference(Dereference &instruct, const S &state);
   virtual T visitBuiltinOperator(BuiltinOperator &instruct, const S &state);
+  virtual T visitBuiltinCast(BuiltinCast &instruct, const S &state);
 
   virtual T visitStore(Store &instruct, const S &state);
   virtual T visitLabel(Label &instruct, const S &state);
@@ -68,6 +69,10 @@ T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
     return visitAddress(dynamic_cast<Address &>(instruct), state);
   } else if (dynamic_cast<Storage *>(&instruct) != nullptr) {
     return visitStorage(dynamic_cast<Storage &>(instruct), state);
+  } else if(dynamic_cast<BuiltinOperator *>(&instruct) != nullptr) {
+    return visitBuiltinOperator(dynamic_cast<BuiltinOperator&>(instruct), state);
+  } else if(dynamic_cast<BuiltinCast *>(&instruct) != nullptr) {
+    return visitBuiltinCast(dynamic_cast<BuiltinCast&>(instruct), state);
   }
 
   assert(false);
@@ -145,6 +150,11 @@ T BaseIRVisitor<T, S>::visitDereference(Dereference &instruct, const S &state) {
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitBuiltinOperator(BuiltinOperator &instruct,
                                             const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitBuiltinCast(BuiltinCast &instruct, const S &state) {
   return std::move(defaultValue);
 }
 

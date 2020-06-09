@@ -154,7 +154,8 @@ TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
   // appropriate node
   auto alloc_node = node.resolved_symbol->ir_decl_instruction;
 
-  return TypeCheckResult(node.resolved_symbol->type, alloc_node);
+  // do implicit conversion to type hint if needed
+  return doImplicitConversion(TypeCheckResult(node.resolved_symbol->type, alloc_node), state, node.loc);
 }
 
 TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
@@ -518,9 +519,8 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
 
     state.curInstructionList.push_back(std::move(instr));
 
-    // TODO: implicitly cast result if requested by type hint
-
-    return TypeCheckResult(funcType->retType, instrPointer);
+    // implicitly cast result if requested by type hint
+    return doImplicitConversion(TypeCheckResult(funcType->retType, instrPointer), state, node.loc);
   }
 }
 
@@ -587,9 +587,9 @@ TypeCheckResult TypeCheck::visitFunctionCallDeref(const FunctionCall &node,
   auto instrPointer = instr.get();
 
   state.curInstructionList.push_back(std::move(instr));
-  // TOOD: do implicit type conversion if needed
 
-  return TypeCheckResult(typeRes->type, instrPointer);
+  // do implicit type conversion if needed
+  return doImplicitConversion(TypeCheckResult(typeRes->type, instrPointer), state, node.loc);
 }
 
 TypeCheckResult
@@ -598,8 +598,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
   auto opNode = dynamic_cast<OperatorSymbol &>(*node.funcExpr);
   // visit args, and convert arg types to BuiltinTypeArgs
   std::vector<BuiltinTypeArg> builtinArgTypes;
-  std::vector<std::shared_ptr<Type>> argTypes;
-  std::vector<std::reference_wrapper<const ir::Expression>> argExprs;
+  std::vector<TypeCheckResult> args;
   for (auto &arg : node.args) {
     // TODO: if opNode expects a boolean, give a type hint
     auto argRes = visitNode(*arg, state.withoutTypeHint());
@@ -619,8 +618,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
       builtinArgTypes.push_back(BuiltinTypeArg::NONE);
     }
 
-    argExprs.emplace_back(*argRes.resultInstruction);
-    argTypes.push_back(argType);
+    args.emplace_back(TypeCheckResult(argType, argRes.resultInstruction));
   }
 
   // find appropriate overload variant
@@ -634,20 +632,20 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
   }
 
   if (matchedVariant == nullptr) {
-    if (argTypes.size() == 1) {
+    if (args.size() == 1) {
       errorMan.logError(
           string_format(
               "no overloaded variant of operator %s with argument type %s",
               printOperatorMap[opNode.op].c_str(),
-              type_printer.getType(*argTypes[0]).c_str()),
+              type_printer.getType(*args[0].resultType).c_str()),
           node.funcExpr->loc, ErrorType::TypeError);
-    } else if (argTypes.size() == 2) {
+    } else if (args.size() == 2) {
       errorMan.logError(
           string_format("no overloaded variant of operator %s with argument "
                         "types %s and %s",
                         printOperatorMap[opNode.op].c_str(),
-                        type_printer.getType(*argTypes[0]).c_str(),
-                        type_printer.getType(*argTypes[1]).c_str()),
+                        type_printer.getType(*args[0].resultType).c_str(),
+                        type_printer.getType(*args[1].resultType).c_str()),
           node.funcExpr->loc, ErrorType::TypeError);
     } else {
       // no operators with more than two arguments
@@ -657,7 +655,138 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
     return TypeCheckResult(nullptr, nullptr);
   }
 
-  // TODO
+  // if operation is binary, and operands are ints or floats, cast them to be
+  // the same size
+  if (matchedVariant->args.size() > 1) {
+    if (matchedVariant->args[0] == BuiltinTypeArg::INT) {
+      std::shared_ptr<IntType> castType =
+          std::make_shared<IntType>(node.funcExpr->loc, 0, false);
+      for (auto &arg : args) {
+        auto type = std::dynamic_pointer_cast<IntType>(arg.resultType);
+        assert(type != nullptr);
+        // cast to largest type
+        castType->size = std::max(castType->size, type->size);
+        // if any types are unsigned, result is unsigned
+        if (type->isUnsigned)
+          castType->isUnsigned = true;
+      }
+      // do casts
+      int i = 0;
+      for (auto &arg : args) {
+        arg = doImplicitConversion(arg, state.withTypeHint(castType), node.args[i]->loc);
+        if (!arg.resultType->equalToExpected(*castType)) {
+          errorMan.logError(
+              string_format("type of expresion (\x1b[1m%s\x1b[m) doesn't match "
+                            "expected type \x1b[1m%s\x1b[1m",
+                            type_printer.getType(*arg.resultType).c_str(),
+                            type_printer.getType(*castType).c_str()),
+              node.args[i]->loc, ErrorType::TypeError);
+
+          return TypeCheckResult(nullptr, nullptr);
+        }
+      }
+      i++;
+    } else if (matchedVariant->args[0] == BuiltinTypeArg::FLOAT) {
+      std::shared_ptr<FloatType> castType =
+          std::make_shared<FloatType>(node.funcExpr->loc, 0);
+      for (auto &arg : args) {
+        auto type = std::dynamic_pointer_cast<FloatType>(arg.resultType);
+        assert(type != nullptr);
+        // cast to largest type
+        castType->size = std::max(castType->size, type->size);
+      }
+      // do casts
+      int i = 0;
+      for (auto &arg : args) {
+        arg = doImplicitConversion(arg, state.withTypeHint(castType), node.args[i]->loc);
+        if (!arg.resultType->equalToExpected(*castType)) {
+          errorMan.logError(
+              string_format("type of expresion (\x1b[1m%s\x1b[m) doesn't match "
+                            "expected type \x1b[1m%s\x1b[1m",
+                            type_printer.getType(*arg.resultType).c_str(),
+                            type_printer.getType(*castType).c_str()),
+              node.args[i]->loc, ErrorType::TypeError);
+
+          return TypeCheckResult(nullptr, nullptr);
+        }
+      }
+      i++;
+    }
+  }
+
+  // construct operator instruction
+  auto opRetType = matchedVariant->retType == BuiltinTypeArg::BOOL
+                       ? std::make_shared<BoolType>(node.funcExpr->loc)
+                       : args[0].resultType;
+
+  auto opInstr = std::make_unique<ir::BuiltinOperator>(
+      node.funcExpr->loc, ir::Value(), opNode.op,
+      std::make_shared<FunctionType>(node.funcExpr->loc,
+                                     TypeList(args.size(), args[0].resultType),
+                                     opRetType));
+  auto &opInstrRef = *opInstr;
+
+  state.curInstructionList.push_back(std::move(opInstr));
+  // construct function call instruction
+  std::vector<std::reference_wrapper<const ir::Expression>> argExprs;
+  argExprs.reserve(args.size());
+  for (auto &arg : args)
+    argExprs.emplace_back(*arg.resultInstruction);
+
+  auto instr = std::make_unique<ir::FunctionCall>(
+      node.loc, ir::Value(), opInstrRef, argExprs, opRetType);
+  const ir::Expression* instrPointer = instr.get();
+
+  state.curInstructionList.push_back(std::move(instr));
+  // do implicit convert if needed
+  return doImplicitConversion(TypeCheckResult(opRetType, instrPointer), state, node.loc);
+}
+
+/* do an implicit conversion of expression to type state.typeHint, if such a
+ * conversion is valid
+ * otherwise, do no conversion (type error should be handled in calling
+ * function) */
+TypeCheckResult
+TypeCheck::doImplicitConversion(const TypeCheckResult &expression,
+                                const TypeCheckState &state, const SourceLocation & loc) {
+  assert(expression.resultType != nullptr &&
+         expression.resultInstruction != nullptr);
+
+  auto expressionType = withoutMutType(expression.resultType);
+
+  // if there is no type hint, no need to convert
+  if(state.typeHint == nullptr) return expression;
+
+  auto typeHint = withoutMutType(state.typeHint);
+
+  // if typeHint matches expected type, no need to convert
+  if(expressionType->equalToExpected(*withoutMutType(typeHint))) return expression;
+
+  // can convert int -> int or float -> float
+  if ((std::dynamic_pointer_cast<IntType>(typeHint) != nullptr &&
+      std::dynamic_pointer_cast<IntType>(expressionType) != nullptr) ||
+      (std::dynamic_pointer_cast<FloatType>(typeHint) != nullptr &&
+       std::dynamic_pointer_cast<FloatType>(expressionType) != nullptr)) {
+
+    if(std::dynamic_pointer_cast<IntType>(typeHint) != nullptr) {
+      auto srcType = std::dynamic_pointer_cast<IntType>(expressionType);
+      auto dstType = std::dynamic_pointer_cast<IntType>(typeHint);
+
+      if(srcType->size > dstType->size) {
+        errorMan.logError(string_format("narrowing conversion from type \x1b[1m%s\x1b[m to \x1b[1m%s\x1b[m", type_printer.getType(*srcType).c_str(), type_printer.getType((*dstType)).c_str()), loc, ErrorType::NarrowingConversion);
+      }
+    }
+
+    auto instr = std::make_unique<ir::BuiltinCast>(expression.resultInstruction->loc, ir::Value(), *expression.resultInstruction, typeHint);
+    auto instrPointer = instr.get();
+    state.curInstructionList.push_back(std::move(instr));
+
+    return TypeCheckResult(typeHint, instrPointer);
+  }
+
+  // TODO: implicit conversions to bool
+
+  return expression;
 }
 
 /* --- type printer --- */

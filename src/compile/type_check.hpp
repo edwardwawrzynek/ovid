@@ -138,6 +138,8 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                          const TypeCheckState &state);
   TypeCheckResult visitFunctionCallAddress(const FunctionCall &node,
                                            const TypeCheckState &state);
+  TypeCheckResult doImplicitConversion(const TypeCheckResult &expression,
+                                       const TypeCheckState &state, const SourceLocation & loc);
 
 public:
   TypeCheck(ErrorManager &errorMan, const std::vector<std::string> &package)
