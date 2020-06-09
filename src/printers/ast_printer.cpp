@@ -128,7 +128,7 @@ int ASTPrinter::visitIdentifier(Identifier &node,
   return 0;
 }
 
-static std::map<OperatorType, std::string> printOperatorMap = {
+std::map<OperatorType, std::string> printOperatorMap = {
     {OperatorType::ADD, "+"},
     {OperatorType::SUB, "-"},
     {OperatorType::MUL, "*"},

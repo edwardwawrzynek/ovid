@@ -1,4 +1,5 @@
 #include "type_check.hpp"
+#include "ast_printer.hpp"
 
 #include <utility>
 
@@ -221,7 +222,7 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   sourceName.push_back(node.name);
 
   // create allocations for arguments
-  std::vector<const ir::Allocation *> argAllocs;
+  std::vector<std::reference_wrapper<const ir::Allocation>> argAllocs;
 
   assert(node.type->argNames.size() == node.type->type->argTypes.size());
   assert(node.type->argNames.size() == node.type->resolvedArgs.size());
@@ -239,7 +240,7 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
     auto argAllocPointer = argAlloc.get();
 
     body.push_back(std::move(argAlloc));
-    argAllocs.push_back(argAllocPointer);
+    argAllocs.emplace_back(*argAllocPointer);
     // set symbol table entries to refer to ir nodes
     node.type->resolvedArgs[i]->ir_decl_instruction = argAllocPointer;
   }
@@ -326,6 +327,125 @@ TypeCheck::functionTypeFromType(const std::shared_ptr<Type> &type) {
   return nullptr;
 }
 
+/* describe overloaded variants of builtin operators available */
+enum class BuiltinTypeArg {
+  INT,   // all integer types. Types are converted to the highest width in the
+         // operation (eg i8+i16 = i16)
+  FLOAT, // f32 and f64. Types converted to highest width in operation
+  BOOL,
+  NONE
+};
+
+struct BuiltinOperatorVariant {
+  std::vector<BuiltinTypeArg> args;
+  BuiltinTypeArg retType;
+};
+
+// table of valid overloaded operators
+static std::multimap<OperatorType, BuiltinOperatorVariant>
+    builtinOperatorOverloads = {
+        // arithmetic operators
+        {OperatorType::ADD,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::ADD,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::FLOAT}},
+        {OperatorType::SUB,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::SUB,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::FLOAT}},
+        {OperatorType::MUL,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::MUL,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::FLOAT}},
+        {OperatorType::DIV,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::DIV,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::FLOAT}},
+        {OperatorType::MOD,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::MOD,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::FLOAT}},
+        // prefix and postfix
+        {OperatorType::PREFIX_INC,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::PREFIX_INC,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::FLOAT}},
+        {OperatorType::PREFIX_DEC,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::PREFIX_DEC,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::FLOAT}},
+        {OperatorType::POSTFIX_INC,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::POSTFIX_INC,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::FLOAT}},
+        {OperatorType::POSTFIX_DEC,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::POSTFIX_DEC,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::FLOAT}},
+        // -, >>, <<
+        {OperatorType::NEGATIVE, {{BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::NEGATIVE,
+         {{BuiltinTypeArg::FLOAT}, BuiltinTypeArg::FLOAT}},
+        {OperatorType::RIGHT_SHIFT,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::LEFT_SHIFT,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        // logical boolean algebra
+        {OperatorType::LOG_OR,
+         {{BuiltinTypeArg::BOOL, BuiltinTypeArg::BOOL}, BuiltinTypeArg::BOOL}},
+        {OperatorType::LOG_AND,
+         {{BuiltinTypeArg::BOOL, BuiltinTypeArg::BOOL}, BuiltinTypeArg::BOOL}},
+        {OperatorType::LOG_NOT, {{BuiltinTypeArg::BOOL}, BuiltinTypeArg::BOOL}},
+        // binary operators
+        {OperatorType::BIN_OR,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::BIN_AND,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::BIN_XOR,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        {OperatorType::BIN_NOT, {{BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
+        // comparison operators
+        {OperatorType::EQUAL,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::BOOL}},
+        {OperatorType::EQUAL,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::BOOL}},
+        {OperatorType::NEQUAL,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::BOOL}},
+        {OperatorType::NEQUAL,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::BOOL}},
+        {OperatorType::GREATER,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::BOOL}},
+        {OperatorType::GREATER,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::BOOL}},
+        {OperatorType::GREATER_EQUAL,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::BOOL}},
+        {OperatorType::GREATER_EQUAL,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::BOOL}},
+        {OperatorType::LESS,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::BOOL}},
+        {OperatorType::LESS,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::BOOL}},
+        {OperatorType::LESS_EQUAL,
+         {{BuiltinTypeArg::INT, BuiltinTypeArg::INT}, BuiltinTypeArg::BOOL}},
+        {OperatorType::LESS_EQUAL,
+         {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
+          BuiltinTypeArg::BOOL}},
+};
+
 TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
                                              const TypeCheckState &state) {
   /* special handling for address of and dereference operators */
@@ -335,9 +455,9 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
       return visitFunctionCallDeref(node, state);
     } else if (opNode.op == OperatorType::ADDR) {
       return visitFunctionCallAddress(node, state);
+    } else {
+      return visitFunctionCallOperator(node, state);
     }
-
-    assert(false);
   } else {
     // visit function expression (TODO: construct type hint from type of
     // arguments)
@@ -470,6 +590,74 @@ TypeCheckResult TypeCheck::visitFunctionCallDeref(const FunctionCall &node,
   // TOOD: do implicit type conversion if needed
 
   return TypeCheckResult(typeRes->type, instrPointer);
+}
+
+TypeCheckResult
+TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
+                                     const TypeCheckState &state) {
+  auto opNode = dynamic_cast<OperatorSymbol &>(*node.funcExpr);
+  // visit args, and convert arg types to BuiltinTypeArgs
+  std::vector<BuiltinTypeArg> builtinArgTypes;
+  std::vector<std::shared_ptr<Type>> argTypes;
+  std::vector<std::reference_wrapper<const ir::Expression>> argExprs;
+  for (auto &arg : node.args) {
+    // TODO: if opNode expects a boolean, give a type hint
+    auto argRes = visitNode(*arg, state.withoutTypeHint());
+    if (argRes.resultType == nullptr || argRes.resultInstruction == nullptr)
+      return TypeCheckResult(nullptr, nullptr);
+
+    auto argType = withoutMutType(argRes.resultType);
+
+    // convert type to BuiltinTypeArgs
+    if (dynamic_cast<ast::IntType *>(argType.get()) != nullptr) {
+      builtinArgTypes.push_back(BuiltinTypeArg::INT);
+    } else if (dynamic_cast<ast::BoolType *>(argType.get()) != nullptr) {
+      builtinArgTypes.push_back(BuiltinTypeArg::BOOL);
+    } else if (dynamic_cast<ast::FloatType *>(argType.get()) != nullptr) {
+      builtinArgTypes.push_back(BuiltinTypeArg::FLOAT);
+    } else {
+      builtinArgTypes.push_back(BuiltinTypeArg::NONE);
+    }
+
+    argExprs.emplace_back(*argRes.resultInstruction);
+    argTypes.push_back(argType);
+  }
+
+  // find appropriate overload variant
+  auto overloadIter = builtinOperatorOverloads.equal_range(opNode.op);
+  const BuiltinOperatorVariant *matchedVariant = nullptr;
+  for (auto it = overloadIter.first; it != overloadIter.second; it++) {
+    if (builtinArgTypes == it->second.args) {
+      matchedVariant = &it->second;
+      break;
+    }
+  }
+
+  if (matchedVariant == nullptr) {
+    if (argTypes.size() == 1) {
+      errorMan.logError(
+          string_format(
+              "no overloaded variant of operator %s with argument type %s",
+              printOperatorMap[opNode.op].c_str(),
+              type_printer.getType(*argTypes[0]).c_str()),
+          node.funcExpr->loc, ErrorType::TypeError);
+    } else if (argTypes.size() == 2) {
+      errorMan.logError(
+          string_format("no overloaded variant of operator %s with argument "
+                        "types %s and %s",
+                        printOperatorMap[opNode.op].c_str(),
+                        type_printer.getType(*argTypes[0]).c_str(),
+                        type_printer.getType(*argTypes[1]).c_str()),
+          node.funcExpr->loc, ErrorType::TypeError);
+    } else {
+      // no operators with more than two arguments
+      assert(false);
+    }
+
+    return TypeCheckResult(nullptr, nullptr);
+  }
+
+  // TODO
 }
 
 /* --- type printer --- */

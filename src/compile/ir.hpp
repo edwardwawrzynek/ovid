@@ -128,14 +128,15 @@ public:
  * object */
 class FunctionDeclare : public Expression {
 public:
-  std::vector<const Allocation *> argAllocs;
+  std::vector<std::reference_wrapper<const Allocation>> argAllocs;
 
   InstructionList body;
 
-  FunctionDeclare(const SourceLocation &loc, const Value &val,
-                  std::shared_ptr<ast::NamedFunctionType> type,
-                  const std::vector<const Allocation *> &argAllocs,
-                  InstructionList body)
+  FunctionDeclare(
+      const SourceLocation &loc, const Value &val,
+      std::shared_ptr<ast::NamedFunctionType> type,
+      const std::vector<std::reference_wrapper<const Allocation>> &argAllocs,
+      InstructionList body)
       : Expression(loc, val, std::move(type)), argAllocs(argAllocs),
         body(std::move(body)){};
 };
@@ -175,6 +176,16 @@ public:
       std::shared_ptr<ast::Type> type)
       : Expression(loc, val, std::move(type)), function(function),
         arguments(arguments){};
+};
+
+/* a builtin function (arithmetic operators, etc) */
+class BuiltinOperator : public Expression {
+public:
+  ast::OperatorType opType;
+
+  BuiltinOperator(const SourceLocation &loc, const Value &val,
+                  ast::OperatorType opType, std::shared_ptr<ast::Type> type)
+      : Expression(loc, val, std::move(type)), opType(opType){};
 };
 
 /* operation taking the address of a value */

@@ -18,6 +18,7 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitAllocation(Allocation &instruct, const S &state);
   virtual T visitAddress(Address &instruct, const S &state);
   virtual T visitDereference(Dereference &instruct, const S &state);
+  virtual T visitBuiltinOperator(BuiltinOperator &instruct, const S &state);
 
   virtual T visitStore(Store &instruct, const S &state);
   virtual T visitLabel(Label &instruct, const S &state);
@@ -138,6 +139,12 @@ T BaseIRVisitor<T, S>::visitAddress(Address &instruct, const S &state) {
 
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitDereference(Dereference &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitBuiltinOperator(BuiltinOperator &instruct,
+                                            const S &state) {
   return std::move(defaultValue);
 }
 

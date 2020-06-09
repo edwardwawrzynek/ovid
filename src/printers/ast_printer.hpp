@@ -8,6 +8,8 @@ namespace ovid::ast {
 
 void printLoc(std::ostream &output, const SourceLocation &loc);
 
+extern std::map<OperatorType, std::string> printOperatorMap;
+
 class ASTPrinterState {
 public:
   uint64_t indent_level;

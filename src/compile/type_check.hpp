@@ -132,6 +132,13 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
    TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node, const
   TypeCheckState &state) override;*/
 
+  TypeCheckResult visitFunctionCallOperator(const FunctionCall &node,
+                                            const TypeCheckState &state);
+  TypeCheckResult visitFunctionCallDeref(const FunctionCall &node,
+                                         const TypeCheckState &state);
+  TypeCheckResult visitFunctionCallAddress(const FunctionCall &node,
+                                           const TypeCheckState &state);
+
 public:
   TypeCheck(ErrorManager &errorMan, const std::vector<std::string> &package)
       : BaseASTVisitor(
@@ -142,10 +149,6 @@ public:
 
   /* visitNodes wrapper that produces one InstructionList */
   ir::InstructionList produceIR(const StatementList &ast);
-  TypeCheckResult visitFunctionCallDeref(const FunctionCall &node,
-                                         const TypeCheckState &state);
-  TypeCheckResult visitFunctionCallAddress(const FunctionCall &node,
-                                           const TypeCheckState &state);
 };
 
 /* type check type equality pass */

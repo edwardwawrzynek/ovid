@@ -175,4 +175,19 @@ int IRPrinter::visitDereference(Dereference &instruct,
 
   return 0;
 }
+
+int IRPrinter::visitBuiltinOperator(BuiltinOperator &instruct,
+                                    const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printValue(instruct.val);
+  output << " = BUILTINOPERATOR " << type_printer.getType(*instruct.type) << " "
+         << ast::printOperatorMap[instruct.opType];
+  output << "\n";
+
+  return 0;
+}
+
 } // namespace ovid::ir
