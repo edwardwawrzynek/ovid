@@ -20,4 +20,5 @@ fn cond_test(cond bool) -> void {
     } else {
         val v3 = 3
     }
+    a = 6
 }

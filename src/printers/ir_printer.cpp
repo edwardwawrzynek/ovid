@@ -4,6 +4,7 @@ namespace ovid::ir {
 
 void ovid::ir::IRPrinter::printValue(const ovid::ir::Value &val) {
   if (val.hasSourceName) {
+    output << "%";
     for (size_t i = 0; i < val.sourceName.size(); i++) {
       auto &scope = val.sourceName[i];
       output << scope;
@@ -57,12 +58,17 @@ int ovid::ir::IRPrinter::visitAllocation(
   return 0;
 }
 
-int ovid::ir::IRPrinter::visitLabel(ovid::ir::Label &instruct,
-                                    const ovid::ast::ASTPrinterState &state) {
+int ovid::ir::IRPrinter::visitBasicBlock(
+    ovid::ir::BasicBlock &instruct, const ovid::ast::ASTPrinterState &state) {
   state.printIndent(output);
 
   ast::printLoc(output, instruct.loc);
-  output << "\tLABEL @" << instruct.id << "\n";
+  output << "\tBASICBLOCK @" << instruct.id << " {\n";
+  for (auto &child : instruct.body) {
+    visitInstruction(*child, state.withIndent());
+  }
+  state.printIndent(output);
+  output << "}\n";
 
   return 0;
 }

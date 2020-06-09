@@ -22,7 +22,7 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitBuiltinCast(BuiltinCast &instruct, const S &state);
 
   virtual T visitStore(Store &instruct, const S &state);
-  virtual T visitLabel(Label &instruct, const S &state);
+  virtual T visitBasicBlock(BasicBlock &instruct, const S &state);
   virtual T visitJump(Jump &instruct, const S &state);
   virtual T visitConditionalJump(ConditionalJump &instruct, const S &state);
 
@@ -42,8 +42,8 @@ T BaseIRVisitor<T, S>::visitInstruction(Instruction &instruct, const S &state) {
     return visitExpression(dynamic_cast<Expression &>(instruct), state);
   } else if (dynamic_cast<Store *>(&instruct) != nullptr) {
     return visitStore(dynamic_cast<Store &>(instruct), state);
-  } else if (dynamic_cast<Label *>(&instruct) != nullptr) {
-    return visitLabel(dynamic_cast<Label &>(instruct), state);
+  } else if (dynamic_cast<BasicBlock *>(&instruct) != nullptr) {
+    return visitBasicBlock(dynamic_cast<BasicBlock &>(instruct), state);
   } else if (dynamic_cast<Jump *>(&instruct) != nullptr) {
     return visitJump(dynamic_cast<Jump &>(instruct), state);
   } else if (dynamic_cast<ConditionalJump *>(&instruct) != nullptr) {
@@ -69,10 +69,11 @@ T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
     return visitAddress(dynamic_cast<Address &>(instruct), state);
   } else if (dynamic_cast<Storage *>(&instruct) != nullptr) {
     return visitStorage(dynamic_cast<Storage &>(instruct), state);
-  } else if(dynamic_cast<BuiltinOperator *>(&instruct) != nullptr) {
-    return visitBuiltinOperator(dynamic_cast<BuiltinOperator&>(instruct), state);
-  } else if(dynamic_cast<BuiltinCast *>(&instruct) != nullptr) {
-    return visitBuiltinCast(dynamic_cast<BuiltinCast&>(instruct), state);
+  } else if (dynamic_cast<BuiltinOperator *>(&instruct) != nullptr) {
+    return visitBuiltinOperator(dynamic_cast<BuiltinOperator &>(instruct),
+                                state);
+  } else if (dynamic_cast<BuiltinCast *>(&instruct) != nullptr) {
+    return visitBuiltinCast(dynamic_cast<BuiltinCast &>(instruct), state);
   }
 
   assert(false);
@@ -122,7 +123,7 @@ T BaseIRVisitor<T, S>::visitStore(Store &instruct, const S &state) {
 }
 
 template <class T, class S>
-T BaseIRVisitor<T, S>::visitLabel(Label &instruct, const S &state) {
+T BaseIRVisitor<T, S>::visitBasicBlock(BasicBlock &instruct, const S &state) {
   return std::move(defaultValue);
 }
 

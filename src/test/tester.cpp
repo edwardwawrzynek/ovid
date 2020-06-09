@@ -410,8 +410,7 @@ int TesterInstance::run() {
         failed = 1;
       } else {
         // generate ir
-        auto typeCheck = ast::TypeCheck(errorMan, packageName);
-        auto ir = typeCheck.produceIR(ast);
+        auto ir = ast::typeCheckProduceIR(errorMan, packageName, ast);
 
         if (modes.count(TestMode::CheckIR) > 0) {
           if (errorMan.criticalErrorOccurred()) {

@@ -32,7 +32,8 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
                        const ast::ASTPrinterState &state) override;
 
   int visitStore(Store &instruct, const ast::ASTPrinterState &state) override;
-  int visitLabel(Label &instruct, const ast::ASTPrinterState &state) override;
+  int visitBasicBlock(BasicBlock &instruct,
+                      const ast::ASTPrinterState &state) override;
   int visitJump(Jump &instruct, const ast::ASTPrinterState &state) override;
   int visitConditionalJump(ConditionalJump &instruct,
                            const ast::ASTPrinterState &state) override;

@@ -123,6 +123,18 @@ public:
       : Storage(loc, val, std::move(type)), allocType(allocType){};
 };
 
+/* A labelled block of code, which can be jumped to */
+class BasicBlock : public Instruction {
+public:
+  uint64_t id;
+  InstructionList body;
+
+  explicit BasicBlock(const SourceLocation &loc, InstructionList body)
+      : Instruction(loc), id(next_id()), body(std::move(body)){};
+};
+
+typedef std::vector<std::unique_ptr<BasicBlock>> BasicBlockList;
+
 /* a function declaration in the ir
  * The function declaration is an expression b/c it produces a usable function
  * object */
@@ -130,13 +142,13 @@ class FunctionDeclare : public Expression {
 public:
   std::vector<std::reference_wrapper<const Allocation>> argAllocs;
 
-  InstructionList body;
+  BasicBlockList body;
 
   FunctionDeclare(
       const SourceLocation &loc, const Value &val,
       std::shared_ptr<ast::NamedFunctionType> type,
       const std::vector<std::reference_wrapper<const Allocation>> &argAllocs,
-      InstructionList body)
+      BasicBlockList body)
       : Expression(loc, val, std::move(type)), argAllocs(argAllocs),
         body(std::move(body)){};
 };
@@ -230,32 +242,24 @@ public:
       : Instruction(loc), storage(storage), value(value){};
 };
 
-/* A labelled point in code, which can be jumped to */
-class Label : public Instruction {
-public:
-  uint64_t id;
-
-  explicit Label(const SourceLocation &loc) : Instruction(loc), id(next_id()){};
-};
-
 /* an unconditional jump to a label */
 class Jump : public Instruction {
 public:
-  const Label &label;
+  const BasicBlock &label;
 
-  Jump(const SourceLocation &loc, const Label &label)
+  Jump(const SourceLocation &loc, const BasicBlock &label)
       : Instruction(loc), label(label){};
 };
 
 /* a conditional jump to a label */
 class ConditionalJump : public Instruction {
 public:
-  const Label &true_label;
-  const Label &false_label;
+  const BasicBlock &true_label;
+  const BasicBlock &false_label;
   const Expression &condition;
 
-  ConditionalJump(const SourceLocation &loc, const Label &true_label,
-                  const Label &false_label, const Expression &condition)
+  ConditionalJump(const SourceLocation &loc, const BasicBlock &true_label,
+                  const BasicBlock &false_label, const Expression &condition)
       : Instruction(loc), true_label(true_label), false_label(false_label),
         condition(condition){};
 };

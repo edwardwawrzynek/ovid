@@ -66,24 +66,15 @@ public:
    * if no particular type is expected, typeHint is null */
   std::shared_ptr<Type> typeHint;
 
-  /* the current instruction list to be inserted into */
-  ir::InstructionList &curInstructionList;
+  TypeCheckState() : typeHint(nullptr){};
 
-  explicit TypeCheckState(ir::InstructionList &curInstructionList)
-      : typeHint(nullptr), curInstructionList(curInstructionList){};
-
-  TypeCheckState(ir::InstructionList &curInstructionList,
-                 std::shared_ptr<Type> typeHint)
-      : typeHint(std::move(typeHint)), curInstructionList(curInstructionList){};
+  explicit TypeCheckState(std::shared_ptr<Type> typeHint)
+      : typeHint(std::move(typeHint)){};
 
   // return the state will a null typeHint
   TypeCheckState withoutTypeHint() const;
   // return the state with a typeHint set
   TypeCheckState withTypeHint(std::shared_ptr<Type> typeHint) const;
-
-  // return the state with a new instruction list
-  TypeCheckState
-  withNewInstructionList(ir::InstructionList &instructionList) const;
 };
 
 /*
@@ -94,6 +85,14 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   ErrorManager &errorMan;
   std::vector<std::string> currentModule;
   TypePrinter type_printer;
+
+  /* the current instruction list to be inserted into */
+  ir::InstructionList *curInstructionList;
+
+  /* the current function basic block context
+   * this should only be inserted into to create new basic blocks,
+   * curInstructionList should be used otherwise */
+  ir::BasicBlockList *curBasicBlockList;
 
   // apply a MutType wrapper around a type if is_mut
   static std::shared_ptr<Type> addMutType(const std::shared_ptr<Type> &type,
@@ -139,21 +138,23 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   TypeCheckResult visitFunctionCallAddress(const FunctionCall &node,
                                            const TypeCheckState &state);
   TypeCheckResult doImplicitConversion(const TypeCheckResult &expression,
-                                       const TypeCheckState &state, const SourceLocation & loc);
+                                       const TypeCheckState &state,
+                                       const SourceLocation &loc);
 
 public:
-  TypeCheck(ErrorManager &errorMan, const std::vector<std::string> &package)
+  TypeCheck(ErrorManager &errorMan, const std::vector<std::string> &package,
+            ir::InstructionList *ir, ir::BasicBlockList *basicBlockList)
       : BaseASTVisitor(
             TypeCheckResult(std::make_shared<ast::VoidType>(
                                 SourceLocation("", 0, 0, 0, 0, nullptr)),
                             nullptr)),
-        errorMan(errorMan), currentModule(package), type_printer(){};
-
-  /* visitNodes wrapper that produces one InstructionList */
-  ir::InstructionList produceIR(const StatementList &ast);
+        errorMan(errorMan), currentModule(package), type_printer(),
+        curInstructionList(ir), curBasicBlockList(basicBlockList){};
 };
 
-/* type check type equality pass */
+ir::InstructionList typeCheckProduceIR(ErrorManager &errorMan,
+                                       const std::vector<std::string> &package,
+                                       const StatementList &ast);
 
 } // namespace ovid::ast
 

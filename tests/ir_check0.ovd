@@ -1,0 +1,13 @@
+// __ovid_compiler_test
+//__mode: check_ir
+//__end_header
+
+module test:pkg
+
+fn test() -> void {
+    val a = 5
+    if true {
+        val b = 6
+    }
+    val c = 7
+}

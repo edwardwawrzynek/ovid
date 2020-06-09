@@ -38,8 +38,7 @@ int main(int argc, char **argv) {
   auto astPrinter = ovid::ast::ASTPrinter(std::cout);
   astPrinter.visitNodes(ast, ovid::ast::ASTPrinterState());
 
-  auto typeCheck = ovid::ast::TypeCheck(errorMan, package);
-  auto ir = typeCheck.produceIR(ast);
+  auto ir = ovid::ast::typeCheckProduceIR(errorMan, package, ast);
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31mtype checking failed";

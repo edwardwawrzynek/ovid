@@ -6,16 +6,11 @@
 namespace ovid::ast {
 
 TypeCheckState TypeCheckState::withoutTypeHint() const {
-  return TypeCheckState(curInstructionList, nullptr);
+  return TypeCheckState(nullptr);
 }
 
 TypeCheckState TypeCheckState::withTypeHint(std::shared_ptr<Type> hint) const {
-  return TypeCheckState(curInstructionList, std::move(hint));
-}
-
-TypeCheckState TypeCheckState::withNewInstructionList(
-    ir::InstructionList &instructionList) const {
-  return TypeCheckState(instructionList, typeHint);
+  return TypeCheckState(std::move(hint));
 }
 
 std::shared_ptr<Type> TypeCheck::addMutType(const std::shared_ptr<Type> &type,
@@ -39,20 +34,13 @@ TypeCheck::withoutMutType(const std::shared_ptr<Type> &type) {
     return mutType->type;
 }
 
-ir::InstructionList TypeCheck::produceIR(const StatementList &ast) {
-  ovid::ir::InstructionList ir;
-  visitNodes(ast, TypeCheckState(ir, nullptr));
-
-  return ir;
-}
-
 TypeCheckResult TypeCheck::visitBoolLiteral(BoolLiteral &node,
                                             const TypeCheckState &state) {
   auto instr =
       std::make_unique<ir::BoolLiteral>(node.loc, ir::Value(), node.value);
   auto instrPointer = instr.get();
 
-  state.curInstructionList.push_back(std::move(instr));
+  curInstructionList->push_back(std::move(instr));
 
   return TypeCheckResult(instrPointer->type, instrPointer);
 }
@@ -75,7 +63,7 @@ TypeCheckResult TypeCheck::visitIntLiteral(IntLiteral &node,
   auto instr = std::make_unique<ir::IntLiteral>(node.loc, ir::Value(), resType,
                                                 node.value);
   auto instrPointer = instr.get();
-  state.curInstructionList.push_back(std::move(instr));
+  curInstructionList->push_back(std::move(instr));
 
   return TypeCheckResult(resType, instrPointer);
 }
@@ -104,11 +92,11 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
                                        : ir::AllocationType::UNRESOLVED_LOCAL));
   const auto allocPointer = alloc.get();
   const auto &allocRef = *alloc;
-  state.curInstructionList.push_back(std::move(alloc));
+  curInstructionList->push_back(std::move(alloc));
   // create the store instruction
   auto store = std::make_unique<ir::Store>(node.loc, allocRef,
                                            *initial.resultInstruction);
-  state.curInstructionList.push_back(std::move(store));
+  curInstructionList->push_back(std::move(store));
 
   // set symbol table entry for variable to refer to ir alloc
   node.resolved_symbol->ir_decl_instruction = allocPointer;
@@ -155,7 +143,8 @@ TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
   auto alloc_node = node.resolved_symbol->ir_decl_instruction;
 
   // do implicit conversion to type hint if needed
-  return doImplicitConversion(TypeCheckResult(node.resolved_symbol->type, alloc_node), state, node.loc);
+  return doImplicitConversion(
+      TypeCheckResult(node.resolved_symbol->type, alloc_node), state, node.loc);
 }
 
 TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
@@ -207,7 +196,7 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
       node.loc, dynamic_cast<const ir::Storage &>(*lvalueRes.resultInstruction),
       *rvalueRes.resultInstruction);
 
-  state.curInstructionList.push_back(std::move(store));
+  curInstructionList->push_back(std::move(store));
 
   // treat the lvalue allocation as the value of this expression
   return TypeCheckResult(lvalueRes.resultType, lvalueRes.resultInstruction);
@@ -215,8 +204,17 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
 
 TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
                                              const TypeCheckState &state) {
-  // new body instruction list
-  ir::InstructionList body;
+  // new body basic block
+  ir::BasicBlockList body;
+  body.push_back(
+      std::make_unique<ir::BasicBlock>(node.loc, ir::InstructionList()));
+
+  // save global instruction list state
+  auto pCurBasicBlockList = curBasicBlockList;
+  auto pcurInstructionList = curInstructionList;
+
+  curBasicBlockList = &body;
+  curInstructionList = &body[0]->body;
 
   // recreate source name
   std::vector<std::string> sourceName = currentModule;
@@ -240,7 +238,7 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
         ir::AllocationType::UNRESOLVED_FUNC_ARG);
     auto argAllocPointer = argAlloc.get();
 
-    body.push_back(std::move(argAlloc));
+    curInstructionList->push_back(std::move(argAlloc));
     argAllocs.emplace_back(*argAllocPointer);
     // set symbol table entries to refer to ir nodes
     node.type->resolvedArgs[i]->ir_decl_instruction = argAllocPointer;
@@ -248,14 +246,19 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
 
   // visit body
   for (auto &child : node.body.statements) {
-    visitNode(*child, state.withoutTypeHint().withNewInstructionList(body));
+    visitNode(*child, state.withoutTypeHint());
   }
+
+  // restore previous instruction state
+  curInstructionList = pcurInstructionList;
+  curBasicBlockList = pCurBasicBlockList;
+
   // construct the function declaration instruction
   auto instr = std::make_unique<ir::FunctionDeclare>(
       node.loc, ir::Value(sourceName), node.type, argAllocs, std::move(body));
   auto instrPointer = instr.get();
 
-  state.curInstructionList.push_back(std::move(instr));
+  curInstructionList->push_back(std::move(instr));
 
   node.resolved_symbol->ir_decl_instruction = instrPointer;
 
@@ -264,8 +267,8 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
 
 TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
                                             const TypeCheckState &state) {
-  // create end label
-  auto end = std::make_unique<ir::Label>(node.loc);
+  // create end basic block
+  auto end = std::make_unique<ir::BasicBlock>(node.loc, ir::InstructionList());
   auto &endRef = *end;
 
   auto condTypeHint = std::make_shared<BoolType>(node.loc);
@@ -290,28 +293,38 @@ TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
       return TypeCheckResult(nullptr, nullptr);
     }
 
-    auto startCondLabel = std::make_unique<ir::Label>(cond->loc);
-    auto &startCondLabelRef = *startCondLabel;
-    auto nextCondLabel = std::make_unique<ir::Label>(cond->loc);
-    auto &nextCondLabelRef = *nextCondLabel;
+    // basic block for body of conditional
+    auto condBody =
+        std::make_unique<ir::BasicBlock>(cond->loc, ir::InstructionList());
+    auto &condBodyRef = *condBody;
+    // basic block for evaluation of next condition (or end block if no more
+    // conditions)
+    std::unique_ptr<ir::BasicBlock> nextCondHead =
+        (i < node.conditions.size() - 1)
+            ? std::make_unique<ir::BasicBlock>(cond->loc, ir::InstructionList())
+            : std::move(end);
+    auto &nextCondHeadRef = *nextCondHead;
 
     auto condJump = std::make_unique<ir::ConditionalJump>(
-        cond->loc, startCondLabelRef, nextCondLabelRef,
-        *condRes.resultInstruction);
+        cond->loc, condBodyRef, nextCondHeadRef, *condRes.resultInstruction);
 
-    state.curInstructionList.push_back(std::move(condJump));
-    state.curInstructionList.push_back(std::move(startCondLabel));
+    curInstructionList->push_back(std::move(condJump));
+
+    // setup condition body
+    curBasicBlockList->push_back(std::move(condBody));
+    curInstructionList = &condBodyRef.body;
     // visit body
     for (auto &child : body.statements) {
       visitNode(*child, state.withoutTypeHint());
     }
-    // jump to end of node
-    state.curInstructionList.emplace_back(
+    // jump to end block
+    curInstructionList->emplace_back(
         std::make_unique<ir::Jump>(cond->loc, endRef));
-    state.curInstructionList.push_back(std::move(nextCondLabel));
-  }
 
-  state.curInstructionList.push_back(std::move(end));
+    // setup next condition header (or end)
+    curBasicBlockList->push_back(std::move(nextCondHead));
+    curInstructionList = &nextCondHeadRef.body;
+  }
 
   return TypeCheckResult(nullptr, nullptr);
 }
@@ -517,10 +530,11 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
                                                     args, funcType->retType);
     auto instrPointer = instr.get();
 
-    state.curInstructionList.push_back(std::move(instr));
+    curInstructionList->push_back(std::move(instr));
 
     // implicitly cast result if requested by type hint
-    return doImplicitConversion(TypeCheckResult(funcType->retType, instrPointer), state, node.loc);
+    return doImplicitConversion(
+        TypeCheckResult(funcType->retType, instrPointer), state, node.loc);
   }
 }
 
@@ -555,7 +569,7 @@ TypeCheck::visitFunctionCallAddress(const FunctionCall &node,
                                              *storageRes, resType);
   auto instrPointer = instr.get();
 
-  state.curInstructionList.push_back(std::move(instr));
+  curInstructionList->push_back(std::move(instr));
 
   return TypeCheckResult(resType, instrPointer);
 }
@@ -586,10 +600,11 @@ TypeCheckResult TypeCheck::visitFunctionCallDeref(const FunctionCall &node,
       typeRes->type);
   auto instrPointer = instr.get();
 
-  state.curInstructionList.push_back(std::move(instr));
+  curInstructionList->push_back(std::move(instr));
 
   // do implicit type conversion if needed
-  return doImplicitConversion(TypeCheckResult(typeRes->type, instrPointer), state, node.loc);
+  return doImplicitConversion(TypeCheckResult(typeRes->type, instrPointer),
+                              state, node.loc);
 }
 
 TypeCheckResult
@@ -673,7 +688,8 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
       // do casts
       int i = 0;
       for (auto &arg : args) {
-        arg = doImplicitConversion(arg, state.withTypeHint(castType), node.args[i]->loc);
+        arg = doImplicitConversion(arg, state.withTypeHint(castType),
+                                   node.args[i]->loc);
         if (!arg.resultType->equalToExpected(*castType)) {
           errorMan.logError(
               string_format("type of expresion (\x1b[1m%s\x1b[m) doesn't match "
@@ -698,7 +714,8 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
       // do casts
       int i = 0;
       for (auto &arg : args) {
-        arg = doImplicitConversion(arg, state.withTypeHint(castType), node.args[i]->loc);
+        arg = doImplicitConversion(arg, state.withTypeHint(castType),
+                                   node.args[i]->loc);
         if (!arg.resultType->equalToExpected(*castType)) {
           errorMan.logError(
               string_format("type of expresion (\x1b[1m%s\x1b[m) doesn't match "
@@ -726,7 +743,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
                                      opRetType));
   auto &opInstrRef = *opInstr;
 
-  state.curInstructionList.push_back(std::move(opInstr));
+  curInstructionList->push_back(std::move(opInstr));
   // construct function call instruction
   std::vector<std::reference_wrapper<const ir::Expression>> argExprs;
   argExprs.reserve(args.size());
@@ -735,11 +752,12 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
 
   auto instr = std::make_unique<ir::FunctionCall>(
       node.loc, ir::Value(), opInstrRef, argExprs, opRetType);
-  const ir::Expression* instrPointer = instr.get();
+  const ir::Expression *instrPointer = instr.get();
 
-  state.curInstructionList.push_back(std::move(instr));
+  curInstructionList->push_back(std::move(instr));
   // do implicit convert if needed
-  return doImplicitConversion(TypeCheckResult(opRetType, instrPointer), state, node.loc);
+  return doImplicitConversion(TypeCheckResult(opRetType, instrPointer), state,
+                              node.loc);
 }
 
 /* do an implicit conversion of expression to type state.typeHint, if such a
@@ -748,38 +766,48 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
  * function) */
 TypeCheckResult
 TypeCheck::doImplicitConversion(const TypeCheckResult &expression,
-                                const TypeCheckState &state, const SourceLocation & loc) {
+                                const TypeCheckState &state,
+                                const SourceLocation &loc) {
   assert(expression.resultType != nullptr &&
          expression.resultInstruction != nullptr);
 
   auto expressionType = withoutMutType(expression.resultType);
 
   // if there is no type hint, no need to convert
-  if(state.typeHint == nullptr) return expression;
+  if (state.typeHint == nullptr)
+    return expression;
 
   auto typeHint = withoutMutType(state.typeHint);
 
   // if typeHint matches expected type, no need to convert
-  if(expressionType->equalToExpected(*withoutMutType(typeHint))) return expression;
+  if (expressionType->equalToExpected(*withoutMutType(typeHint)))
+    return expression;
 
   // can convert int -> int or float -> float
   if ((std::dynamic_pointer_cast<IntType>(typeHint) != nullptr &&
-      std::dynamic_pointer_cast<IntType>(expressionType) != nullptr) ||
+       std::dynamic_pointer_cast<IntType>(expressionType) != nullptr) ||
       (std::dynamic_pointer_cast<FloatType>(typeHint) != nullptr &&
        std::dynamic_pointer_cast<FloatType>(expressionType) != nullptr)) {
 
-    if(std::dynamic_pointer_cast<IntType>(typeHint) != nullptr) {
+    if (std::dynamic_pointer_cast<IntType>(typeHint) != nullptr) {
       auto srcType = std::dynamic_pointer_cast<IntType>(expressionType);
       auto dstType = std::dynamic_pointer_cast<IntType>(typeHint);
 
-      if(srcType->size > dstType->size) {
-        errorMan.logError(string_format("narrowing conversion from type \x1b[1m%s\x1b[m to \x1b[1m%s\x1b[m", type_printer.getType(*srcType).c_str(), type_printer.getType((*dstType)).c_str()), loc, ErrorType::NarrowingConversion);
+      if (srcType->size > dstType->size) {
+        errorMan.logError(
+            string_format("narrowing conversion from type \x1b[1m%s\x1b[m to "
+                          "\x1b[1m%s\x1b[m",
+                          type_printer.getType(*srcType).c_str(),
+                          type_printer.getType((*dstType)).c_str()),
+            loc, ErrorType::NarrowingConversion);
       }
     }
 
-    auto instr = std::make_unique<ir::BuiltinCast>(expression.resultInstruction->loc, ir::Value(), *expression.resultInstruction, typeHint);
+    auto instr = std::make_unique<ir::BuiltinCast>(
+        expression.resultInstruction->loc, ir::Value(),
+        *expression.resultInstruction, typeHint);
     auto instrPointer = instr.get();
-    state.curInstructionList.push_back(std::move(instr));
+    curInstructionList->push_back(std::move(instr));
 
     return TypeCheckResult(typeHint, instrPointer);
   }
@@ -787,6 +815,18 @@ TypeCheck::doImplicitConversion(const TypeCheckResult &expression,
   // TODO: implicit conversions to bool
 
   return expression;
+}
+
+ir::InstructionList typeCheckProduceIR(ErrorManager &errorMan,
+                                       const std::vector<std::string> &package,
+                                       const StatementList &ast) {
+  ir::InstructionList ir;
+  ir::BasicBlockList BBList;
+
+  auto typeCheck = TypeCheck(errorMan, package, &ir, &BBList);
+  typeCheck.visitNodes(ast, TypeCheckState());
+
+  return ir;
 }
 
 /* --- type printer --- */
