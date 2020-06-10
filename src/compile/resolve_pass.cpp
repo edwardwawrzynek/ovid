@@ -268,6 +268,15 @@ bool ResolvePass::checkTypeShadowed(
   return shadowed != nullptr;
 }
 
+int ResolvePass::visitReturnStatement(ReturnStatement &node,
+                                      const ResolvePassState &state) {
+  if(node.expression != nullptr) {
+    visitNode(*node.expression, state);
+  }
+
+  return 0;
+}
+
 std::shared_ptr<Type>
 TypeResolver::visitUnresolvedType(UnresolvedType &type,
                                   const TypeResolverState &state) {

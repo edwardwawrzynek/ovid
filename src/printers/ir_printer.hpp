@@ -37,6 +37,7 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
   int visitJump(Jump &instruct, const ast::ASTPrinterState &state) override;
   int visitConditionalJump(ConditionalJump &instruct,
                            const ast::ASTPrinterState &state) override;
+  int visitReturn(Return &instruct, const ast::ASTPrinterState &state) override;
 
 public:
   IRPrinter(std::ostream &output)

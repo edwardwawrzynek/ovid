@@ -1,0 +1,55 @@
+(5:1) ModuleDecl: test
+    (7:1) FunctionDecl: test1
+      retType:
+        IntType: i32
+      argNames:
+      argTypes:
+      body:
+        (8:5) ReturnStatement
+            (8:12) IntLiteral: 42
+    (11:1) FunctionDecl: test2
+      retType:
+        IntType: i64
+      argNames: a b
+      argTypes:
+        IntType: i32
+        PointerType
+            MutType
+                PointerType
+                    IntType: u64
+      body:
+        (12:5) ReturnStatement
+            (12:12) FunctionCall
+              function:
+                (12:14) OperatorSymbol: +
+              args:
+                (12:12) Identifier: a
+                (12:16) FunctionCall
+                  function:
+                    (12:16) OperatorSymbol: *
+                  args:
+                    (12:17) FunctionCall
+                      function:
+                        (12:17) OperatorSymbol: *
+                      args:
+                        (12:18) Identifier: b
+    (15:1) FunctionDecl: test3
+      retType:
+        VoidType
+      argNames:
+      argTypes:
+      body:
+        (16:5) IfStatement
+          condition:
+            (16:8) BoolLiteral: true
+          body:
+            (17:9) ReturnStatement
+          condition:
+            (18:13) BoolLiteral: true
+          body:
+            (19:9) ReturnStatement
+          condition:
+            (20:12) BoolLiteral: true
+          body:
+            (21:9) ReturnStatement
+        (24:5) ReturnStatement

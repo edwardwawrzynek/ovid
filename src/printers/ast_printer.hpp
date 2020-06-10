@@ -61,6 +61,7 @@ class ASTPrinter : public BaseASTVisitor<int, ASTPrinterState> {
   int visitModuleDecl(ModuleDecl &node, const ASTPrinterState &state) override;
   int visitIfStatement(IfStatement &node,
                        const ASTPrinterState &state) override;
+  int visitReturnStatement(ReturnStatement &node, const ASTPrinterState &state) override;
 
   int visitFunctionCall(FunctionCall &node,
                         const ASTPrinterState &state) override;

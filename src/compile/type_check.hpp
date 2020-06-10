@@ -65,16 +65,22 @@ public:
    * primarily used to resolve ambiguity during type inference
    * if no particular type is expected, typeHint is null */
   std::shared_ptr<Type> typeHint;
+  /* expected function return type */
+  std::shared_ptr<Type> functionReturnType;
 
-  TypeCheckState() : typeHint(nullptr){};
+  TypeCheckState() : typeHint(nullptr), functionReturnType(nullptr){};
 
-  explicit TypeCheckState(std::shared_ptr<Type> typeHint)
-      : typeHint(std::move(typeHint)){};
+  explicit TypeCheckState(std::shared_ptr<Type> typeHint, std::shared_ptr<Type> functionReturnType)
+      : typeHint(std::move(typeHint)), functionReturnType(std::move(functionReturnType)){};
 
   // return the state will a null typeHint
   TypeCheckState withoutTypeHint() const;
   // return the state with a typeHint set
   TypeCheckState withTypeHint(std::shared_ptr<Type> typeHint) const;
+
+  // return the state with a function ret type set
+  TypeCheckState withFunctionReturnType(std::shared_ptr<Type> returnType) const;
+  TypeCheckState withoutFunctionReturnType() const;
 };
 
 /*
@@ -113,13 +119,14 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                   const TypeCheckState &state) override;
   TypeCheckResult visitIfStatement(IfStatement &node,
                                    const TypeCheckState &state) override;
+  TypeCheckResult visitReturnStatement(ReturnStatement &node, const TypeCheckState &state) override;
 
   TypeCheckResult visitFunctionCall(FunctionCall &node,
                                     const TypeCheckState &state) override;
   TypeCheckResult visitIdentifier(Identifier &node,
                                   const TypeCheckState &state) override;
-  /*TypeCheckResult visitOperatorSymbol(OperatorSymbol &node,
-                                      const TypeCheckState &state) override;*/
+  TypeCheckResult visitOperatorSymbol(OperatorSymbol &node,
+                                      const TypeCheckState &state) override;
   TypeCheckResult visitAssignment(Assignment &node,
                                   const TypeCheckState &state) override;
   TypeCheckResult visitIntLiteral(IntLiteral &node,

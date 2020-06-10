@@ -331,6 +331,14 @@ public:
         bodies(std::move(bodies)){};
 };
 
+/* return statement (expression may be null) */
+class ReturnStatement : public Statement {
+public:
+  std::unique_ptr<Expression> expression;
+
+  ReturnStatement(const SourceLocation &loc, std::unique_ptr<Expression> expression): Statement(loc), expression(std::move(expression)) {};
+};
+
 /* ast expressions */
 class Expression : public Statement {
 public:

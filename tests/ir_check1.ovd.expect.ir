@@ -1,10 +1,10 @@
-(8:13)	%0 = INTLITERAL i64 10
-(8:5)	%ovidc_test:mod:a = ALLOCATION i64
+(8:13)	%0 = INTLITERAL i32 10
+(8:5)	%ovidc_test:mod:a = ALLOCATION i32
 (8:5)	STORE %ovidc_test:mod:a <- %0
 (10:1)	%ovidc_test:mod:test = FUNCTIONDECLARE (b i32) -> i32 {
     (10:1)	BASICBLOCK @1 {
         (10:11)	%b = ALLOCATION i32
-        (11:9)	%2 = INTLITERAL i64 2
+        (11:9)	%2 = INTLITERAL i32 2
         (11:5)	STORE %ovidc_test:mod:a <- %2
         (12:5)	%c = ALLOCATION i32
         (12:5)	STORE %c <- %b
@@ -16,8 +16,8 @@
         (16:8)	CONDITIONALJUMP %cond @5(true) @6(false)
     }
     (16:8)	BASICBLOCK @5 {
-        (17:18)	%7 = INTLITERAL i64 1
-        (17:9)	%v1 = ALLOCATION i64
+        (17:18)	%7 = INTLITERAL i32 1
+        (17:9)	%v1 = ALLOCATION i32
         (17:9)	STORE %v1 <- %7
         (16:8)	JUMP @4
     }
@@ -26,8 +26,8 @@
         (18:13)	CONDITIONALJUMP %8 @9(true) @10(false)
     }
     (18:13)	BASICBLOCK @9 {
-        (19:18)	%11 = INTLITERAL i64 2
-        (19:9)	%v2 = ALLOCATION i64
+        (19:18)	%11 = INTLITERAL i32 2
+        (19:9)	%v2 = ALLOCATION i32
         (19:9)	STORE %v2 <- %11
         (18:13)	JUMP @4
     }
@@ -36,13 +36,13 @@
         (20:12)	CONDITIONALJUMP %12 @13(true) @4(false)
     }
     (20:12)	BASICBLOCK @13 {
-        (21:18)	%14 = INTLITERAL i64 3
-        (21:9)	%v3 = ALLOCATION i64
+        (21:18)	%14 = INTLITERAL i32 3
+        (21:9)	%v3 = ALLOCATION i32
         (21:9)	STORE %v3 <- %14
         (20:12)	JUMP @4
     }
     (16:5)	BASICBLOCK @4 {
-        (23:9)	%15 = INTLITERAL i64 6
+        (23:9)	%15 = INTLITERAL i32 6
         (23:5)	STORE %ovidc_test:mod:a <- %15
     }
 }

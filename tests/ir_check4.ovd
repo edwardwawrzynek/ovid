@@ -8,7 +8,7 @@ fn test2() -> u16 {}
 
 fn test3(v *mut i16) -> void {
     val a = 54
-    test1(a) // __error: "narrowing conversion from type i64 to i32"
+    test1(a)
     test1(test2())
     *v = test2()
 }

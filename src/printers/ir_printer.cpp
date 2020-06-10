@@ -210,4 +210,20 @@ int IRPrinter::visitBuiltinCast(BuiltinCast &instruct,
   return 0;
 }
 
+int IRPrinter::visitReturn(Return &instruct,
+                           const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  output << "RETURN";
+  if(instruct.expr != nullptr) {
+    output << " ";
+    printValue(instruct.expr->val);
+  }
+  output << "\n";
+
+  return 0;
+}
+
 } // namespace ovid::ir

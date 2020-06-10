@@ -6,11 +6,20 @@
 namespace ovid::ast {
 
 TypeCheckState TypeCheckState::withoutTypeHint() const {
-  return TypeCheckState(nullptr);
+  return TypeCheckState(nullptr, functionReturnType);
 }
 
 TypeCheckState TypeCheckState::withTypeHint(std::shared_ptr<Type> hint) const {
-  return TypeCheckState(std::move(hint));
+  return TypeCheckState(std::move(hint), functionReturnType);
+}
+
+TypeCheckState TypeCheckState::withFunctionReturnType(
+    std::shared_ptr<Type> returnType) const {
+  return TypeCheckState(typeHint, std::move(returnType));
+}
+
+TypeCheckState TypeCheckState::withoutFunctionReturnType() const {
+  return TypeCheckState(typeHint, nullptr);
 }
 
 std::shared_ptr<Type> TypeCheck::addMutType(const std::shared_ptr<Type> &type,
@@ -48,11 +57,11 @@ TypeCheckResult TypeCheck::visitBoolLiteral(BoolLiteral &node,
 TypeCheckResult TypeCheck::visitIntLiteral(IntLiteral &node,
                                            const TypeCheckState &state) {
   std::shared_ptr<IntType> resType;
-  /* if no type hint is present or type hint isn't IntType, the integer is of
-   * type i64 */
+  /* if no type hint is present or type hint isn't IntType, default to i32
+   * TOOD: switch to i64 if doesn't fit in i32 */
   if (state.typeHint == nullptr ||
       dynamic_cast<IntType *>(state.typeHint.get()) == nullptr) {
-    resType = std::make_shared<IntType>(node.loc, 64, false);
+    resType = std::make_shared<IntType>(node.loc, 32, false);
   }
   /* otherwise, follow type hint */
   else {
@@ -170,7 +179,7 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
 
   // load rvalue, and set type hint to type of lvalue
   auto rvalueRes =
-      visitNode(*node.rvalue, state.withTypeHint(lvalueRes.resultType));
+      visitNode(*node.rvalue, state.withTypeHint(withoutMutType(lvalueRes.resultType)));
 
   if (lvalueRes.resultInstruction == nullptr) {
     errorMan.logError("expression doesn't have a value", node.rvalue->loc,
@@ -204,6 +213,7 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
 
 TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
                                              const TypeCheckState &state) {
+
   // new body basic block
   ir::BasicBlockList body;
   body.push_back(
@@ -245,8 +255,9 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   }
 
   // visit body
+  auto bodyState = state.withoutTypeHint().withFunctionReturnType(node.type->type->retType);
   for (auto &child : node.body.statements) {
-    visitNode(*child, state.withoutTypeHint());
+    visitNode(*child, bodyState);
   }
 
   // restore previous instruction state
@@ -542,15 +553,8 @@ TypeCheckResult
 TypeCheck::visitFunctionCallAddress(const FunctionCall &node,
                                     const TypeCheckState &state) {
   assert(node.args.size() == 1);
-  // if type hint is a pointer, construct a type hint with that type
-  std::shared_ptr<Type> typeHint;
-  if (dynamic_cast<PointerType *>(state.typeHint.get()) != nullptr) {
-    typeHint = dynamic_cast<PointerType *>(state.typeHint.get())->type;
-  } else {
-    typeHint = nullptr;
-  }
-  // visit expression
-  auto valueRes = visitNode(*node.args[0], state.withTypeHint(typeHint));
+  // visit expression (don't set type hint -- conversions make address not storage)
+  auto valueRes = visitNode(*node.args[0], state.withoutTypeHint());
   if (valueRes.resultType == nullptr)
     return TypeCheckResult(nullptr, nullptr);
   // make sure expression is a storage
@@ -758,6 +762,46 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
   // do implicit convert if needed
   return doImplicitConversion(TypeCheckResult(opRetType, instrPointer), state,
                               node.loc);
+}
+
+TypeCheckResult TypeCheck::visitReturnStatement(ReturnStatement &node,
+                                                const TypeCheckState &state) {
+  assert(state.functionReturnType != nullptr);
+
+  if(node.expression == nullptr) {
+    if(dynamic_cast<VoidType*>(state.functionReturnType.get()) == nullptr) {
+      errorMan.logError(string_format("return type (\x1b[1mvoid\x1b[m) doesn't match expected type \x1b[1m%s\x1b[m", type_printer.getType(*state.functionReturnType).c_str()), node.loc, ErrorType::TypeError);
+
+      return TypeCheckResult(nullptr, nullptr);
+    }
+
+    curInstructionList->emplace_back(std::make_unique<ir::Return>(node.loc, nullptr));
+
+    return TypeCheckResult(std::make_shared<VoidType>(node.loc), nullptr);
+  } else {
+    auto exprRes = visitNode(*node.expression, state.withTypeHint(state.functionReturnType));
+
+    if(exprRes.resultType == nullptr || exprRes.resultInstruction == nullptr) return TypeCheckResult(nullptr, nullptr);
+
+    // do implicit conversion to expected return type
+    exprRes = doImplicitConversion(exprRes, state.withTypeHint(state.functionReturnType), node.expression->loc);
+    if(!exprRes.resultType->equalToExpected(*state.functionReturnType)) {
+      errorMan.logError(string_format("return type (\x1b[1m%s\x1b[m) doesn't match expected type \x1b[1m%s\x1b[m", type_printer.getType(*exprRes.resultType).c_str(), type_printer.getType(*state.functionReturnType).c_str()), node.loc, ErrorType::TypeError);
+
+      return TypeCheckResult(nullptr, nullptr);
+    }
+
+    curInstructionList->emplace_back(std::make_unique<ir::Return>(node.loc, exprRes.resultInstruction));
+
+    return TypeCheckResult(exprRes.resultType, nullptr);
+  }
+}
+
+TypeCheckResult TypeCheck::visitOperatorSymbol(OperatorSymbol &node,
+                                               const TypeCheckState &state) {
+  // OperatorSymbol in a function call is explicitly handled in visitFunctionCall
+  errorMan.logError("invalid use of operator symbol", node.loc, ErrorType::TypeError);
+  return TypeCheckResult(nullptr, nullptr);
 }
 
 /* do an implicit conversion of expression to type state.typeHint, if such a

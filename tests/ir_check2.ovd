@@ -5,7 +5,7 @@
 
 pub mut var = 34
 
-fn sum(a *i64, b *mut i64) -> *i32 {
+fn sum(a *i32, b *mut i32) -> *i32 {
     *a
     *b
 }

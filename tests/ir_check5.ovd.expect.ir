@@ -1,0 +1,57 @@
+(5:1)	%ovidc_test:test1 = FUNCTIONDECLARE () -> i32 {
+    (5:1)	BASICBLOCK @0 {
+        (6:12)	%1 = INTLITERAL i32 1
+        (6:16)	%2 = INTLITERAL i32 1
+        (6:14)	%3 = BUILTINOPERATOR (i32, i32) -> i32 +
+        (6:12)	%4 = FUNCTIONCALL i32 %3(%1, %2)
+        (6:5)	RETURN %4
+    }
+}
+(9:1)	%ovidc_test:sum = FUNCTIONDECLARE (a i64, b i64) -> i64 {
+    (9:1)	BASICBLOCK @5 {
+        (9:10)	%a = ALLOCATION i64
+        (9:17)	%b = ALLOCATION i64
+        (10:14)	%6 = BUILTINOPERATOR (i64, i64) -> i64 +
+        (10:12)	%7 = FUNCTIONCALL i64 %6(%a, %b)
+        (10:5)	RETURN %7
+    }
+}
+(13:1)	%ovidc_test:test2 = FUNCTIONDECLARE () -> i32 {
+    (13:1)	BASICBLOCK @8 {
+        (14:20)	%9 = INTLITERAL i64 1
+        (14:22)	%10 = INTLITERAL i64 2
+        (14:16)	%11 = FUNCTIONCALL i64 %ovidc_test:sum(%9, %10)
+        (14:25)	%12 = INTLITERAL i64 3
+        (14:12)	%13 = FUNCTIONCALL i64 %ovidc_test:sum(%11, %12)
+        (14:12)	%14 = BUILTINCAST i32 %13
+        (14:5)	RETURN %14
+    }
+}
+(17:1)	%ovidc_test:test3 = FUNCTIONDECLARE () -> bool {
+    (17:1)	BASICBLOCK @15 {
+        (18:12)	%16 = BOOLLITERAL bool true
+        (18:5)	RETURN %16
+    }
+}
+(21:1)	%ovidc_test:test4 = FUNCTIONDECLARE () -> i32 {
+    (21:1)	BASICBLOCK @17 {
+        (22:8)	%19 = FUNCTIONCALL bool %ovidc_test:test3()
+        (22:8)	CONDITIONALJUMP %19 @20(true) @21(false)
+    }
+    (22:8)	BASICBLOCK @20 {
+        (23:16)	%22 = INTLITERAL i32 1
+        (23:9)	RETURN %22
+        (22:8)	JUMP @18
+    }
+    (22:8)	BASICBLOCK @21 {
+        (24:12)	%23 = BOOLLITERAL bool true
+        (24:12)	CONDITIONALJUMP %23 @24(true) @18(false)
+    }
+    (24:12)	BASICBLOCK @24 {
+        (25:16)	%25 = FUNCTIONCALL i32 %ovidc_test:test2()
+        (25:9)	RETURN %25
+        (24:12)	JUMP @18
+    }
+    (22:5)	BASICBLOCK @18 {
+    }
+}

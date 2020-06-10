@@ -894,7 +894,27 @@ Parser::parseIfStatement(const ParserState &state) {
                                             std::move(bodies));
 }
 
-// error if end of statement (semicolon, which may have been automatically
+std::unique_ptr<ast::ReturnStatement> Parser::parseReturnStatement(const ParserState &state) {
+  auto pos = tokenizer.curTokenLoc;
+  // consume 'return'
+  tokenizer.nextToken();
+  // if end of statement, nothing is returned
+  std::unique_ptr<ast::Expression> retExpr;
+  if(isEndStatement()) {
+    retExpr = nullptr;
+  } else {
+    retExpr = parseExpr(state);
+  }
+
+  return std::make_unique<ast::ReturnStatement>(pos, std::move(retExpr));
+}
+
+// check if parser is currently at an end of statement
+bool Parser::isEndStatement() {
+  return tokenizer.curToken.token == T_SEMICOLON || tokenizer.curToken.token == T_RBRK;
+}
+
+// error if not end of statement (semicolon, which may have been automatically
 // inserted), or }
 bool Parser::expectEndStatement() {
   if (tokenizer.curToken.token == T_SEMICOLON) {
@@ -958,6 +978,11 @@ Parser::parseStatement(const ParserState &state) {
   case T_SEMICOLON:
     tokenizer.nextToken();
     return parseStatement(state);
+  case T_RETURN: {
+    auto res = parseReturnStatement(state);
+    expectEndStatement();
+    return res;
+  }
   case T_IF:
     return parseIfStatement(state);
   case T_ELSIF:

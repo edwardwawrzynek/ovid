@@ -1,0 +1,25 @@
+//__ovid_compiler_test
+//__mode: parse check_ast
+//__end_header
+
+module test
+
+fn test1() -> i32 {
+    return 42
+}
+
+fn test2(a i32, b *mut *u64) -> i64 {
+    return a + **b
+}
+
+fn test3() -> void {
+    if true {
+        return
+    } elsif true {
+        return
+    } else {
+        return
+    }
+
+    return
+}

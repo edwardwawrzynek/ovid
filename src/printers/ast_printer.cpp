@@ -220,6 +220,16 @@ int ASTPrinter::visitTypeAliasDecl(TypeAliasDecl &node,
   return 0;
 }
 
+int ASTPrinter::visitReturnStatement(ReturnStatement &node,
+                                     const ASTPrinterState &state) {
+  state.printIndent(output);
+  printLoc(output, node.loc);
+  output << " ReturnStatement\n";
+  if(node.expression != nullptr)
+    visitNode(*node.expression, state.withIndent());
+  return 0;
+}
+
 int ASTTypePrinter::visitVoidType(VoidType &type,
                                   const ASTPrinterState &state) {
   state.printIndent(output);

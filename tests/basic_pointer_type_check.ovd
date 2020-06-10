@@ -32,9 +32,9 @@ fn test2() -> void {
     mut addr3 = &addr1
     addr3 = &addr2
 
-    addr3 = &addr1Imut // __error: "type of expression (**i64) does not match expected type **mut i64"
+    addr3 = &addr1Imut // __error: "type of expression (**i32) does not match expected type **mut i32"
 
-    addr3 = &value // __error: "type of expression (*mut i64) does not match expected type **mut i64"
+    addr3 = &value // __error: "type of expression (*mut i32) does not match expected type **mut i32"
 
     addr1 = &value // __error: "left side of assignment is non mutable"
 
@@ -45,8 +45,8 @@ fn test2() -> void {
     mut value3 = **addr3
     value3 = 11
 
-    val value4 = ***addr3 // __error: "cannot dereference non pointer type i64"
-    val value5 = ****addr4 // __error: "cannot dereference non pointer type i64"
+    val value4 = ***addr3 // __error: "cannot dereference non pointer type i32"
+    val value5 = ****addr4 // __error: "cannot dereference non pointer type i32"
 
-    val value6 = *value // __error: "cannot dereference non pointer type i64"
+    val value6 = *value // __error: "cannot dereference non pointer type i32"
 }

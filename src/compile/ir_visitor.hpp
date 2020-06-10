@@ -10,6 +10,7 @@ template <class T, class S> class BaseIRVisitor {
 
   virtual T visitExpression(Expression &instruct, const S &state);
   virtual T visitStorage(Storage &instruct, const S &state);
+  virtual T visitBasicBlockTerminator(BasicBlockTerminator &instruct, const S&state);
 
   virtual T visitFunctionDeclare(FunctionDeclare &instruct, const S &state);
   virtual T visitIntLiteral(IntLiteral &instruct, const S &state);
@@ -23,6 +24,8 @@ template <class T, class S> class BaseIRVisitor {
 
   virtual T visitStore(Store &instruct, const S &state);
   virtual T visitBasicBlock(BasicBlock &instruct, const S &state);
+
+  virtual T visitReturn(Return &instruct, const S &state);
   virtual T visitJump(Jump &instruct, const S &state);
   virtual T visitConditionalJump(ConditionalJump &instruct, const S &state);
 
@@ -44,11 +47,8 @@ T BaseIRVisitor<T, S>::visitInstruction(Instruction &instruct, const S &state) {
     return visitStore(dynamic_cast<Store &>(instruct), state);
   } else if (dynamic_cast<BasicBlock *>(&instruct) != nullptr) {
     return visitBasicBlock(dynamic_cast<BasicBlock &>(instruct), state);
-  } else if (dynamic_cast<Jump *>(&instruct) != nullptr) {
-    return visitJump(dynamic_cast<Jump &>(instruct), state);
-  } else if (dynamic_cast<ConditionalJump *>(&instruct) != nullptr) {
-    return visitConditionalJump(dynamic_cast<ConditionalJump &>(instruct),
-                                state);
+  } else if (dynamic_cast<BasicBlockTerminator *>(&instruct) != nullptr) {
+    return visitBasicBlockTerminator(dynamic_cast<BasicBlockTerminator&>(instruct), state);
   }
 
   assert(false);
@@ -85,6 +85,21 @@ T BaseIRVisitor<T, S>::visitStorage(Storage &instruct, const S &state) {
     return visitAllocation(dynamic_cast<Allocation &>(instruct), state);
   } else if (dynamic_cast<Dereference *>(&instruct) != nullptr) {
     return visitDereference(dynamic_cast<Dereference &>(instruct), state);
+  }
+
+  assert(false);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitBasicBlockTerminator(BasicBlockTerminator &instruct,
+                                                 const S &state) {
+  if (dynamic_cast<Jump *>(&instruct) != nullptr) {
+    return visitJump(dynamic_cast<Jump &>(instruct), state);
+  } else if (dynamic_cast<ConditionalJump *>(&instruct) != nullptr) {
+    return visitConditionalJump(dynamic_cast<ConditionalJump &>(instruct),
+                                state);
+  } else if (dynamic_cast<Return *>(&instruct) != nullptr) {
+    return visitReturn(dynamic_cast<Return &>(instruct), state);
   }
 
   assert(false);
@@ -156,6 +171,11 @@ T BaseIRVisitor<T, S>::visitBuiltinOperator(BuiltinOperator &instruct,
 
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitBuiltinCast(BuiltinCast &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitReturn(Return &instruct, const S &state) {
   return std::move(defaultValue);
 }
 

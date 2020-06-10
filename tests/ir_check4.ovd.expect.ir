@@ -10,17 +10,16 @@
 (9:1)	%ovidc_test:test3 = FUNCTIONDECLARE (v *mut i16) -> void {
     (9:1)	BASICBLOCK @2 {
         (9:12)	%v = ALLOCATION *mut i16
-        (10:13)	%3 = INTLITERAL i64 54
-        (10:5)	%a = ALLOCATION i64
+        (10:13)	%3 = INTLITERAL i32 54
+        (10:5)	%a = ALLOCATION i32
         (10:5)	STORE %a <- %3
-        (10:5)	%4 = BUILTINCAST i32 %a
-        (11:5)	%5 = FUNCTIONCALL void %ovidc_test:test1(%4)
-        (12:11)	%6 = FUNCTIONCALL u16 %ovidc_test:test2()
-        (12:11)	%7 = BUILTINCAST i32 %6
-        (12:5)	%8 = FUNCTIONCALL void %ovidc_test:test1(%7)
-        (13:5)	%9 = DEREFERENCE i16 %v
-        (13:10)	%10 = FUNCTIONCALL u16 %ovidc_test:test2()
-        (13:10)	%11 = BUILTINCAST i16 %10
-        (13:5)	STORE %9 <- %11
+        (11:5)	%4 = FUNCTIONCALL void %ovidc_test:test1(%a)
+        (12:11)	%5 = FUNCTIONCALL u16 %ovidc_test:test2()
+        (12:11)	%6 = BUILTINCAST i32 %5
+        (12:5)	%7 = FUNCTIONCALL void %ovidc_test:test1(%6)
+        (13:5)	%8 = DEREFERENCE i16 %v
+        (13:10)	%9 = FUNCTIONCALL u16 %ovidc_test:test2()
+        (13:10)	%10 = BUILTINCAST i16 %9
+        (13:5)	STORE %8 <- %10
     }
 }

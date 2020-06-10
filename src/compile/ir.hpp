@@ -102,7 +102,8 @@ enum class AllocationType {
   STACK,            /* allocated on stack */
   HEAP,             /* allocated on heap */
   ARG,              /* llvm function argument */
-  ARG_COPY_TO_STACK /* an llvm argument copied to stack (needs address) */
+  ARG_COPY_TO_STACK,/* an llvm argument copied to stack (for args that need address) */
+  ARG_HEAP,         /* an llvm argument copied to heap */
 
 };
 
@@ -169,7 +170,7 @@ public:
   bool value;
 
   BoolLiteral(const SourceLocation &loc, const Value &val, bool value)
-      : Expression(loc, val, std::make_shared<ast::BoolType>(std::move(loc))),
+      : Expression(loc, val, std::make_shared<ast::BoolType>(loc)),
         value(value){};
 };
 
@@ -242,17 +243,24 @@ public:
       : Instruction(loc), storage(storage), value(value){};
 };
 
+/* basic block terminating instructions (jumps + returns) */
+class BasicBlockTerminator: public Instruction {
+public:
+
+  explicit BasicBlockTerminator(const SourceLocation &loc): Instruction(loc) {};
+};
+
 /* an unconditional jump to a label */
-class Jump : public Instruction {
+class Jump : public BasicBlockTerminator {
 public:
   const BasicBlock &label;
 
   Jump(const SourceLocation &loc, const BasicBlock &label)
-      : Instruction(loc), label(label){};
+      : BasicBlockTerminator(loc), label(label){};
 };
 
 /* a conditional jump to a label */
-class ConditionalJump : public Instruction {
+class ConditionalJump : public BasicBlockTerminator {
 public:
   const BasicBlock &true_label;
   const BasicBlock &false_label;
@@ -260,8 +268,17 @@ public:
 
   ConditionalJump(const SourceLocation &loc, const BasicBlock &true_label,
                   const BasicBlock &false_label, const Expression &condition)
-      : Instruction(loc), true_label(true_label), false_label(false_label),
+      : BasicBlockTerminator(loc), true_label(true_label), false_label(false_label),
         condition(condition){};
+};
+
+/* a return from a function */
+class Return: public BasicBlockTerminator {
+public:
+  // expr may be null if nothing is returned
+  const Expression *expr;
+
+  Return(const SourceLocation &loc, const Expression *expression): BasicBlockTerminator(loc), expr(expression) {};
 };
 
 } // namespace ovid::ir
