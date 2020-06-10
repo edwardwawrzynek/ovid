@@ -5,7 +5,7 @@
 
 module mod
 
-pub mut a = 10
+pub mut a i32 = 10
 
 fn test(b i32) -> i32 {
     a = 2

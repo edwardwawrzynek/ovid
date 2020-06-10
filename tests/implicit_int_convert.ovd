@@ -1,0 +1,13 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+fn test1(a u8, b *i16, c i32, d **mut u64) -> void {
+}
+
+fn test2() -> void {
+    val b i16 = 45
+    mut d u64 = 12
+    val dAddr = &d
+    test1(43, &b, 12, &dAddr)
+}

@@ -4,13 +4,13 @@
 
 module test0 {
     /* this shadows the a declared at root scope */
-    mut a = 1 // __error: "declaration of `ovidc_test:test0:a` shadows higher declaration"
+    mut a i32 = 1 // __error: "declaration of `ovidc_test:test0:a` shadows higher declaration"
 
     a = 2
 
     module test1 {
-        val a = 2 // __error: "declaration of `ovidc_test:test0:test1:a` shadows higher declaration"
-        val b = 1
+        val a i32 = 2 // __error: "declaration of `ovidc_test:test0:test1:a` shadows higher declaration"
+        val b i32 = 1
     }
 
     fn test(c i32) -> i32 {
@@ -23,4 +23,4 @@ module test0 {
     }
 }
 
-val a = 3
+val a i32 = 3

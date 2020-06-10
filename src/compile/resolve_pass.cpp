@@ -270,7 +270,7 @@ bool ResolvePass::checkTypeShadowed(
 
 int ResolvePass::visitReturnStatement(ReturnStatement &node,
                                       const ResolvePassState &state) {
-  if(node.expression != nullptr) {
+  if (node.expression != nullptr) {
     visitNode(*node.expression, state);
   }
 

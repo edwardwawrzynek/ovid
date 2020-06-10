@@ -5,15 +5,15 @@
 pub module test1:test2
 
 pub module test3 {
-    val a = 1
-    pub val b = 2
+    val a i32 = 1
+    pub val b i32 = 2
 
     type a = i32
     pub type b = i32
 
     module test4 {
-        val c = 3
-        pub val d = 4
+        val c i32 = 3
+        pub val d i32 = 4
 
         fn test() -> void {
             /* all symbol accessible to descendants */

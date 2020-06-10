@@ -1,4 +1,4 @@
-(8:13)	%0 = INTLITERAL i32 10
+(8:17)	%0 = INTLITERAL i32 10
 (8:5)	%ovidc_test:mod:a = ALLOCATION i32
 (8:5)	STORE %ovidc_test:mod:a <- %0
 (10:1)	%ovidc_test:mod:test = FUNCTIONDECLARE (b i32) -> i32 {

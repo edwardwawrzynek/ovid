@@ -11,7 +11,7 @@ fn test() -> i32 {
     pub mut d = 4 // __error: "pub variable cannot be declared inside a non global scope"
 }
 
-val a1 = 1
-pub val b1 = 2
-mut c1 = 3
-pub mut d1 = 4
+val a1 i32 = 1
+pub val b1 i32 = 2
+mut c1 i32 = 3
+pub mut d1 i32 = 4

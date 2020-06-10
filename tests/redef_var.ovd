@@ -3,14 +3,14 @@
 //__end_header
 
 module ovidc:test:redef_var {
-    val var = 1
-    val a = 1
-    mut var = 2 // __error: "redeclaration of `ovidc_test:ovidc:test:redef_var:var`"
+    val var i32 = 1
+    val a i32 = 1
+    mut var i32 = 2 // __error: "redeclaration of `ovidc_test:ovidc:test:redef_var:var`"
 }
 
 module ovidc:test {
     module redef_var {
-        val a = 2 // __error: "redeclaration of `ovidc_test:ovidc:test:redef_var:a`"
+        val a i32 = 2 // __error: "redeclaration of `ovidc_test:ovidc:test:redef_var:a`"
     }
 
     fn test(d i32) -> i32 {
@@ -20,9 +20,9 @@ module ovidc:test {
         mut d = 1 // __error: "redeclaration of `d`"
     }
 
-    val test = 1 // __error: "redeclaration of `ovidc_test:ovidc:test:test`"
+    val test i32 = 1 // __error: "redeclaration of `ovidc_test:ovidc:test:test`"
 
-    val test2 = 1
+    val test2 i32 = 1
 
     fn test2() -> i32 {} // __error: "redeclaration of `ovidc_test:ovidc:test:test2`"
 }

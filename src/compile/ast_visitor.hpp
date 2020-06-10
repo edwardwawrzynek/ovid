@@ -63,7 +63,7 @@ T BaseASTVisitor<T, S>::visitStatement(Statement &node, const S &state) {
   } else if (dynamic_cast<IfStatement *>(&node) != nullptr) {
     return visitIfStatement(dynamic_cast<IfStatement &>(node), state);
   } else if (dynamic_cast<ReturnStatement *>(&node) != nullptr) {
-    return visitReturnStatement(dynamic_cast<ReturnStatement&>(node), state);
+    return visitReturnStatement(dynamic_cast<ReturnStatement &>(node), state);
   } else if (dynamic_cast<Expression *>(&node) != nullptr) {
     return visitExpression(dynamic_cast<Expression &>(node), state);
   }

@@ -3,8 +3,8 @@
 //__end_header
 
 pub module test {
-    pub val a = 1
-    val b = 1
+    pub val a i32 = 1
+    val b i32 = 1
 
     pub; // __error: "expected 'pub' to be followed by variable, function, type, or module declaration"
 
@@ -12,15 +12,15 @@ pub module test {
     pub fn test2() -> i32 {}
 
     module nested {
-        pub val e = 1
+        pub val e i32 = 1
         pub fn test() -> i32 {}
         pub module test { // __error: "pub module cannot be declared inside a non-pub module"
-            val f = 1
+            val f i32 = 1
         }
     }
 
     pub c + 1 // __error: "expected 'pub' to be followed by variable, function, type, or module declaration"
 }
 
-val c = 1
-pub val d = 1
+val c i32 = 1
+pub val d i32 = 1

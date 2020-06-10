@@ -759,7 +759,7 @@ Parser::parseModuleDecl(const ParserState &state, bool is_public) {
                              pos.until(tokenizer.curTokenLoc));
 }
 
-// vardecl ::= ('val' | 'mut') identifier = expr
+// vardecl ::= ('val' | 'mut') identifier (typeExpr)? = expr
 std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
                                                      bool is_public) {
   if (is_public && !state.is_global_level) {
@@ -784,6 +784,20 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
   auto endNamePos = tokenizer.curTokenLoc;
 
   tokenizer.nextToken();
+  // if token is not =, try to parse a type expression
+  std::shared_ptr<ast::Type> explicitType = nullptr;
+  if (tokenizer.curToken.token != T_ASSIGN) {
+    explicitType = parseType(state);
+  }
+
+  // global variable declares can't be type inferred (needed for usages before
+  // declaration to work)
+  if (state.is_global_level && explicitType == nullptr) {
+    errorMan.logError(
+        "global variable declaration needs explicit type specified", pos,
+        ErrorType::ParseError);
+  }
+
   if (tokenizer.curToken.token != T_ASSIGN)
     return errorMan.logError("expected = in variable declaration",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
@@ -791,7 +805,8 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
   auto initialVal = parseExpr(state);
 
   auto ast = std::make_unique<ast::VarDecl>(pos.through(endNamePos), name,
-                                            std::move(initialVal));
+                                            std::move(initialVal),
+                                            std::move(explicitType));
 
   if (!checkRedeclaration(pos.through(endNamePos), name, state)) {
     // add entry to symbol table
@@ -894,13 +909,14 @@ Parser::parseIfStatement(const ParserState &state) {
                                             std::move(bodies));
 }
 
-std::unique_ptr<ast::ReturnStatement> Parser::parseReturnStatement(const ParserState &state) {
+std::unique_ptr<ast::ReturnStatement>
+Parser::parseReturnStatement(const ParserState &state) {
   auto pos = tokenizer.curTokenLoc;
   // consume 'return'
   tokenizer.nextToken();
   // if end of statement, nothing is returned
   std::unique_ptr<ast::Expression> retExpr;
-  if(isEndStatement()) {
+  if (isEndStatement()) {
     retExpr = nullptr;
   } else {
     retExpr = parseExpr(state);
@@ -911,7 +927,8 @@ std::unique_ptr<ast::ReturnStatement> Parser::parseReturnStatement(const ParserS
 
 // check if parser is currently at an end of statement
 bool Parser::isEndStatement() {
-  return tokenizer.curToken.token == T_SEMICOLON || tokenizer.curToken.token == T_RBRK;
+  return tokenizer.curToken.token == T_SEMICOLON ||
+         tokenizer.curToken.token == T_RBRK;
 }
 
 // error if not end of statement (semicolon, which may have been automatically

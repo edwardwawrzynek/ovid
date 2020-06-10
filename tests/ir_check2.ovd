@@ -3,7 +3,7 @@
 //__end_header
 
 
-pub mut var = 34
+pub mut var i32 = 34
 
 fn sum(a *i32, b *mut i32) -> *i32 {
     *a

@@ -98,12 +98,13 @@ enum class AllocationType {
   UNRESOLVED_LOCAL,    // local variable declare
 
   /* resolved allocation types */
-  STATIC,           /* static memory (global) */
-  STACK,            /* allocated on stack */
-  HEAP,             /* allocated on heap */
-  ARG,              /* llvm function argument */
-  ARG_COPY_TO_STACK,/* an llvm argument copied to stack (for args that need address) */
-  ARG_HEAP,         /* an llvm argument copied to heap */
+  STATIC,            /* static memory (global) */
+  STACK,             /* allocated on stack */
+  HEAP,              /* allocated on heap */
+  ARG,               /* llvm function argument */
+  ARG_COPY_TO_STACK, /* an llvm argument copied to stack (for args that need
+                        address) */
+  ARG_HEAP,          /* an llvm argument copied to heap */
 
 };
 
@@ -244,10 +245,9 @@ public:
 };
 
 /* basic block terminating instructions (jumps + returns) */
-class BasicBlockTerminator: public Instruction {
+class BasicBlockTerminator : public Instruction {
 public:
-
-  explicit BasicBlockTerminator(const SourceLocation &loc): Instruction(loc) {};
+  explicit BasicBlockTerminator(const SourceLocation &loc) : Instruction(loc){};
 };
 
 /* an unconditional jump to a label */
@@ -268,17 +268,18 @@ public:
 
   ConditionalJump(const SourceLocation &loc, const BasicBlock &true_label,
                   const BasicBlock &false_label, const Expression &condition)
-      : BasicBlockTerminator(loc), true_label(true_label), false_label(false_label),
-        condition(condition){};
+      : BasicBlockTerminator(loc), true_label(true_label),
+        false_label(false_label), condition(condition){};
 };
 
 /* a return from a function */
-class Return: public BasicBlockTerminator {
+class Return : public BasicBlockTerminator {
 public:
   // expr may be null if nothing is returned
   const Expression *expr;
 
-  Return(const SourceLocation &loc, const Expression *expression): BasicBlockTerminator(loc), expr(expression) {};
+  Return(const SourceLocation &loc, const Expression *expression)
+      : BasicBlockTerminator(loc), expr(expression){};
 };
 
 } // namespace ovid::ir

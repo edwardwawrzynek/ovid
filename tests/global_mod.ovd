@@ -20,7 +20,7 @@ module sub {
 
 module mod {}
 
-val a = 1
+val a i32 = 1
 
 fn test() -> i32 {
     test:sub:mod:a

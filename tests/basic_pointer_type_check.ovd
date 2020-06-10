@@ -4,8 +4,8 @@
 
 module mod
 
-pub mut value = 10
-pub val valueImut = 9
+pub mut value i32 = 10
+pub val valueImut i32 = 9
 
 fn test1(a *i64, b *mut i64) -> void {
     *a = 1 // __error: "left side of assignment is non mutable"

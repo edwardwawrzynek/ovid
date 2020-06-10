@@ -225,7 +225,7 @@ int ASTPrinter::visitReturnStatement(ReturnStatement &node,
   state.printIndent(output);
   printLoc(output, node.loc);
   output << " ReturnStatement\n";
-  if(node.expression != nullptr)
+  if (node.expression != nullptr)
     visitNode(*node.expression, state.withIndent());
   return 0;
 }

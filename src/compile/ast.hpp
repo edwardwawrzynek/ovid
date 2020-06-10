@@ -273,14 +273,17 @@ class VarDecl : public Statement {
 public:
   std::string name;
   std::unique_ptr<Expression> initialValue;
+  // null if type inference used
+  std::shared_ptr<Type> explicitType;
 
   // resolved reference to entry for this symbol
   std::shared_ptr<Symbol> resolved_symbol;
 
   VarDecl(const SourceLocation &loc, std::string &name,
-          std::unique_ptr<Expression> initialValue)
+          std::unique_ptr<Expression> initialValue,
+          std::shared_ptr<Type> explicitType)
       : Statement(loc), name(name), initialValue(std::move(initialValue)),
-        resolved_symbol(){};
+        explicitType(std::move(explicitType)), resolved_symbol(){};
 };
 
 class FunctionDecl : public Statement {
@@ -336,7 +339,9 @@ class ReturnStatement : public Statement {
 public:
   std::unique_ptr<Expression> expression;
 
-  ReturnStatement(const SourceLocation &loc, std::unique_ptr<Expression> expression): Statement(loc), expression(std::move(expression)) {};
+  ReturnStatement(const SourceLocation &loc,
+                  std::unique_ptr<Expression> expression)
+      : Statement(loc), expression(std::move(expression)){};
 };
 
 /* ast expressions */

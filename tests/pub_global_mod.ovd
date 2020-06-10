@@ -5,8 +5,9 @@
 /* module statement without braces wraps entire file */
 pub module test:sub:mod
 
-val a = 123
+val a i32 = 123
 
 fn test() -> i32 {
     test:sub:mod:a
+    ::ovidc_test:test:sub:mod:a
 }

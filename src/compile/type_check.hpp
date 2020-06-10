@@ -70,8 +70,10 @@ public:
 
   TypeCheckState() : typeHint(nullptr), functionReturnType(nullptr){};
 
-  explicit TypeCheckState(std::shared_ptr<Type> typeHint, std::shared_ptr<Type> functionReturnType)
-      : typeHint(std::move(typeHint)), functionReturnType(std::move(functionReturnType)){};
+  explicit TypeCheckState(std::shared_ptr<Type> typeHint,
+                          std::shared_ptr<Type> functionReturnType)
+      : typeHint(std::move(typeHint)),
+        functionReturnType(std::move(functionReturnType)){};
 
   // return the state will a null typeHint
   TypeCheckState withoutTypeHint() const;
@@ -119,7 +121,8 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                   const TypeCheckState &state) override;
   TypeCheckResult visitIfStatement(IfStatement &node,
                                    const TypeCheckState &state) override;
-  TypeCheckResult visitReturnStatement(ReturnStatement &node, const TypeCheckState &state) override;
+  TypeCheckResult visitReturnStatement(ReturnStatement &node,
+                                       const TypeCheckState &state) override;
 
   TypeCheckResult visitFunctionCall(FunctionCall &node,
                                     const TypeCheckState &state) override;

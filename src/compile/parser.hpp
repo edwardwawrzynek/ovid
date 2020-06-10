@@ -90,7 +90,8 @@ class Parser {
   bool expectEndStatement();
   bool isEndStatement();
 
-  std::unique_ptr<ast::ReturnStatement> parseReturnStatement(const ParserState &state);
+  std::unique_ptr<ast::ReturnStatement>
+  parseReturnStatement(const ParserState &state);
 
   std::unique_ptr<ast::ModuleDecl> parseModuleDecl(const ParserState &state,
                                                    bool is_public);

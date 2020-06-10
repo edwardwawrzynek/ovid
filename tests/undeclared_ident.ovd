@@ -9,7 +9,7 @@ module test {
 
     var // __error: "use of undeclared identifier `var`"
 
-    pub val a = 1
+    pub val a i32 = 1
 }
 
 module test2 {

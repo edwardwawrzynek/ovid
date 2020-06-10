@@ -10,7 +10,8 @@ template <class T, class S> class BaseIRVisitor {
 
   virtual T visitExpression(Expression &instruct, const S &state);
   virtual T visitStorage(Storage &instruct, const S &state);
-  virtual T visitBasicBlockTerminator(BasicBlockTerminator &instruct, const S&state);
+  virtual T visitBasicBlockTerminator(BasicBlockTerminator &instruct,
+                                      const S &state);
 
   virtual T visitFunctionDeclare(FunctionDeclare &instruct, const S &state);
   virtual T visitIntLiteral(IntLiteral &instruct, const S &state);
@@ -48,7 +49,8 @@ T BaseIRVisitor<T, S>::visitInstruction(Instruction &instruct, const S &state) {
   } else if (dynamic_cast<BasicBlock *>(&instruct) != nullptr) {
     return visitBasicBlock(dynamic_cast<BasicBlock &>(instruct), state);
   } else if (dynamic_cast<BasicBlockTerminator *>(&instruct) != nullptr) {
-    return visitBasicBlockTerminator(dynamic_cast<BasicBlockTerminator&>(instruct), state);
+    return visitBasicBlockTerminator(
+        dynamic_cast<BasicBlockTerminator &>(instruct), state);
   }
 
   assert(false);

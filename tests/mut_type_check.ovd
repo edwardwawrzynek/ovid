@@ -3,8 +3,8 @@
 //__end_header
 
 module test {
-    val a = 1
-    mut b = 2
+    val a i32 = 1
+    mut b i32 = 2
 
     fn test(c i32) -> void {
         a = 3 // __error: "left side of assignment is non mutable"

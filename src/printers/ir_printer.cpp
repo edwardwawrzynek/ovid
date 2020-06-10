@@ -217,7 +217,7 @@ int IRPrinter::visitReturn(Return &instruct,
   ast::printLoc(output, instruct.loc);
   output << "\t";
   output << "RETURN";
-  if(instruct.expr != nullptr) {
+  if (instruct.expr != nullptr) {
     output << " ";
     printValue(instruct.expr->val);
   }

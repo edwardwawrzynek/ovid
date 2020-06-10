@@ -13,8 +13,8 @@ TypeCheckState TypeCheckState::withTypeHint(std::shared_ptr<Type> hint) const {
   return TypeCheckState(std::move(hint), functionReturnType);
 }
 
-TypeCheckState TypeCheckState::withFunctionReturnType(
-    std::shared_ptr<Type> returnType) const {
+TypeCheckState
+TypeCheckState::withFunctionReturnType(std::shared_ptr<Type> returnType) const {
   return TypeCheckState(typeHint, std::move(returnType));
 }
 
@@ -79,14 +79,26 @@ TypeCheckResult TypeCheck::visitIntLiteral(IntLiteral &node,
 
 TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
                                         const TypeCheckState &state) {
-
-  // TODO: if explicit type included on declaration, use it as hint
   assert(node.resolved_symbol != nullptr);
 
-  // visit initial value
-  auto initial = visitNode(*node.initialValue, state.withoutTypeHint());
+  // visit initial value. if explicit type included on declaration, use it as
+  // hint
+  auto initial =
+      visitNode(*node.initialValue, state.withTypeHint(node.explicitType));
   // remove mut (if present) from inferred type
   auto initialType = withoutMutType(initial.resultType);
+
+  if (node.explicitType != nullptr &&
+      !initialType->equalToExpected(*node.explicitType)) {
+    errorMan.logError(
+        string_format("type of expression (\x1b[1m%s\x1b[m) doesn't match "
+                      "expected type \x1b[1m%s\x1b[m",
+                      type_printer.getType(*initialType).c_str(),
+                      type_printer.getType(*node.explicitType).c_str()),
+        node.initialValue->loc, ErrorType::TypeError);
+
+    return TypeCheckResult(nullptr, nullptr);
+  }
 
   // recreate source name
   auto sourceName =
@@ -178,8 +190,8 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
   }
 
   // load rvalue, and set type hint to type of lvalue
-  auto rvalueRes =
-      visitNode(*node.rvalue, state.withTypeHint(withoutMutType(lvalueRes.resultType)));
+  auto rvalueRes = visitNode(
+      *node.rvalue, state.withTypeHint(withoutMutType(lvalueRes.resultType)));
 
   if (lvalueRes.resultInstruction == nullptr) {
     errorMan.logError("expression doesn't have a value", node.rvalue->loc,
@@ -255,7 +267,8 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   }
 
   // visit body
-  auto bodyState = state.withoutTypeHint().withFunctionReturnType(node.type->type->retType);
+  auto bodyState =
+      state.withoutTypeHint().withFunctionReturnType(node.type->type->retType);
   for (auto &child : node.body.statements) {
     visitNode(*child, bodyState);
   }
@@ -553,7 +566,8 @@ TypeCheckResult
 TypeCheck::visitFunctionCallAddress(const FunctionCall &node,
                                     const TypeCheckState &state) {
   assert(node.args.size() == 1);
-  // visit expression (don't set type hint -- conversions make address not storage)
+  // visit expression (don't set type hint -- conversions make address not
+  // storage)
   auto valueRes = visitNode(*node.args[0], state.withoutTypeHint());
   if (valueRes.resultType == nullptr)
     return TypeCheckResult(nullptr, nullptr);
@@ -768,30 +782,47 @@ TypeCheckResult TypeCheck::visitReturnStatement(ReturnStatement &node,
                                                 const TypeCheckState &state) {
   assert(state.functionReturnType != nullptr);
 
-  if(node.expression == nullptr) {
-    if(dynamic_cast<VoidType*>(state.functionReturnType.get()) == nullptr) {
-      errorMan.logError(string_format("return type (\x1b[1mvoid\x1b[m) doesn't match expected type \x1b[1m%s\x1b[m", type_printer.getType(*state.functionReturnType).c_str()), node.loc, ErrorType::TypeError);
+  if (node.expression == nullptr) {
+    if (dynamic_cast<VoidType *>(state.functionReturnType.get()) == nullptr) {
+      errorMan.logError(
+          string_format(
+              "return type (\x1b[1mvoid\x1b[m) doesn't match expected type "
+              "\x1b[1m%s\x1b[m",
+              type_printer.getType(*state.functionReturnType).c_str()),
+          node.loc, ErrorType::TypeError);
 
       return TypeCheckResult(nullptr, nullptr);
     }
 
-    curInstructionList->emplace_back(std::make_unique<ir::Return>(node.loc, nullptr));
+    curInstructionList->emplace_back(
+        std::make_unique<ir::Return>(node.loc, nullptr));
 
     return TypeCheckResult(std::make_shared<VoidType>(node.loc), nullptr);
   } else {
-    auto exprRes = visitNode(*node.expression, state.withTypeHint(state.functionReturnType));
+    auto exprRes = visitNode(*node.expression,
+                             state.withTypeHint(state.functionReturnType));
 
-    if(exprRes.resultType == nullptr || exprRes.resultInstruction == nullptr) return TypeCheckResult(nullptr, nullptr);
+    if (exprRes.resultType == nullptr || exprRes.resultInstruction == nullptr)
+      return TypeCheckResult(nullptr, nullptr);
 
     // do implicit conversion to expected return type
-    exprRes = doImplicitConversion(exprRes, state.withTypeHint(state.functionReturnType), node.expression->loc);
-    if(!exprRes.resultType->equalToExpected(*state.functionReturnType)) {
-      errorMan.logError(string_format("return type (\x1b[1m%s\x1b[m) doesn't match expected type \x1b[1m%s\x1b[m", type_printer.getType(*exprRes.resultType).c_str(), type_printer.getType(*state.functionReturnType).c_str()), node.loc, ErrorType::TypeError);
+    exprRes = doImplicitConversion(exprRes,
+                                   state.withTypeHint(state.functionReturnType),
+                                   node.expression->loc);
+    if (!exprRes.resultType->equalToExpected(*state.functionReturnType)) {
+      errorMan.logError(
+          string_format(
+              "return type (\x1b[1m%s\x1b[m) doesn't match expected type "
+              "\x1b[1m%s\x1b[m",
+              type_printer.getType(*exprRes.resultType).c_str(),
+              type_printer.getType(*state.functionReturnType).c_str()),
+          node.loc, ErrorType::TypeError);
 
       return TypeCheckResult(nullptr, nullptr);
     }
 
-    curInstructionList->emplace_back(std::make_unique<ir::Return>(node.loc, exprRes.resultInstruction));
+    curInstructionList->emplace_back(
+        std::make_unique<ir::Return>(node.loc, exprRes.resultInstruction));
 
     return TypeCheckResult(exprRes.resultType, nullptr);
   }
@@ -799,8 +830,10 @@ TypeCheckResult TypeCheck::visitReturnStatement(ReturnStatement &node,
 
 TypeCheckResult TypeCheck::visitOperatorSymbol(OperatorSymbol &node,
                                                const TypeCheckState &state) {
-  // OperatorSymbol in a function call is explicitly handled in visitFunctionCall
-  errorMan.logError("invalid use of operator symbol", node.loc, ErrorType::TypeError);
+  // OperatorSymbol in a function call is explicitly handled in
+  // visitFunctionCall
+  errorMan.logError("invalid use of operator symbol", node.loc,
+                    ErrorType::TypeError);
   return TypeCheckResult(nullptr, nullptr);
 }
 
