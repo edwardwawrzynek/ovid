@@ -372,6 +372,17 @@ TypeResolver::visitNamedFunctionType(NamedFunctionType &type,
                                              type.argNames);
 }
 
+std::shared_ptr<Type>
+TypeResolver::visitTupleType(TupleType &type, const TypeResolverState &state) {
+  TypeList types;
+
+  for(auto& child: type.types) {
+    types.push_back(visitType(*child, state));
+  }
+
+  return std::make_shared<TupleType>(type.loc, std::move(types));
+}
+
 TypeResolver::TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan)
     : BaseTypeVisitor(nullptr), scopes(scopes), errorMan(errorMan) {}
 

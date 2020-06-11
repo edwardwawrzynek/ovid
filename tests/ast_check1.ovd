@@ -1,0 +1,11 @@
+// __ovid_compiler_test
+//__mode: check_ast
+//__end_header
+
+module mod:sub
+
+pub type tuple = (i64, u8, (i8, (i32, u8)), i8)
+
+fn test(a tuple) -> void {
+    return (5, 6, (7, (3, 4)), 7)
+}

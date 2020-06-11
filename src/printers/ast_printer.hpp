@@ -46,6 +46,8 @@ class ASTTypePrinter : public BaseTypeVisitor<int, ASTPrinterState> {
   int visitNamedFunctionType(NamedFunctionType &type,
                              const ASTPrinterState &state) override;
 
+  int visitTupleType(TupleType &type, const ASTPrinterState &state) override;
+
 public:
   explicit ASTTypePrinter(std::ostream &output)
       : BaseTypeVisitor(0), output(output){};

@@ -34,6 +34,8 @@ class TypePrinter : public BaseTypeVisitor<int, TypePrinterState> {
   int visitNamedFunctionType(NamedFunctionType &type,
                              const TypePrinterState &state) override;
 
+  int visitTupleType(TupleType &type, const TypePrinterState &state) override;
+
 public:
   void clear();
   std::string getRes();
@@ -78,7 +80,7 @@ public:
   // return the state will a null typeHint
   TypeCheckState withoutTypeHint() const;
   // return the state with a typeHint set
-  TypeCheckState withTypeHint(std::shared_ptr<Type> typeHint) const;
+  TypeCheckState withTypeHint(const std::shared_ptr<Type>& typeHint) const;
 
   // return the state with a function ret type set
   TypeCheckState withFunctionReturnType(std::shared_ptr<Type> returnType) const;
@@ -136,9 +138,9 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                   const TypeCheckState &state) override;
   TypeCheckResult visitBoolLiteral(BoolLiteral &node,
                                    const TypeCheckState &state) override;
-  /*TypeCheckResult visitTuple(Tuple &node, const TypeCheckState &state)
+  TypeCheckResult visitTuple(Tuple &node, const TypeCheckState &state)
   override;
-   TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node, const
+   /*TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node, const
   TypeCheckState &state) override;*/
 
   TypeCheckResult visitFunctionCallOperator(const FunctionCall &node,

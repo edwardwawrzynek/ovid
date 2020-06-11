@@ -18,6 +18,7 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
                       const ast::ASTPrinterState &state) override;
   int visitBoolLiteral(BoolLiteral &instruct,
                        const ast::ASTPrinterState &state) override;
+  int visitTupleLiteral(TupleLiteral &instruct, const ast::ASTPrinterState &state) override;
   int visitFunctionCall(FunctionCall &instruct,
                         const ast::ASTPrinterState &state) override;
   int visitAllocation(Allocation &instruct,

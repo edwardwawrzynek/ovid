@@ -16,6 +16,7 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitFunctionDeclare(FunctionDeclare &instruct, const S &state);
   virtual T visitIntLiteral(IntLiteral &instruct, const S &state);
   virtual T visitBoolLiteral(BoolLiteral &instruct, const S &state);
+  virtual T visitTupleLiteral(TupleLiteral &instruct, const S &state);
   virtual T visitFunctionCall(FunctionCall &instruct, const S &state);
   virtual T visitAllocation(Allocation &instruct, const S &state);
   virtual T visitAddress(Address &instruct, const S &state);
@@ -67,6 +68,8 @@ T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
     return visitIntLiteral(dynamic_cast<IntLiteral &>(instruct), state);
   } else if (dynamic_cast<BoolLiteral *>(&instruct) != nullptr) {
     return visitBoolLiteral(dynamic_cast<BoolLiteral &>(instruct), state);
+  } else if(dynamic_cast<TupleLiteral *>(&instruct) != nullptr) {
+    return visitTupleLiteral(dynamic_cast<TupleLiteral&>(instruct), state);
   } else if (dynamic_cast<Address *>(&instruct) != nullptr) {
     return visitAddress(dynamic_cast<Address &>(instruct), state);
   } else if (dynamic_cast<Storage *>(&instruct) != nullptr) {
@@ -178,6 +181,12 @@ T BaseIRVisitor<T, S>::visitBuiltinCast(BuiltinCast &instruct, const S &state) {
 
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitReturn(Return &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitTupleLiteral(TupleLiteral &instruct,
+                                         const S &state) {
   return std::move(defaultValue);
 }
 

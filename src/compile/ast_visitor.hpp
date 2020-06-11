@@ -169,6 +169,8 @@ T BaseASTVisitor<T, S>::visitReturnStatement(ReturnStatement &node,
 template <class T, class S> class BaseTypeVisitor {
   T defaultValue;
 
+  virtual T visitProductType(ProductType &type, const S &state);
+
   virtual T visitUnresolvedType(UnresolvedType &type, const S &state);
   virtual T visitResolvedAlias(ResolvedAlias &type, const S &state);
 
@@ -182,6 +184,8 @@ template <class T, class S> class BaseTypeVisitor {
 
   virtual T visitFunctionType(FunctionType &type, const S &state);
   virtual T visitNamedFunctionType(NamedFunctionType &type, const S &state);
+
+  virtual T visitTupleType(TupleType &type, const S &state);
 
 public:
   explicit BaseTypeVisitor(T defaultValue)
@@ -214,6 +218,17 @@ T BaseTypeVisitor<T, S>::visitType(Type &type, const S &state) {
                                   state);
   } else if (dynamic_cast<ResolvedAlias *>(&type) != nullptr) {
     return visitResolvedAlias(dynamic_cast<ResolvedAlias &>(type), state);
+  } else if (dynamic_cast<ProductType *>(&type) != nullptr) {
+    return visitProductType(dynamic_cast<ProductType &>(type), state);
+  }
+
+  assert(false);
+}
+
+template <class T, class S>
+T BaseTypeVisitor<T, S>::visitProductType(ProductType &type, const S &state) {
+  if(dynamic_cast<TupleType *>(&type) != nullptr) {
+    return visitTupleType(dynamic_cast<TupleType&>(type), state);
   }
 
   assert(false);
@@ -269,6 +284,11 @@ T BaseTypeVisitor<T, S>::visitFunctionType(FunctionType &type, const S &state) {
 template <class T, class S>
 T BaseTypeVisitor<T, S>::visitNamedFunctionType(NamedFunctionType &type,
                                                 const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseTypeVisitor<T, S>::visitTupleType(TupleType &type, const S &state) {
   return std::move(defaultValue);
 }
 

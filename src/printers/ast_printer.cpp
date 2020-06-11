@@ -335,4 +335,15 @@ int ASTTypePrinter::visitNamedFunctionType(NamedFunctionType &type,
   return 0;
 }
 
+int ASTTypePrinter::visitTupleType(TupleType &type,
+                                   const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "TupleType\n";
+  for(auto &child: type.types) {
+    visitType(*child, state.withIndent());
+  }
+
+  return 0;
+}
+
 } // namespace ovid::ast

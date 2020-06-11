@@ -9,8 +9,11 @@ TypeCheckState TypeCheckState::withoutTypeHint() const {
   return TypeCheckState(nullptr, functionReturnType);
 }
 
-TypeCheckState TypeCheckState::withTypeHint(std::shared_ptr<Type> hint) const {
-  return TypeCheckState(std::move(hint), functionReturnType);
+TypeCheckState TypeCheckState::withTypeHint(const std::shared_ptr<Type>& hint) const {
+  auto typeHintAlias = std::dynamic_pointer_cast<ResolvedAlias>(hint);
+
+  std::shared_ptr<ast::Type> newHint = typeHintAlias == nullptr ? hint : typeHintAlias->alias->type;
+  return TypeCheckState(std::move(newHint), functionReturnType);
 }
 
 TypeCheckState
@@ -52,6 +55,42 @@ TypeCheckResult TypeCheck::visitBoolLiteral(BoolLiteral &node,
   curInstructionList->push_back(std::move(instr));
 
   return TypeCheckResult(instrPointer->type, instrPointer);
+}
+
+
+TypeCheckResult TypeCheck::visitTuple(Tuple &node,
+                                      const TypeCheckState &state) {
+  auto typeHint = std::dynamic_pointer_cast<TupleType>(state.typeHint);
+
+  std::vector<std::reference_wrapper<const ir::Expression>> exprs;
+  std::vector<std::shared_ptr<ast::Type>> exprTypes;
+  for (size_t i = 0; i < node.expressions.size(); i++) {
+    auto &expr = node.expressions[i];
+
+    // construct type hint
+    std::shared_ptr<ast::Type> newTypeHint;
+    if (typeHint == nullptr || i >= typeHint->types.size())
+      newTypeHint = nullptr;
+    else
+      newTypeHint = typeHint->types[i];
+
+    // visit expression
+    auto exprRes = visitNode(*expr, state.withTypeHint(newTypeHint));
+    if (exprRes.resultType == nullptr || exprRes.resultInstruction == nullptr)
+      return TypeCheckResult(nullptr, nullptr);
+
+    exprs.emplace_back(*exprRes.resultInstruction);
+    exprTypes.push_back(exprRes.resultType);
+  }
+
+  // construct instruction
+  auto resType = std::make_shared<ast::TupleType>(node.loc, std::move(exprTypes));
+  auto instr = std::make_unique<ir::TupleLiteral>(node.loc, ir::Value(), exprs, resType);
+  auto instrPointer = instr.get();
+
+  curInstructionList->push_back(std::move(instr));
+
+  return TypeCheckResult(resType, instrPointer);
 }
 
 TypeCheckResult TypeCheck::visitIntLiteral(IntLiteral &node,
@@ -992,6 +1031,18 @@ int TypePrinter::visitNamedFunctionType(NamedFunctionType &type,
   }
   res.append(") -> ");
   visitType(*type.type->retType, state);
+
+  return 0;
+}
+
+int TypePrinter::visitTupleType(TupleType &type, const TypePrinterState &state) {
+  res.push_back('(');
+  for(size_t i = 0; i < type.types.size(); i++) {
+    visitType(*type.types[i], state);
+    if (i < type.types.size() - 1)
+      res.append(", ");
+  }
+  res.push_back(')');
 
   return 0;
 }

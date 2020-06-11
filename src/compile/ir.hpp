@@ -175,6 +175,14 @@ public:
         value(value){};
 };
 
+/* tuple literal */
+class TupleLiteral : public Expression {
+public:
+  std::vector<std::reference_wrapper<const Expression>> exprs;
+
+  TupleLiteral(const SourceLocation &loc, const Value &val, const std::vector<std::reference_wrapper<const Expression>>& exprs, std::shared_ptr<ast::Type> type): Expression(loc, val, std::move(type)), exprs(exprs) {};
+};
+
 /* a function call (including builtins)
  * TODO: represent interface calls somehow */
 class FunctionCall : public Expression {

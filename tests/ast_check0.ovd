@@ -1,7 +1,7 @@
 // __ovid_compiler_test
 //__mode: check_ast
 //__end_header
-/* file basic_parse.ovd.expect.ast contains the ast this file is expected to parse to */
+
 module mod:sub
 
 module test0 {}

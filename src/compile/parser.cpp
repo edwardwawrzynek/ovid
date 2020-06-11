@@ -394,6 +394,7 @@ std::shared_ptr<ast::Type> Parser::parseType(const ParserState &state,
                                              bool is_root_of_type) {
 
   auto pos = tokenizer.curTokenLoc;
+  // mut type
   if (tokenizer.curToken.token == T_MUT) {
     // a type with root level mutability (eg mut i32) is invalid -- root
     // mutability is about binding, not type a type like (* mut i32) is valid
@@ -406,9 +407,32 @@ std::shared_ptr<ast::Type> Parser::parseType(const ParserState &state,
     tokenizer.nextToken();
     return std::make_shared<ast::MutType>(pos, parseType(state, false));
   }
+  // pointer type
   if (tokenizer.curToken.token == T_STAR) {
     tokenizer.nextToken();
     return std::make_shared<ast::PointerType>(pos, parseType(state, false));
+  }
+  // tuple type
+  if(tokenizer.curToken.token == T_LPAREN) {
+    tokenizer.nextToken();
+    ast::TypeList types;
+
+    while (true) {
+      types.push_back(parseType(state));
+      if(tokenizer.curToken.token == T_RPAREN) {
+        tokenizer.nextToken();
+        break;
+      }
+      if(tokenizer.curToken.token != T_COMMA && tokenizer.curToken.token != T_RPAREN) {
+        return errorMan.logError("expected ) or , in type expression", tokenizer.curTokenLoc, ErrorType::ParseError);
+      }
+      tokenizer.nextToken();
+    }
+
+    if(types.size() == 1) { return types[0]; }
+    else {
+      return std::make_shared<ast::TupleType>(pos, std::move(types));
+    }
   }
   if (tokenizer.curToken.token != T_IDENT &&
       tokenizer.curToken.token != T_DOUBLE_COLON) {

@@ -45,6 +45,23 @@ int IRPrinter::visitBoolLiteral(BoolLiteral &instruct,
   return 0;
 }
 
+int IRPrinter::visitTupleLiteral(TupleLiteral &instruct,
+                                 const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printValue(instruct.val);
+  output << " = TUPLELITERAL " << type_printer.getType(*instruct.type);
+  for(auto &expr: instruct.exprs) {
+    output << " ";
+    printValue(expr.get().val);
+  }
+  output << "\n";
+
+  return 0;
+}
+
 int ovid::ir::IRPrinter::visitAllocation(
     ovid::ir::Allocation &instruct, const ovid::ast::ASTPrinterState &state) {
   state.printIndent(output);
