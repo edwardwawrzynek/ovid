@@ -9,22 +9,22 @@ fn test1() -> i32 {
 }
 
 fn test2(a i32, b *mut *u64) -> bool {
-    return a + **b // __error: "return type (u64) doesn't match expected type bool"
+    return a + **b // __error: "return type u64 doesn't match expected type bool"
 }
 
 fn test3() -> f64 {
-    return test1() + 5 // __error: "return type (i32) doesn't match expected type f64"
+    return test1() + 5 // __error: "return type i32 doesn't match expected type f64"
 }
 
 fn test4() -> void {
-    return false // __error: "return type (bool) doesn't match expected type void"
+    return false // __error: "return type bool doesn't match expected type void"
 }
 
 fn test5() -> i32 {
     if true {
-        return // __error: "return type (void) doesn't match expected type i32"
+        return // __error: "return type void doesn't match expected type i32"
     } elsif true {
-        return false // __error: "return type (bool) doesn't match expected type i32"
+        return false // __error: "return type bool doesn't match expected type i32"
     } else {
         return test1()
     }

@@ -7,9 +7,8 @@
     (12:1) FunctionDecl: test
       retType:
         PointerType
-            ResolvedAlias
-                PointerType
-                    IntType: i32
+            PointerType
+                IntType: i32
       argNames: a b
       argTypes:
         IntType: i32

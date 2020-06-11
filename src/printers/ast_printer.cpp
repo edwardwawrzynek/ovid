@@ -339,7 +339,7 @@ int ASTTypePrinter::visitTupleType(TupleType &type,
                                    const ASTPrinterState &state) {
   state.printIndent(output);
   output << "TupleType\n";
-  for(auto &child: type.types) {
+  for (auto &child : type.types) {
     visitType(*child, state.withIndent());
   }
 

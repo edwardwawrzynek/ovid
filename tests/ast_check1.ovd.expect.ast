@@ -14,16 +14,15 @@
         VoidType
       argNames: a
       argTypes:
-        ResolvedAlias
+        TupleType
+            IntType: i64
+            IntType: u8
             TupleType
-                IntType: i64
-                IntType: u8
-                TupleType
-                    IntType: i8
-                    TupleType
-                        IntType: i32
-                        IntType: u8
                 IntType: i8
+                TupleType
+                    IntType: i32
+                    IntType: u8
+            IntType: i8
       body:
         (10:5) ReturnStatement
             (10:12) Tuple

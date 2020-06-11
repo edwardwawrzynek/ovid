@@ -9,10 +9,12 @@ TypeCheckState TypeCheckState::withoutTypeHint() const {
   return TypeCheckState(nullptr, functionReturnType);
 }
 
-TypeCheckState TypeCheckState::withTypeHint(const std::shared_ptr<Type>& hint) const {
+TypeCheckState
+TypeCheckState::withTypeHint(const std::shared_ptr<Type> &hint) const {
   auto typeHintAlias = std::dynamic_pointer_cast<ResolvedAlias>(hint);
 
-  std::shared_ptr<ast::Type> newHint = typeHintAlias == nullptr ? hint : typeHintAlias->alias->type;
+  std::shared_ptr<ast::Type> newHint =
+      typeHintAlias == nullptr ? hint : typeHintAlias->alias->type;
   return TypeCheckState(std::move(newHint), functionReturnType);
 }
 
@@ -57,7 +59,6 @@ TypeCheckResult TypeCheck::visitBoolLiteral(BoolLiteral &node,
   return TypeCheckResult(instrPointer->type, instrPointer);
 }
 
-
 TypeCheckResult TypeCheck::visitTuple(Tuple &node,
                                       const TypeCheckState &state) {
   auto typeHint = std::dynamic_pointer_cast<TupleType>(state.typeHint);
@@ -84,8 +85,10 @@ TypeCheckResult TypeCheck::visitTuple(Tuple &node,
   }
 
   // construct instruction
-  auto resType = std::make_shared<ast::TupleType>(node.loc, std::move(exprTypes));
-  auto instr = std::make_unique<ir::TupleLiteral>(node.loc, ir::Value(), exprs, resType);
+  auto resType =
+      std::make_shared<ast::TupleType>(node.loc, std::move(exprTypes));
+  auto instr =
+      std::make_unique<ir::TupleLiteral>(node.loc, ir::Value(), exprs, resType);
   auto instrPointer = instr.get();
 
   curInstructionList->push_back(std::move(instr));
@@ -130,7 +133,7 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
   if (node.explicitType != nullptr &&
       !initialType->equalToExpected(*node.explicitType)) {
     errorMan.logError(
-        string_format("type of expression (\x1b[1m%s\x1b[m) doesn't match "
+        string_format("type of expression \x1b[1m%s\x1b[m doesn't match "
                       "expected type \x1b[1m%s\x1b[m",
                       type_printer.getType(*initialType).c_str(),
                       type_printer.getType(*node.explicitType).c_str()),
@@ -164,7 +167,7 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
   // if variable is mutable, add MutType wrapper
   auto varType = addMutType(initialType, node.resolved_symbol->is_mut);
 
-  // copy inferred type to symbol table (TODO: handle explicitly specified type)
+  // copy inferred type to symbol table
   assert(node.resolved_symbol->type == nullptr);
   node.resolved_symbol->type = varType;
 
@@ -242,7 +245,7 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
 
   if (!rvalueRes.resultType->equalToExpected(*lvalueExpected)) {
     errorMan.logError(
-        string_format("type of expression (\x1b[1m%s\x1b[m) does not match "
+        string_format("type of expression \x1b[1m%s\x1b[m does not match "
                       "expected type \x1b[1m%s\x1b[m",
                       type_printer.getType(*rvalueRes.resultType).c_str(),
                       type_printer.getType(*lvalueExpected).c_str()),
@@ -575,7 +578,7 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
 
       if (!argRes.resultType->equalToExpected(*argType)) {
         errorMan.logError(
-            string_format("type of expression (\x1b[1m%s\x1b[m) doesn't match "
+            string_format("type of expression \x1b[1m%s\x1b[m doesn't match "
                           "expected type \x1b[1m%s\x1b[m",
                           type_printer.getType(*argRes.resultType).c_str(),
                           type_printer.getType(*argType).c_str()),
@@ -749,7 +752,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
                                    node.args[i]->loc);
         if (!arg.resultType->equalToExpected(*castType)) {
           errorMan.logError(
-              string_format("type of expresion (\x1b[1m%s\x1b[m) doesn't match "
+              string_format("type of expresion \x1b[1m%s\x1b[m doesn't match "
                             "expected type \x1b[1m%s\x1b[1m",
                             type_printer.getType(*arg.resultType).c_str(),
                             type_printer.getType(*castType).c_str()),
@@ -775,7 +778,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
                                    node.args[i]->loc);
         if (!arg.resultType->equalToExpected(*castType)) {
           errorMan.logError(
-              string_format("type of expresion (\x1b[1m%s\x1b[m) doesn't match "
+              string_format("type of expresion \x1b[1m%s\x1b[m doesn't match "
                             "expected type \x1b[1m%s\x1b[1m",
                             type_printer.getType(*arg.resultType).c_str(),
                             type_printer.getType(*castType).c_str()),
@@ -825,7 +828,7 @@ TypeCheckResult TypeCheck::visitReturnStatement(ReturnStatement &node,
     if (dynamic_cast<VoidType *>(state.functionReturnType.get()) == nullptr) {
       errorMan.logError(
           string_format(
-              "return type (\x1b[1mvoid\x1b[m) doesn't match expected type "
+              "return type \x1b[1mvoid\x1b[m doesn't match expected type "
               "\x1b[1m%s\x1b[m",
               type_printer.getType(*state.functionReturnType).c_str()),
           node.loc, ErrorType::TypeError);
@@ -851,7 +854,7 @@ TypeCheckResult TypeCheck::visitReturnStatement(ReturnStatement &node,
     if (!exprRes.resultType->equalToExpected(*state.functionReturnType)) {
       errorMan.logError(
           string_format(
-              "return type (\x1b[1m%s\x1b[m) doesn't match expected type "
+              "return type \x1b[1m%s\x1b[m doesn't match expected type "
               "\x1b[1m%s\x1b[m",
               type_printer.getType(*exprRes.resultType).c_str(),
               type_printer.getType(*state.functionReturnType).c_str()),
@@ -1035,9 +1038,10 @@ int TypePrinter::visitNamedFunctionType(NamedFunctionType &type,
   return 0;
 }
 
-int TypePrinter::visitTupleType(TupleType &type, const TypePrinterState &state) {
+int TypePrinter::visitTupleType(TupleType &type,
+                                const TypePrinterState &state) {
   res.push_back('(');
-  for(size_t i = 0; i < type.types.size(); i++) {
+  for (size_t i = 0; i < type.types.size(); i++) {
     visitType(*type.types[i], state);
     if (i < type.types.size() - 1)
       res.append(", ");

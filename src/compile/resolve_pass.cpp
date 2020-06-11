@@ -13,6 +13,11 @@ int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
   assert(node.resolved_symbol != nullptr);
   node.resolved_symbol->resolve_pass_declared_yet = true;
 
+  if (node.explicitType != nullptr) {
+    auto state = TypeResolverState(package, current_module);
+    node.explicitType = type_resolver.visitType(*node.explicitType, state);
+  }
+
   return 0;
 }
 
@@ -24,21 +29,25 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
   auto pis_in_global = is_in_global;
   is_in_global = false;
 
+  auto typeResolveState = TypeResolverState(package, current_module);
+  node.type->type = type_resolver.visitFunctionTypeNonOverload(
+      *node.type->type, typeResolveState);
+
   // mark arguments as declared
-  for (auto &name : node.type->argNames) {
+  assert(node.type->argNames.size() == node.type->type->argTypes.size());
+  for (size_t i = 0; i < node.type->argNames.size(); i++) {
+    auto &name = node.type->argNames[i];
     // check for shadowing
     checkShadowed(
         node.loc, name, [](const Symbol &sym) -> bool { return true; }, true);
     auto sym = node.body.symbols->getDirectScopeTable().findSymbol(name);
     assert(sym != nullptr);
     sym->resolve_pass_declared_yet = true;
+    // set arg type appropriately
+    sym->type = node.type->type->argTypes[i];
     // make function type refer to resolved symbols
     node.type->resolvedArgs.push_back(sym);
   }
-
-  auto typeResolveState = TypeResolverState(package, current_module);
-  node.type->type = type_resolver.visitFunctionTypeNonOverload(
-      *node.type->type, typeResolveState);
 
   for (auto &child : node.body.statements) {
     if (child != nullptr)
@@ -312,7 +321,9 @@ TypeResolver::visitUnresolvedType(UnresolvedType &type,
                       type.loc, ErrorType::UseOfPrivateType);
   }
 
-  return std::make_shared<ResolvedAlias>(type.loc, sym);
+  // return std::make_shared<ResolvedAlias>(type.loc, sym);
+  // TODO: somehow preserve info that type was aliased (for error messages, etc)
+  return sym->type;
 }
 
 std::shared_ptr<Type>
@@ -376,7 +387,7 @@ std::shared_ptr<Type>
 TypeResolver::visitTupleType(TupleType &type, const TypeResolverState &state) {
   TypeList types;
 
-  for(auto& child: type.types) {
+  for (auto &child : type.types) {
     types.push_back(visitType(*child, state));
   }
 

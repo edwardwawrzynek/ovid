@@ -1,0 +1,28 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+module test
+
+type t1 = i32
+type t2 = (i32, *mut i32)
+type t3 = *t2
+
+fn test1(a t1) -> t2 {
+    mut b = a
+    return (a, &b)
+}
+
+fn test2(a t1, b i32) -> t1 {
+    return a + b
+}
+
+fn test3(a t1) -> t2 {
+    mut b t1 = 78
+    return (a + b, &b)
+}
+
+fn test4() -> t3 {
+    val a = test1(34)
+    return &a
+}

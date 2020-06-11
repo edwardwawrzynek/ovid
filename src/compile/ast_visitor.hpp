@@ -227,8 +227,8 @@ T BaseTypeVisitor<T, S>::visitType(Type &type, const S &state) {
 
 template <class T, class S>
 T BaseTypeVisitor<T, S>::visitProductType(ProductType &type, const S &state) {
-  if(dynamic_cast<TupleType *>(&type) != nullptr) {
-    return visitTupleType(dynamic_cast<TupleType&>(type), state);
+  if (dynamic_cast<TupleType *>(&type) != nullptr) {
+    return visitTupleType(dynamic_cast<TupleType &>(type), state);
   }
 
   assert(false);

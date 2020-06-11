@@ -3,7 +3,7 @@
 //__end_header
 
 val a i32 = 465
-val b bool = 45 // __error: "type of expression (i32) doesn't match expected type bool"
+val b bool = 45 // __error: "type of expression i32 doesn't match expected type bool"
 
 fn test() -> void {
     val c u64 = 234
@@ -11,5 +11,5 @@ fn test() -> void {
     mut e i8 = d // __error: "narrowing conversion from type i16 to i8"
     val f i16 = e
     val g *i8 = &e
-    val h *mut i16 = &f // __error: "type of expression (*i16) doesn't match expected type *mut i16"
+    val h *mut i16 = &f // __error: "type of expression *i16 doesn't match expected type *mut i16"
 }

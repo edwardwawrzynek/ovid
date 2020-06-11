@@ -245,8 +245,7 @@ public:
 /* product types (types with interior fields -- tuples, struct, arrays) */
 class ProductType : public Type {
 public:
-
-  ProductType(const SourceLocation &loc): Type(loc) {};
+  ProductType(const SourceLocation &loc) : Type(loc){};
 };
 
 class TupleType : public ProductType {
@@ -255,7 +254,8 @@ public:
 
   bool equalToExpected(const Type &expected) override;
 
-  TupleType(const SourceLocation &loc, TypeList types): ProductType(loc), types(std::move(types)) {};
+  TupleType(const SourceLocation &loc, TypeList types)
+      : ProductType(loc), types(std::move(types)){};
 };
 
 class FunctionPrototype {

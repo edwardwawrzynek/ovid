@@ -43,13 +43,13 @@ bool IntType::equalToExpected(const Type &expected) {
 bool TupleType::equalToExpected(const Type &expected) {
   const auto expectTuple = dynamic_cast<const TupleType *>(&expected);
 
-  if(expectTuple == nullptr)
+  if (expectTuple == nullptr)
     return false;
-  if(expectTuple->types.size() != types.size())
+  if (expectTuple->types.size() != types.size())
     return false;
 
-  for(size_t i = 0; i < types.size(); i++) {
-    if(!types[i]->equalToExpected(*expectTuple->types[i]))
+  for (size_t i = 0; i < types.size(); i++) {
+    if (!types[i]->equalToExpected(*expectTuple->types[i]))
       return false;
   }
 

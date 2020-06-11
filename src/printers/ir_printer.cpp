@@ -53,7 +53,7 @@ int IRPrinter::visitTupleLiteral(TupleLiteral &instruct,
   output << "\t";
   printValue(instruct.val);
   output << " = TUPLELITERAL " << type_printer.getType(*instruct.type);
-  for(auto &expr: instruct.exprs) {
+  for (auto &expr : instruct.exprs) {
     output << " ";
     printValue(expr.get().val);
   }

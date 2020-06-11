@@ -80,7 +80,7 @@ public:
   // return the state will a null typeHint
   TypeCheckState withoutTypeHint() const;
   // return the state with a typeHint set
-  TypeCheckState withTypeHint(const std::shared_ptr<Type>& typeHint) const;
+  TypeCheckState withTypeHint(const std::shared_ptr<Type> &typeHint) const;
 
   // return the state with a function ret type set
   TypeCheckState withFunctionReturnType(std::shared_ptr<Type> returnType) const;
@@ -138,10 +138,9 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                   const TypeCheckState &state) override;
   TypeCheckResult visitBoolLiteral(BoolLiteral &node,
                                    const TypeCheckState &state) override;
-  TypeCheckResult visitTuple(Tuple &node, const TypeCheckState &state)
-  override;
-   /*TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node, const
-  TypeCheckState &state) override;*/
+  TypeCheckResult visitTuple(Tuple &node, const TypeCheckState &state) override;
+  /*TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node, const
+ TypeCheckState &state) override;*/
 
   TypeCheckResult visitFunctionCallOperator(const FunctionCall &node,
                                             const TypeCheckState &state);
