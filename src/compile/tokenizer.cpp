@@ -285,6 +285,9 @@ void Tokenizer::nextToken() {
   case ';':
     curToken.token = T_SEMICOLON;
     break;
+  case '.':
+    curToken.token = T_DOT;
+    break;
   case '\'':
     curToken.token = T_CHARLITERAL;
     c = next();

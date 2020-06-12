@@ -1,0 +1,16 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+fn test1(a i32) -> void {
+    return a //__error: "return type i32 doesn't match expected type void"
+}
+
+fn test2(a i32) {
+    return a //__error: "return type i32 doesn't match expected type void"
+}
+
+fn test3() {
+    val a = test1(1)
+    val b = a + 1 //__error: "no overloaded variant of operator + with argument types void and i32"
+}

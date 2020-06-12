@@ -439,6 +439,26 @@ public:
       : Expression(loc), lvalue(std::move(lvalue)), rvalue(std::move(rvalue)){};
 };
 
+class FieldAccess : public Expression {
+public:
+  std::unique_ptr<Expression> lvalue;
+
+  std::string field;
+  uint64_t field_num;
+
+  bool has_field_num;
+
+  FieldAccess(const SourceLocation &loc, std::unique_ptr<Expression> lvalue,
+              const std::string &field)
+      : Expression(loc), lvalue(std::move(lvalue)), field(field), field_num(0),
+        has_field_num(false){};
+
+  FieldAccess(const SourceLocation &loc, std::unique_ptr<Expression> lvalue,
+              uint64_t field_num)
+      : Expression(loc), lvalue(std::move(lvalue)), field(""),
+        field_num(field_num), has_field_num(true){};
+};
+
 class Literal : public Expression {
 public:
   explicit Literal(const SourceLocation &loc) : Expression(loc){};

@@ -127,6 +127,8 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
   // hint
   auto initial =
       visitNode(*node.initialValue, state.withTypeHint(node.explicitType));
+  if (initial.resultType == nullptr || initial.resultInstruction == nullptr)
+    return TypeCheckResult(nullptr, nullptr);
   // remove mut (if present) from inferred type
   auto initialType = withoutMutType(initial.resultType);
 
@@ -215,10 +217,9 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
   // load lvalue
   auto lvalueRes = visitNode(*node.lvalue, state.withoutTypeHint());
 
-  // make sure lvalue is an expression and has an address (is a Storage)
+  // make sure lvalue is an expression and has an address
   if (lvalueRes.resultInstruction == nullptr ||
-      dynamic_cast<const ir::Storage *>(lvalueRes.resultInstruction) ==
-          nullptr) {
+      !lvalueRes.resultInstruction->isAddressable()) {
     errorMan.logError("left side of assignment is non assignable",
                       node.lvalue->loc, ErrorType::TypeError);
 
@@ -256,8 +257,7 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
 
   // create store instruction
   auto store = std::make_unique<ir::Store>(
-      node.loc, dynamic_cast<const ir::Storage &>(*lvalueRes.resultInstruction),
-      *rvalueRes.resultInstruction);
+      node.loc, *lvalueRes.resultInstruction, *rvalueRes.resultInstruction);
 
   curInstructionList->push_back(std::move(store));
 
@@ -614,9 +614,7 @@ TypeCheck::visitFunctionCallAddress(const FunctionCall &node,
   if (valueRes.resultType == nullptr)
     return TypeCheckResult(nullptr, nullptr);
   // make sure expression is a storage
-  auto storageRes =
-      dynamic_cast<const ir::Storage *>(valueRes.resultInstruction);
-  if (storageRes == nullptr) {
+  if (!valueRes.resultInstruction->isAddressable()) {
     errorMan.logError("cannot take address of expression", node.args[0]->loc,
                       ErrorType::TypeError);
 
@@ -625,8 +623,8 @@ TypeCheck::visitFunctionCallAddress(const FunctionCall &node,
   // construct instruction
   auto resType =
       std::make_shared<PointerType>(node.funcExpr->loc, valueRes.resultType);
-  auto instr = std::make_unique<ir::Address>(node.funcExpr->loc, ir::Value(),
-                                             *storageRes, resType);
+  auto instr = std::make_unique<ir::Address>(
+      node.funcExpr->loc, ir::Value(), *valueRes.resultInstruction, resType);
   auto instrPointer = instr.get();
 
   curInstructionList->push_back(std::move(instr));
@@ -709,18 +707,19 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
   if (matchedVariant == nullptr) {
     if (args.size() == 1) {
       errorMan.logError(
-          string_format(
-              "no overloaded variant of operator %s with argument type %s",
-              printOperatorMap[opNode.op].c_str(),
-              type_printer.getType(*args[0].resultType).c_str()),
+          string_format("no overloaded variant of operator \x1b[1m%s\x1b[m "
+                        "with argument type \x1b[1m%s\x1b[m",
+                        printOperatorMap[opNode.op].c_str(),
+                        type_printer.getType(*args[0].resultType).c_str()),
           node.funcExpr->loc, ErrorType::TypeError);
     } else if (args.size() == 2) {
       errorMan.logError(
-          string_format("no overloaded variant of operator %s with argument "
-                        "types %s and %s",
-                        printOperatorMap[opNode.op].c_str(),
-                        type_printer.getType(*args[0].resultType).c_str(),
-                        type_printer.getType(*args[1].resultType).c_str()),
+          string_format(
+              "no overloaded variant of operator \x1b[1m%s\x1b[m with argument "
+              "types \x1b[1m%s\x1b[m and \x1b[1m%s\x1b[m",
+              printOperatorMap[opNode.op].c_str(),
+              type_printer.getType(*args[0].resultType).c_str(),
+              type_printer.getType(*args[1].resultType).c_str()),
           node.funcExpr->loc, ErrorType::TypeError);
     } else {
       // no operators with more than two arguments
@@ -877,6 +876,41 @@ TypeCheckResult TypeCheck::visitOperatorSymbol(OperatorSymbol &node,
   errorMan.logError("invalid use of operator symbol", node.loc,
                     ErrorType::TypeError);
   return TypeCheckResult(nullptr, nullptr);
+}
+
+
+TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
+                                            const TypeCheckState &state) {
+  // visit left side of expression
+  auto lvalueRes = visitNode(*node.lvalue, state.withoutTypeHint());
+  if(lvalueRes.resultType == nullptr || lvalueRes.resultInstruction == nullptr) return TypeCheckResult(nullptr, nullptr);
+
+  // tuple
+  auto tupleType = std::dynamic_pointer_cast<TupleType>(lvalueRes.resultType);
+  if(tupleType != nullptr) {
+    // make sure field isn't a string
+    if(!node.has_field_num) {
+      errorMan.logError(string_format("type \x1b[1m%s\x1b[m does not have field \x1b[1m%s\x1b[m", type_printer.getType(*tupleType).c_str(), node.field.c_str()), node.loc, ErrorType::TypeError);
+
+      return TypeCheckResult(nullptr, nullptr);
+    }
+    // make sure field is in right range
+    if(node.field_num >= tupleType->types.size()) {
+      errorMan.logError(string_format("type \x1b[1m%s\x1b[m does not have field \x1b[1m%lu\x1b[m", type_printer.getType(*tupleType).c_str(), node.field_num), node.loc, ErrorType::TypeError);
+
+      return TypeCheckResult(nullptr, nullptr);
+    }
+
+    auto resType = tupleType->types[node.field_num];
+    // TODO: emit ir instruction
+    // do implicit conversion
+    return doImplicitConversion(TypeCheckResult(resType, lvalueRes.resultInstruction), state, node.loc);
+
+  } else {
+    errorMan.logError(string_format("cannot take a field on type \x1b[1m%s\x1b[m", type_printer.getType(*lvalueRes.resultType).c_str()), node.lvalue->loc, ErrorType::TypeError);
+
+    return TypeCheckResult(nullptr, nullptr);
+  }
 }
 
 /* do an implicit conversion of expression to type state.typeHint, if such a

@@ -1,0 +1,21 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+module test
+
+type t1 = (i32, *i32)
+
+fn test(a t1, b *t1) -> t1 {
+    val c i32 = a.0
+    val d *i32 = a.1
+
+    val e i32 = (*b).0
+    val f *i32 = (*b).1
+
+    val g = b.0 // __error: "cannot take a field on type *(i32, *i32)"
+    val h = a.2 // __error: "type (i32, *i32) does not have field 2"
+    val i = a.test // __error: "type (i32, *i32) does not have field test"
+
+    return (c, f)
+}

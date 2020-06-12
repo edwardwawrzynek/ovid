@@ -230,6 +230,18 @@ int ASTPrinter::visitReturnStatement(ReturnStatement &node,
   return 0;
 }
 
+int ASTPrinter::visitFieldAccess(FieldAccess &node,
+                                 const ASTPrinterState &state) {
+  state.printIndent(output);
+  printLoc(output, node.loc);
+  output << " FieldAccess ";
+  if(node.has_field_num) output << node.field_num;
+  else output << node.field;
+  output << "\n";
+  visitNode(*node.lvalue, state.withIndent());
+  return 0;
+}
+
 int ASTTypePrinter::visitVoidType(VoidType &type,
                                   const ASTPrinterState &state) {
   state.printIndent(output);

@@ -4,10 +4,6 @@
 
 module test
 
-fn test(a i32, b *mut f64, c i32, d *i64, e *mut *u8) -> void {
-    a + c
-    *b + *b
-    c + *d
-    *d - **e
-    **e + **e - *d + a
+fn test() {
+    return 1+1
 }

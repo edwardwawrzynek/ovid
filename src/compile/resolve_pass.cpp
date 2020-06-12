@@ -286,6 +286,12 @@ int ResolvePass::visitReturnStatement(ReturnStatement &node,
   return 0;
 }
 
+int ResolvePass::visitFieldAccess(FieldAccess &node, const ResolvePassState &state) {
+  visitNode(*node.lvalue, state);
+
+  return 0;
+}
+
 std::shared_ptr<Type>
 TypeResolver::visitUnresolvedType(UnresolvedType &type,
                                   const TypeResolverState &state) {

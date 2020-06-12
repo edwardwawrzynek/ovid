@@ -95,6 +95,7 @@ class ResolvePass : public BaseASTVisitor<int, ResolvePassState> {
 
   int visitTypeAliasDecl(TypeAliasDecl &node,
                          const ResolvePassState &state) override;
+  int visitFieldAccess(FieldAccess &node, const ResolvePassState &state) override;
 
   // check if a variable in the current scope is shadowed, and print an error if
   // it is. name is the name of the variable, predicate is passed to

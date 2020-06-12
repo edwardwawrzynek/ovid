@@ -80,6 +80,9 @@ public:
   Value val;
   std::shared_ptr<ast::Type> type;
 
+  // if the expression has an address
+  virtual bool isAddressable() const;
+
   explicit Expression(const SourceLocation &loc, const Value &val,
                       std::shared_ptr<ast::Type> type)
       : Instruction(loc), val(val), type(std::move(type)){};
@@ -108,21 +111,16 @@ enum class AllocationType {
 
 };
 
-class Storage : public Expression {
-public:
-  Storage(const SourceLocation &loc, const Value &val,
-          std::shared_ptr<ast::Type> type)
-      : Expression(loc, val, std::move(type)){};
-};
-
-class Allocation : public Storage {
+class Allocation : public Expression {
 public:
   AllocationType allocType;
+
+  bool isAddressable() const override;
 
   // type should be a UNRESOLVED_* type
   Allocation(const SourceLocation &loc, const Value &val,
              std::shared_ptr<ast::Type> type, AllocationType allocType)
-      : Storage(loc, val, std::move(type)), allocType(allocType){};
+      : Expression(loc, val, std::move(type)), allocType(allocType){};
 };
 
 /* A labelled block of code, which can be jumped to */
@@ -227,31 +225,33 @@ public:
 /* operation taking the address of a value */
 class Address : public Expression {
 public:
-  const Storage &expr;
+  const Expression &expr;
 
-  Address(const SourceLocation &loc, const Value &val, const Storage &expr,
+  Address(const SourceLocation &loc, const Value &val, const Expression &expr,
           std::shared_ptr<ast::Type> type)
       : Expression(loc, val, std::move(type)), expr(expr){};
 };
 
 /* dereference operation on a pointer */
-class Dereference : public Storage {
+class Dereference : public Expression {
 public:
   const Expression &expr;
 
+  bool isAddressable() const override;
+
   Dereference(const SourceLocation &loc, const Value &val,
               const Expression &expr, std::shared_ptr<ast::Type> type)
-      : Storage(loc, val, std::move(type)), expr(expr){};
+      : Expression(loc, val, std::move(type)), expr(expr){};
 };
 
 /* A store into a value (has to be a value produced by Allocation)
  */
 class Store : public Instruction {
 public:
-  const Storage &storage;
+  const Expression &storage;
   const Expression &value;
 
-  Store(const SourceLocation &loc, const Storage &storage,
+  Store(const SourceLocation &loc, const Expression &storage,
         const Expression &value)
       : Instruction(loc), storage(storage), value(value){};
 };

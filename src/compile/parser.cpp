@@ -9,7 +9,8 @@ namespace ovid {
 /* note: precedences must start at > 1, as 1 is passed from primary and 0 is for
  * invalid ops */
 static std::map<TokenType, int> opPrecedence = {
-    {T_ASSIGN, 20}, {T_ADD, 30}, {T_SUB, 30}, {T_STAR, 40}, {T_DIV, 40},
+    {T_ASSIGN, 20}, {T_DOT, 30},  {T_ADD, 40},
+    {T_SUB, 40},    {T_STAR, 50}, {T_DIV, 50},
 };
 
 bool Parser::isDoneParsing() const { return tokenizer.curToken.token == T_EOF; }
@@ -325,10 +326,25 @@ Parser::parseBinOpRight(const ParserState &state, int exprPrec,
         return nullptr;
     }
     /* otherwise, leftExpr + rightExpr become next leftExpr */
-    /* handle assignment expressions */
+    /* handle assignment and field access expressions */
     if (op == T_ASSIGN) {
       leftExpr = std::make_unique<ast::Assignment>(
           startPos, std::move(leftExpr), std::move(rightExpr));
+    } else if (op == T_DOT) {
+      // field access must be id or number
+      auto fieldName = dynamic_cast<ast::Identifier *>(rightExpr.get());
+      auto fieldNum = dynamic_cast<ast::IntLiteral *>(rightExpr.get());
+      if (fieldName != nullptr) {
+        leftExpr = std::make_unique<ast::FieldAccess>(
+            startPos, std::move(leftExpr), fieldName->id);
+      } else if (fieldNum != nullptr) {
+        leftExpr = std::make_unique<ast::FieldAccess>(
+            startPos, std::move(leftExpr), fieldNum->value);
+      } else {
+        return errorMan.logError("expected expression after field access "
+                                 "operator (.) to be an identifier or number",
+                                 rightExpr->loc, ErrorType::ParseError);
+      }
     } else {
       ast::ExpressionList args;
       args.push_back(std::move(leftExpr));
@@ -386,6 +402,7 @@ static std::map<std::string, std::function<std::shared_ptr<ast::Type>(
 // typeExpr ::= 'i8' | 'u8' | ... | 'string'
 // typeExpr ::= '*' typeExpr
 // typeExpr ::= 'mut' typeExpr (not at root level)
+// typeExpr ::= '(' (typeExpr ',')* typeExpr ')'
 std::shared_ptr<ast::Type> Parser::parseType(const ParserState &state) {
   return parseType(state, true);
 }
@@ -538,8 +555,10 @@ void Parser::addTypeAlias(const ParserState &state, std::string name,
   }
 }
 
-// functionproto ::= ident '(' (arg typeExpr ',')* arg typeExpr ')' '->'
-// typeExpr argLocs is an empty vector to put the location of each arg declare
+// functionproto ::= ident '(' (arg typeExpr ',')* arg typeExpr ')' ('->'
+// typeExpr)?
+//
+// argLocs is an empty vector to put the location of each arg declare
 // in. If null, ignored
 std::unique_ptr<ast::FunctionPrototype>
 Parser::parseFunctionProto(const ParserState &state,
@@ -585,12 +604,15 @@ Parser::parseFunctionProto(const ParserState &state,
     return errorMan.logError("Expected ')' or ',' in argument list",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   tokenizer.nextToken();
+
+  std::shared_ptr<ast::Type> retType;
+
   if (tokenizer.curToken.token != T_RIGHT_ARROW) {
-    return errorMan.logError("expected '->' after function argument list",
-                             tokenizer.curTokenLoc, ErrorType::ParseError);
+    retType = std::make_shared<ast::VoidType>(tokenizer.curTokenLoc);
+  } else {
+    tokenizer.nextToken();
+    retType = parseType(state);
   }
-  tokenizer.nextToken();
-  auto retType = parseType(state);
 
   return std::make_unique<ast::FunctionPrototype>(
       std::make_shared<ast::FunctionType>(startPos.through(retType->loc),
