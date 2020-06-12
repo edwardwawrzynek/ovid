@@ -86,7 +86,7 @@ T BaseASTVisitor<T, S>::visitExpression(Expression &node, const S &state) {
   } else if (dynamic_cast<Tuple *>(&node) != nullptr) {
     return visitTuple(dynamic_cast<Tuple &>(node), state);
   } else if (dynamic_cast<FieldAccess *>(&node) != nullptr) {
-    return visitFieldAccess(dynamic_cast<FieldAccess&>(node), state);
+    return visitFieldAccess(dynamic_cast<FieldAccess &>(node), state);
   }
   assert(false);
 }

@@ -63,11 +63,19 @@ class Parser {
 
   std::unique_ptr<ast::Expression> parsePrimary(const ParserState &state);
 
+  std::unique_ptr<ast::Expression>
+  parseFunctionCall(const ParserState &state,
+                    std::unique_ptr<ast::Expression> funcExpr);
+  std::unique_ptr<ast::Expression>
+  parseFieldAccess(const ParserState &state,
+                   std::unique_ptr<ast::Expression> Expr);
+
+  std::unique_ptr<ast::Expression> parsePostfixOp(const ParserState &state);
+
   std::unique_ptr<ast::Expression> parsePrefixOp(const ParserState &state);
 
-  std::unique_ptr<ast::Expression>
-  parseBinOpRight(const ParserState &state, int exprPrec,
-                  std::unique_ptr<ast::Expression> leftExpr);
+  std::unique_ptr<ast::Expression> parseBinExpr(const ParserState &state,
+                                                int prevPec);
 
   std::unique_ptr<ast::Statement> parseStatement(const ParserState &state);
 

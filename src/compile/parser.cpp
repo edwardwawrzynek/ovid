@@ -6,13 +6,6 @@
 
 namespace ovid {
 
-/* note: precedences must start at > 1, as 1 is passed from primary and 0 is for
- * invalid ops */
-static std::map<TokenType, int> opPrecedence = {
-    {T_ASSIGN, 20}, {T_DOT, 30},  {T_ADD, 40},
-    {T_SUB, 40},    {T_STAR, 50}, {T_DIV, 50},
-};
-
 bool Parser::isDoneParsing() const { return tokenizer.curToken.token == T_EOF; }
 
 ast::StatementList Parser::parseProgram() {
@@ -117,7 +110,6 @@ Parser::parseBoolLiteral(const ParserState &state) {
 }
 
 // identexpr ::= identifier (':' identifier)*
-// funccallexpr ::= identifier (':' identifier)* '(' (expr ',') * expr ')'
 std::unique_ptr<ast::Expression>
 Parser::parseIdentifier(const ParserState &state) {
   std::vector<std::string> varScopes;
@@ -148,31 +140,9 @@ Parser::parseIdentifier(const ParserState &state) {
     } else
       break;
   }
-  if (tokenizer.curToken.token == T_LPAREN) {
-    ast::ExpressionList args;
-    do {
-      tokenizer.nextToken();
-      if (tokenizer.curToken.token == T_RPAREN)
-        break;
 
-      auto expr = parseExpr(state);
-      if (!expr)
-        return nullptr;
-      args.push_back(std::move(expr));
-    } while (tokenizer.curToken.token == T_COMMA);
-    if (tokenizer.curToken.token != T_RPAREN)
-      return errorMan.logError("Expected ',' or ')' in argument list",
-                               tokenizer.curTokenLoc, ErrorType::ParseError);
-    tokenizer.nextToken();
-    return std::make_unique<ast::FunctionCall>(
-        pos,
-        std::make_unique<ast::Identifier>(pos, ident, std::move(varScopes),
-                                          is_root_scoped),
-        std::move(args));
-  } else {
-    return std::make_unique<ast::Identifier>(
-        pos.through(end), ident, std::move(varScopes), is_root_scoped);
-  }
+  return std::make_unique<ast::Identifier>(
+      pos.through(end), ident, std::move(varScopes), is_root_scoped);
 }
 
 // parenexpr ::= '(' expr ')'
@@ -211,6 +181,16 @@ Parser::parseParenExpr(const ParserState &state) {
                            ErrorType::ParseError);
 }
 
+/* note: precedences must start at > 1, as 1 is passed from primary and 0 is for
+ * invalid ops */
+static std::map<TokenType, int> infixOpPrecedence = {
+    {T_ASSIGN, 20}, {T_ADD, 30}, {T_SUB, 30}, {T_STAR, 40}, {T_DIV, 40},
+};
+
+static std::map<TokenType, bool> isRightAssoc = {
+    {T_ASSIGN, true}, {T_DOT, false},  {T_ADD, false},
+    {T_SUB, false},   {T_STAR, false}, {T_DIV, false}};
+
 static std::map<TokenType, ast::OperatorType> infixOperatorMap = {
     {T_ADD, ast::OperatorType::ADD},
     {T_SUB, ast::OperatorType::SUB},
@@ -221,9 +201,12 @@ static std::map<TokenType, ast::OperatorType> prefixOperatorMap = {
     {T_SUB, ast::OperatorType::NEGATIVE},
     {T_STAR, ast::OperatorType::DEREF},
     {T_ADDR, ast::OperatorType::ADDR},
-};
+    {T_INC, ast::OperatorType::PREFIX_INC},
+    {T_DEC, ast::OperatorType::PREFIX_DEC}};
 
-static std::map<TokenType, ast::OperatorType> postfixOperatorMap = {};
+static std::map<TokenType, ast::OperatorType> postfixOperatorMap = {
+    {T_INC, ast::OperatorType::POSTFIX_INC},
+    {T_DEC, ast::OperatorType::POSTFIX_DEC}};
 
 ast::OperatorType Parser::infixTokenToOperatorType(TokenType token) {
   if (infixOperatorMap.count(token) > 0) {
@@ -244,26 +227,6 @@ ast::OperatorType Parser::postfixTokenToOperatorType(TokenType token) {
     return postfixOperatorMap[token];
   }
   assert(false);
-}
-
-// parse a prefixed operation
-std::unique_ptr<ast::Expression>
-Parser::parsePrefixOp(const ParserState &state) {
-  auto startPos = tokenizer.curTokenLoc;
-  if (prefixOperatorMap.count(tokenizer.curToken.token) > 0) {
-    auto op = prefixTokenToOperatorType(tokenizer.curToken.token);
-    tokenizer.nextToken();
-    auto right = parsePrefixOp(state);
-
-    ast::ExpressionList args;
-    args.push_back(std::move(right));
-
-    return std::make_unique<ast::FunctionCall>(
-        startPos, std::make_unique<ast::OperatorSymbol>(startPos, op),
-        std::move(args));
-  } else {
-    return parsePrimary(state);
-  }
 }
 
 std::unique_ptr<ast::Expression>
@@ -290,72 +253,171 @@ Parser::parsePrimary(const ParserState &state) {
   }
 }
 
-// expr ::= primary binoprhs
-std::unique_ptr<ast::Expression> Parser::parseExpr(const ParserState &state) {
-  auto leftExpr = parsePrefixOp(state);
-  if (!leftExpr)
-    return nullptr;
+// funccall ::= postfix '(' (expr ',')* expr ')'
+//            | postfix '(' ')'
+std::unique_ptr<ast::Expression>
+Parser::parseFunctionCall(const ParserState &state,
+                          std::unique_ptr<ast::Expression> funcExpr) {
+  ast::ExpressionList args;
+  do {
+    // consume '(' on first iteration, comma on others
+    tokenizer.nextToken();
+    if (tokenizer.curToken.token == T_RPAREN)
+      break;
 
-  return parseBinOpRight(state, 1, std::move(leftExpr));
+    auto expr = parseExpr(state);
+    if (!expr)
+      return nullptr;
+    args.push_back(std::move(expr));
+  } while (tokenizer.curToken.token == T_COMMA);
+
+  if (tokenizer.curToken.token != T_RPAREN)
+    return errorMan.logError("Expected ',' or ')' in argument list",
+                             tokenizer.curTokenLoc, ErrorType::ParseError);
+
+  auto endPos = tokenizer.curTokenLoc;
+
+  tokenizer.nextToken();
+  return std::make_unique<ast::FunctionCall>(
+      funcExpr->loc.through(endPos), std::move(funcExpr), std::move(args));
 }
 
-// binopright ::= ('op' primary) *
+// fieldaccess ::= postfix '.' (id|num)
 std::unique_ptr<ast::Expression>
-Parser::parseBinOpRight(const ParserState &state, int exprPrec,
-                        std::unique_ptr<ast::Expression> leftExpr) {
-  auto startPos = leftExpr->loc;
+Parser::parseFieldAccess(const ParserState &state,
+                         std::unique_ptr<ast::Expression> expr) {
+  // consume '.'
+  tokenizer.nextToken();
+
+  if (tokenizer.curToken.token == T_IDENT) {
+    tokenizer.nextToken();
+    return std::make_unique<ast::FieldAccess>(
+        expr->loc.through(tokenizer.curTokenLoc), std::move(expr),
+        tokenizer.curToken.ident);
+  } else if (tokenizer.curToken.token == T_INTLITERAL) {
+    tokenizer.nextToken();
+    return std::make_unique<ast::FieldAccess>(
+        expr->loc.through(tokenizer.curTokenLoc), std::move(expr),
+        tokenizer.curToken.int_literal);
+  } else {
+    auto pos = tokenizer.curTokenLoc;
+    tokenizer.nextToken();
+    return errorMan.logError("expected expression after field access "
+                             "operator (.) to be an identifier or number",
+                             pos, ErrorType::ParseError);
+  }
+}
+
+// postfix ::= postfix op
+//           | primary
+std::unique_ptr<ast::Expression>
+Parser::parsePostfixOp(const ParserState &state) {
+  auto startPos = tokenizer.curTokenLoc;
+  auto expr = parsePrimary(state);
+
   while (true) {
-    /* find precedence of operator (if not operator, implicitly 0) */
-    int tokPrec = opPrecedence[tokenizer.curToken.token];
-    if (tokPrec < exprPrec)
-      return leftExpr;
     auto op = tokenizer.curToken.token;
-    auto opPos = tokenizer.curTokenLoc;
+    // special handling for function call postfix op
+    if (op == T_LPAREN) {
+      expr = parseFunctionCall(state, std::move(expr));
+    }
+    // special handling for . operator postfix op
+    else if (op == T_DOT) {
+      expr = parseFieldAccess(state, std::move(expr));
+    }
+    // if next token is a postfix op, apply it
+    else if (postfixOperatorMap.count(op) > 0) {
+      auto opType = postfixTokenToOperatorType(tokenizer.curToken.token);
+      auto endPos = tokenizer.curTokenLoc;
+      tokenizer.nextToken();
+      ast::ExpressionList args;
+      args.push_back(std::move(expr));
+
+      expr = std::make_unique<ast::FunctionCall>(
+          startPos.through(endPos),
+          std::make_unique<ast::OperatorSymbol>(endPos, opType),
+          std::move(args));
+    } else {
+      return expr;
+    }
+  }
+}
+
+// prefix ::= postfix
+//          | op prefix
+std::unique_ptr<ast::Expression>
+Parser::parsePrefixOp(const ParserState &state) {
+  auto startPos = tokenizer.curTokenLoc;
+  if (prefixOperatorMap.count(tokenizer.curToken.token) > 0) {
+    auto op = prefixTokenToOperatorType(tokenizer.curToken.token);
+    tokenizer.nextToken();
+    auto right = parsePrefixOp(state);
+
+    ast::ExpressionList args;
+    args.push_back(std::move(right));
+
+    return std::make_unique<ast::FunctionCall>(
+        startPos.until(tokenizer.curTokenLoc),
+        std::make_unique<ast::OperatorSymbol>(startPos, op), std::move(args));
+  } else {
+    return parsePostfixOp(state);
+  }
+}
+
+// binop ::= prefix (op prefix) *
+std::unique_ptr<ast::Expression> Parser::parseBinExpr(const ParserState &state,
+                                                      int prevPec) {
+  auto startPos = tokenizer.curTokenLoc;
+  // get left side of expression
+  auto left = parsePrefixOp(state);
+  if (left == nullptr)
+    return nullptr;
+
+  auto op = tokenizer.curToken.token;
+  auto opPos = tokenizer.curTokenLoc;
+
+  // loop while the token is an operator and is higher precedence than previous
+  // (if left associative) or equal/greater precedence (if right associative)
+  while (infixOpPrecedence.count(op) > 0 &&
+         (isRightAssoc[op] ? infixOpPrecedence[op] >= prevPec
+                           : infixOpPrecedence[op] > prevPec)) {
     tokenizer.nextToken();
 
-    auto rightExpr = parsePrefixOp(state);
-    if (!rightExpr)
+    // parse right side of operator
+    auto right = parseBinExpr(state, infixOpPrecedence[op]);
+    if (right == nullptr)
       return nullptr;
 
-    int nextPrec = opPrecedence[tokenizer.curToken.token];
-    /* if current op is less tightly bound than next, than rightExpr becomes
-     * next operators leftExpr */
-    if (tokPrec < nextPrec) {
-      rightExpr = parseBinOpRight(state, tokPrec + 1, std::move(rightExpr));
-      if (!rightExpr)
-        return nullptr;
-    }
-    /* otherwise, leftExpr + rightExpr become next leftExpr */
-    /* handle assignment and field access expressions */
+    // join left and right branches
+
+    // assign becomes a special node in the ast
     if (op == T_ASSIGN) {
-      leftExpr = std::make_unique<ast::Assignment>(
-          startPos, std::move(leftExpr), std::move(rightExpr));
-    } else if (op == T_DOT) {
-      // field access must be id or number
-      auto fieldName = dynamic_cast<ast::Identifier *>(rightExpr.get());
-      auto fieldNum = dynamic_cast<ast::IntLiteral *>(rightExpr.get());
-      if (fieldName != nullptr) {
-        leftExpr = std::make_unique<ast::FieldAccess>(
-            startPos, std::move(leftExpr), fieldName->id);
-      } else if (fieldNum != nullptr) {
-        leftExpr = std::make_unique<ast::FieldAccess>(
-            startPos, std::move(leftExpr), fieldNum->value);
-      } else {
-        return errorMan.logError("expected expression after field access "
-                                 "operator (.) to be an identifier or number",
-                                 rightExpr->loc, ErrorType::ParseError);
-      }
+      left = std::make_unique<ast::Assignment>(
+          startPos.through(tokenizer.curTokenLoc), std::move(left),
+          std::move(right));
     } else {
+      // join left and right in function call node
       ast::ExpressionList args;
-      args.push_back(std::move(leftExpr));
-      args.push_back(std::move(rightExpr));
-      leftExpr = std::make_unique<ast::FunctionCall>(
-          startPos,
+      args.push_back(std::move(left));
+      args.push_back(std::move(right));
+      left = std::make_unique<ast::FunctionCall>(
+          startPos.until(tokenizer.curTokenLoc),
           std::make_unique<ast::OperatorSymbol>(opPos,
                                                 infixTokenToOperatorType(op)),
           std::move(args));
     }
+
+    op = tokenizer.curToken.token;
+    opPos = tokenizer.curTokenLoc;
   }
+
+  // return current branch
+  return left;
+}
+
+// expr ::= binop
+std::unique_ptr<ast::Expression> Parser::parseExpr(const ParserState &state) {
+  return parseBinExpr(state, 1);
 }
 
 static std::map<std::string, std::function<std::shared_ptr<ast::Type>(

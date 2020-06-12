@@ -1,0 +1,85 @@
+(5:1) FunctionDecl: test1
+  retType:
+    VoidType
+  argNames:
+  argTypes:
+  body:
+(7:1) FunctionDecl: test2
+  retType:
+    VoidType
+  argNames: a
+  argTypes:
+    IntType: i32
+  body:
+(9:1) FunctionDecl: test3
+  retType:
+    IntType: i32
+  argNames: a b
+  argTypes:
+    IntType: i32
+    IntType: i32
+  body:
+(11:1) FunctionDecl: test4
+  retType:
+    VoidType
+  argNames:
+  argTypes:
+  body:
+    (12:5) FunctionCall
+      function:
+        (12:5) Identifier: test1
+      args:
+    (13:5) FunctionCall
+      function:
+        (13:5) Identifier: test2
+      args:
+        (13:11) IntLiteral: 5
+    (14:5) FunctionCall
+      function:
+        (14:5) Identifier: test3
+      args:
+        (14:11) FunctionCall
+          function:
+            (14:11) Identifier: test2
+          args:
+            (14:17) FunctionCall
+              function:
+                (14:17) Identifier: test3
+              args:
+                (14:23) IntLiteral: 1
+                (14:25) IntLiteral: 2
+        (14:30) IntLiteral: 1
+    (15:6) FunctionCall
+      function:
+        (15:6) FunctionCall
+          function:
+            (15:8) OperatorSymbol: +
+          args:
+            (15:6) IntLiteral: 1
+            (15:10) IntLiteral: 1
+      args:
+    (16:6) FunctionCall
+      function:
+        (16:6) FunctionCall
+          function:
+            (16:8) OperatorSymbol: +
+          args:
+            (16:6) IntLiteral: 1
+            (16:10) IntLiteral: 1
+      args:
+        (16:13) IntLiteral: 1
+        (16:16) IntLiteral: 2
+    (17:5) FunctionCall
+      function:
+        (17:5) FieldAccess 0
+            (17:5) FieldAccess field
+                (17:5) Identifier: test1
+      args:
+    (18:5) FunctionCall
+      function:
+        (18:5) FieldAccess 0
+            (18:5) FieldAccess field
+                (18:5) Identifier: test1
+      args:
+        (18:19) IntLiteral: 1
+        (18:21) IntLiteral: 2

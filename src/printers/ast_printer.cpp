@@ -235,8 +235,10 @@ int ASTPrinter::visitFieldAccess(FieldAccess &node,
   state.printIndent(output);
   printLoc(output, node.loc);
   output << " FieldAccess ";
-  if(node.has_field_num) output << node.field_num;
-  else output << node.field;
+  if (node.has_field_num)
+    output << node.field_num;
+  else
+    output << node.field;
   output << "\n";
   visitNode(*node.lvalue, state.withIndent());
   return 0;

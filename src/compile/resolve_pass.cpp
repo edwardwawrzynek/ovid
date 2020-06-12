@@ -286,7 +286,8 @@ int ResolvePass::visitReturnStatement(ReturnStatement &node,
   return 0;
 }
 
-int ResolvePass::visitFieldAccess(FieldAccess &node, const ResolvePassState &state) {
+int ResolvePass::visitFieldAccess(FieldAccess &node,
+                                  const ResolvePassState &state) {
   visitNode(*node.lvalue, state);
 
   return 0;

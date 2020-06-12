@@ -141,7 +141,8 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   TypeCheckResult visitTuple(Tuple &node, const TypeCheckState &state) override;
   /*TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node, const
  TypeCheckState &state) override;*/
-  TypeCheckResult visitFieldAccess(FieldAccess &node, const TypeCheckState &state) override;
+  TypeCheckResult visitFieldAccess(FieldAccess &node,
+                                   const TypeCheckState &state) override;
 
   TypeCheckResult visitFunctionCallOperator(const FunctionCall &node,
                                             const TypeCheckState &state);

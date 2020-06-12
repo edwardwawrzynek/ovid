@@ -878,25 +878,33 @@ TypeCheckResult TypeCheck::visitOperatorSymbol(OperatorSymbol &node,
   return TypeCheckResult(nullptr, nullptr);
 }
 
-
 TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
                                             const TypeCheckState &state) {
   // visit left side of expression
   auto lvalueRes = visitNode(*node.lvalue, state.withoutTypeHint());
-  if(lvalueRes.resultType == nullptr || lvalueRes.resultInstruction == nullptr) return TypeCheckResult(nullptr, nullptr);
+  if (lvalueRes.resultType == nullptr || lvalueRes.resultInstruction == nullptr)
+    return TypeCheckResult(nullptr, nullptr);
 
   // tuple
   auto tupleType = std::dynamic_pointer_cast<TupleType>(lvalueRes.resultType);
-  if(tupleType != nullptr) {
+  if (tupleType != nullptr) {
     // make sure field isn't a string
-    if(!node.has_field_num) {
-      errorMan.logError(string_format("type \x1b[1m%s\x1b[m does not have field \x1b[1m%s\x1b[m", type_printer.getType(*tupleType).c_str(), node.field.c_str()), node.loc, ErrorType::TypeError);
+    if (!node.has_field_num) {
+      errorMan.logError(
+          string_format(
+              "type \x1b[1m%s\x1b[m does not have field \x1b[1m%s\x1b[m",
+              type_printer.getType(*tupleType).c_str(), node.field.c_str()),
+          node.loc, ErrorType::TypeError);
 
       return TypeCheckResult(nullptr, nullptr);
     }
     // make sure field is in right range
-    if(node.field_num >= tupleType->types.size()) {
-      errorMan.logError(string_format("type \x1b[1m%s\x1b[m does not have field \x1b[1m%lu\x1b[m", type_printer.getType(*tupleType).c_str(), node.field_num), node.loc, ErrorType::TypeError);
+    if (node.field_num >= tupleType->types.size()) {
+      errorMan.logError(
+          string_format(
+              "type \x1b[1m%s\x1b[m does not have field \x1b[1m%lu\x1b[m",
+              type_printer.getType(*tupleType).c_str(), node.field_num),
+          node.loc, ErrorType::TypeError);
 
       return TypeCheckResult(nullptr, nullptr);
     }
@@ -904,10 +912,14 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
     auto resType = tupleType->types[node.field_num];
     // TODO: emit ir instruction
     // do implicit conversion
-    return doImplicitConversion(TypeCheckResult(resType, lvalueRes.resultInstruction), state, node.loc);
+    return doImplicitConversion(
+        TypeCheckResult(resType, lvalueRes.resultInstruction), state, node.loc);
 
   } else {
-    errorMan.logError(string_format("cannot take a field on type \x1b[1m%s\x1b[m", type_printer.getType(*lvalueRes.resultType).c_str()), node.lvalue->loc, ErrorType::TypeError);
+    errorMan.logError(
+        string_format("cannot take a field on type \x1b[1m%s\x1b[m",
+                      type_printer.getType(*lvalueRes.resultType).c_str()),
+        node.lvalue->loc, ErrorType::TypeError);
 
     return TypeCheckResult(nullptr, nullptr);
   }

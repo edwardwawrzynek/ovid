@@ -1,0 +1,60 @@
+(5:1) FunctionDecl: test
+  retType:
+    VoidType
+  argNames: a b
+  argTypes:
+    IntType: i32
+    IntType: i32
+  body:
+    (6:5) FunctionCall
+      function:
+        (6:6) OperatorSymbol: ++
+      args:
+        (6:5) Identifier: a
+    (7:5) FunctionCall
+      function:
+        (7:8) OperatorSymbol: +
+      args:
+        (7:5) FunctionCall
+          function:
+            (7:6) OperatorSymbol: ++
+          args:
+            (7:5) Identifier: b
+        (7:9) Identifier: a
+    (8:5) FunctionCall
+      function:
+        (8:10) OperatorSymbol: +
+      args:
+        (8:5) FunctionCall
+          function:
+            (8:8) OperatorSymbol: ++
+          args:
+            (8:5) FunctionCall
+              function:
+                (8:6) OperatorSymbol: ++
+              args:
+                (8:5) Identifier: b
+        (8:11) Identifier: a
+    (9:5) FunctionCall
+      function:
+        (9:5) OperatorSymbol: ++
+      args:
+        (9:7) Identifier: a
+    (10:5) FunctionCall
+      function:
+        (10:5) OperatorSymbol: ++
+      args:
+        (10:7) FunctionCall
+          function:
+            (10:7) OperatorSymbol: ++
+          args:
+            (10:9) Identifier: a
+    (11:5) FunctionCall
+      function:
+        (11:5) OperatorSymbol: ++
+      args:
+        (11:7) FunctionCall
+          function:
+            (11:8) OperatorSymbol: ++
+          args:
+            (11:7) Identifier: a

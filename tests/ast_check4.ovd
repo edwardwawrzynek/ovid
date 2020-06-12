@@ -1,0 +1,19 @@
+// __ovid_compiler_test
+//__mode: check_ast
+//__end_header
+
+fn test1() {}
+
+fn test2(a i32) {}
+
+fn test3(a i32, b i32) -> i32 {}
+
+fn test4() {
+    test1()
+    test2(5)
+    test3(test2(test3(1,2)), 1)
+    (1 + 1)()
+    (1 + 1)(1, 2)
+    test1.field.0()
+    test1.field.0(1,2)
+}

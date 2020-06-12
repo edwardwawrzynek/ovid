@@ -1,0 +1,84 @@
+(5:1) FunctionDecl: test
+  retType:
+    VoidType
+  argNames: a b c
+  argTypes:
+    IntType: i32
+    IntType: i32
+    IntType: i32
+  body:
+    (6:5) FunctionCall
+      function:
+        (6:16) OperatorSymbol: +
+      args:
+        (6:5) FunctionCall
+          function:
+            (6:12) OperatorSymbol: -
+          args:
+            (6:5) FunctionCall
+              function:
+                (6:7) OperatorSymbol: +
+              args:
+                (6:5) FunctionCall
+                  function:
+                    (6:5) OperatorSymbol: *
+                  args:
+                    (6:6) Identifier: a
+                (6:8) FunctionCall
+                  function:
+                    (6:9) OperatorSymbol: *
+                  args:
+                    (6:8) Identifier: b
+                    (6:10) FunctionCall
+                      function:
+                        (6:10) OperatorSymbol: *
+                      args:
+                        (6:11) Identifier: c
+            (6:13) FunctionCall
+              function:
+                (6:14) OperatorSymbol: /
+              args:
+                (6:13) Identifier: c
+                (6:15) Identifier: a
+        (6:17) Identifier: b
+    (7:5) FunctionCall
+      function:
+        (7:5) OperatorSymbol: &
+      args:
+        (7:6) FunctionCall
+          function:
+            (7:6) OperatorSymbol: &
+          args:
+            (7:8) FunctionCall
+              function:
+                (7:11) OperatorSymbol: +
+              args:
+                (7:8) FunctionCall
+                  function:
+                    (7:8) OperatorSymbol: &
+                  args:
+                    (7:9) Identifier: a
+                (7:13) IntLiteral: 5
+    (8:5) Assignment
+      lvalue:
+        (8:5) Identifier: a
+      rvalue:
+        (8:7) Assignment
+          lvalue:
+            (8:7) Identifier: b
+          rvalue:
+            (8:9) Identifier: c
+    (9:5) Assignment
+      lvalue:
+        (9:5) Identifier: a
+      rvalue:
+        (9:9) Assignment
+          lvalue:
+            (9:9) FunctionCall
+              function:
+                (9:11) OperatorSymbol: +
+              args:
+                (9:9) Identifier: b
+                (9:13) Identifier: c
+          rvalue:
+            (9:17) Identifier: c

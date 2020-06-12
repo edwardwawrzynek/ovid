@@ -52,6 +52,9 @@ enum TokenType {
 
   T_DOT = 29,
 
+  T_INC = 30, //++
+  T_DEC = 31, //--
+
   T_IDENT = -2,
   T_INTLITERAL = -3,
   T_FLOATLITERAL = -4,
