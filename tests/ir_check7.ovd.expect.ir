@@ -1,0 +1,12 @@
+(9:1)	%ovidc_test:test:test1 = FUNCTIONDECLARE (a (i32, (i32, u8))) -> (i32, i32) {
+    (9:1)	BASICBLOCK @0 {
+        (7:14)	%a = ALLOCATION (i32, (i32, u8))
+        (10:13)	%1 = FIELDSELECT (i32, u8) 1 %a
+        (10:5)	%b = ALLOCATION (i32, u8)
+        (10:5)	STORE %b <- %1
+        (11:13)	%2 = FIELDSELECT i32 0 %a
+        (11:18)	%3 = FIELDSELECT i32 0 %b
+        (11:12)	%4 = TUPLELITERAL (i32, i32) %2 %3
+        (11:5)	RETURN %4
+    }
+}

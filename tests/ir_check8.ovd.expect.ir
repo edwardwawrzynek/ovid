@@ -1,0 +1,16 @@
+(8:1)	%ovidc_test:test:test2 = FUNCTIONDECLARE (a *mut (i32, *i32), b *(i32, *i32)) -> void {
+    (8:1)	BASICBLOCK @0 {
+        (8:12)	%a = ALLOCATION *mut (i32, *i32)
+        (8:23)	%b = ALLOCATION *(i32, *i32)
+        (9:6)	%1 = DEREFERENCE (i32, *i32) %a
+        (9:6)	%2 = FIELDSELECT i32 0 %1
+        (9:14)	%3 = INTLITERAL i32 6
+        (9:5)	STORE %2 <- %3
+        (10:6)	%4 = DEREFERENCE (i32, *i32) %a
+        (10:6)	%5 = FIELDSELECT *i32 1 %4
+        (10:16)	%6 = DEREFERENCE (i32, *i32) %b
+        (10:16)	%7 = FIELDSELECT i32 0 %6
+        (10:14)	%8 = ADDRESS *i32 %7
+        (10:5)	STORE %5 <- %8
+    }
+}

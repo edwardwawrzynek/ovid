@@ -216,6 +216,8 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
                                            const TypeCheckState &state) {
   // load lvalue
   auto lvalueRes = visitNode(*node.lvalue, state.withoutTypeHint());
+  if (lvalueRes.resultType == nullptr || lvalueRes.resultInstruction == nullptr)
+    return TypeCheckResult(nullptr, nullptr);
 
   // make sure lvalue is an expression and has an address
   if (lvalueRes.resultInstruction == nullptr ||
@@ -236,11 +238,8 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
   auto rvalueRes = visitNode(
       *node.rvalue, state.withTypeHint(withoutMutType(lvalueRes.resultType)));
 
-  if (lvalueRes.resultInstruction == nullptr) {
-    errorMan.logError("expression doesn't have a value", node.rvalue->loc,
-                      ErrorType::TypeError);
-    return TypeCheckResult(lvalueRes.resultType, nullptr);
-  }
+  if (rvalueRes.resultType == nullptr || rvalueRes.resultInstruction == nullptr)
+    return TypeCheckResult(nullptr, nullptr);
 
   auto lvalueExpected = withoutMutType(lvalueRes.resultType);
 
@@ -639,7 +638,7 @@ TypeCheckResult TypeCheck::visitFunctionCallDeref(const FunctionCall &node,
   auto typeHint = std::make_shared<PointerType>(node.loc, state.typeHint);
   auto valueRes = visitNode(*node.args[0], state.withTypeHint(typeHint));
 
-  if (valueRes.resultType == nullptr)
+  if (valueRes.resultType == nullptr || valueRes.resultInstruction == nullptr)
     return TypeCheckResult(nullptr, nullptr);
   // make sure expression is a pointer
   auto typeRes =
@@ -886,7 +885,8 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
     return TypeCheckResult(nullptr, nullptr);
 
   // tuple
-  auto tupleType = std::dynamic_pointer_cast<TupleType>(lvalueRes.resultType);
+  auto tupleType = std::dynamic_pointer_cast<TupleType>(
+      withoutMutType(lvalueRes.resultType));
   if (tupleType != nullptr) {
     // make sure field isn't a string
     if (!node.has_field_num) {
@@ -910,10 +910,21 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
     }
 
     auto resType = tupleType->types[node.field_num];
-    // TODO: emit ir instruction
+    // if tuple was mutable, add mutability back to field
+    if (std::dynamic_pointer_cast<MutType>(lvalueRes.resultType) != nullptr) {
+      resType = addMutType(resType, true);
+    }
+    // emit ir instruction
+    auto instruct = std::make_unique<ir::FieldSelect>(
+        node.loc, ir::Value(), *lvalueRes.resultInstruction, node.field_num,
+        resType);
+    auto instructPointer = instruct.get();
+
+    curInstructionList->push_back(std::move(instruct));
+
     // do implicit conversion
-    return doImplicitConversion(
-        TypeCheckResult(resType, lvalueRes.resultInstruction), state, node.loc);
+    return doImplicitConversion(TypeCheckResult(resType, instructPointer),
+                                state, node.loc);
 
   } else {
     errorMan.logError(

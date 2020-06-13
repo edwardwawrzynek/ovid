@@ -243,4 +243,19 @@ int IRPrinter::visitReturn(Return &instruct,
   return 0;
 }
 
+int IRPrinter::visitFieldSelect(FieldSelect &instruct,
+                                const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printValue(instruct.val);
+  output << " = FIELDSELECT " << type_printer.getType(*instruct.type) << " "
+         << instruct.field_index << " ";
+  printValue(instruct.expr.val);
+  output << "\n";
+
+  return 0;
+}
+
 } // namespace ovid::ir

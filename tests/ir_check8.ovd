@@ -1,0 +1,11 @@
+// __ovid_compiler_test
+//__mode: check_ir
+//__end_header
+
+module test
+
+type t1 = (i32, *i32)
+fn test2(a *mut t1, b *t1) {
+    (*a).0 = 6
+    (*a).1 = &(*b).0
+}

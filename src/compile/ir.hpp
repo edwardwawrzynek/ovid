@@ -57,10 +57,9 @@ public:
   // if the value has a source location or is using id
   bool hasSourceName;
 
-  explicit Value(const std::vector<std::string> &sourceName)
-      : sourceName(sourceName), id(0), hasSourceName(true){};
+  explicit Value(const std::vector<std::string> &sourceName);
 
-  Value() : id(next_id()), hasSourceName(false){};
+  Value();
 };
 
 /* the base instruction type in the ir */
@@ -68,7 +67,7 @@ class Instruction {
 public:
   SourceLocation loc;
 
-  explicit Instruction(const SourceLocation &loc) : loc(loc){};
+  explicit Instruction(const SourceLocation &loc);
 
   virtual ~Instruction() = default;
 };
@@ -83,9 +82,8 @@ public:
   // if the expression has an address
   virtual bool isAddressable() const;
 
-  explicit Expression(const SourceLocation &loc, const Value &val,
-                      std::shared_ptr<ast::Type> type)
-      : Instruction(loc), val(val), type(std::move(type)){};
+  Expression(const SourceLocation &loc, const Value &val,
+             std::shared_ptr<ast::Type> type);
 };
 
 /* An allocation of storage space (either stack or heap) with the given type
@@ -119,8 +117,7 @@ public:
 
   // type should be a UNRESOLVED_* type
   Allocation(const SourceLocation &loc, const Value &val,
-             std::shared_ptr<ast::Type> type, AllocationType allocType)
-      : Expression(loc, val, std::move(type)), allocType(allocType){};
+             std::shared_ptr<ast::Type> type, AllocationType allocType);
 };
 
 /* A labelled block of code, which can be jumped to */
@@ -129,8 +126,7 @@ public:
   uint64_t id;
   InstructionList body;
 
-  explicit BasicBlock(const SourceLocation &loc, InstructionList body)
-      : Instruction(loc), id(next_id()), body(std::move(body)){};
+  BasicBlock(const SourceLocation &loc, InstructionList body);
 };
 
 typedef std::vector<std::unique_ptr<BasicBlock>> BasicBlockList;
@@ -148,9 +144,7 @@ public:
       const SourceLocation &loc, const Value &val,
       std::shared_ptr<ast::NamedFunctionType> type,
       const std::vector<std::reference_wrapper<const Allocation>> &argAllocs,
-      BasicBlockList body)
-      : Expression(loc, val, std::move(type)), argAllocs(argAllocs),
-        body(std::move(body)){};
+      BasicBlockList body);
 };
 
 /* int literal instruction */
@@ -159,8 +153,7 @@ public:
   uint64_t value;
 
   IntLiteral(const SourceLocation &loc, const Value &val,
-             std::shared_ptr<ast::IntType> type, uint64_t value)
-      : Expression(loc, val, std::move(type)), value(value){};
+             std::shared_ptr<ast::IntType> type, uint64_t value);
 };
 
 /* boolean literal */
@@ -168,9 +161,7 @@ class BoolLiteral : public Expression {
 public:
   bool value;
 
-  BoolLiteral(const SourceLocation &loc, const Value &val, bool value)
-      : Expression(loc, val, std::make_shared<ast::BoolType>(loc)),
-        value(value){};
+  BoolLiteral(const SourceLocation &loc, const Value &val, bool value);
 };
 
 /* tuple literal */
@@ -181,8 +172,7 @@ public:
   TupleLiteral(
       const SourceLocation &loc, const Value &val,
       const std::vector<std::reference_wrapper<const Expression>> &exprs,
-      std::shared_ptr<ast::Type> type)
-      : Expression(loc, val, std::move(type)), exprs(exprs){};
+      std::shared_ptr<ast::Type> type);
 };
 
 /* a function call (including builtins)
@@ -197,9 +187,7 @@ public:
   FunctionCall(
       const SourceLocation &loc, const Value &val, const Expression &function,
       const std::vector<std::reference_wrapper<const Expression>> &arguments,
-      std::shared_ptr<ast::Type> type)
-      : Expression(loc, val, std::move(type)), function(function),
-        arguments(arguments){};
+      std::shared_ptr<ast::Type> type);
 };
 
 /* a builtin function (arithmetic operators, etc) */
@@ -208,8 +196,7 @@ public:
   ast::OperatorType opType;
 
   BuiltinOperator(const SourceLocation &loc, const Value &val,
-                  ast::OperatorType opType, std::shared_ptr<ast::Type> type)
-      : Expression(loc, val, std::move(type)), opType(opType){};
+                  ast::OperatorType opType, std::shared_ptr<ast::Type> type);
 };
 
 /* builtin cast function (casts between int's, float's, etc) */
@@ -218,8 +205,7 @@ public:
   const Expression &expr;
 
   BuiltinCast(const SourceLocation &loc, const Value &val,
-              const Expression &expr, std::shared_ptr<ast::Type> type)
-      : Expression(loc, val, std::move(type)), expr(expr){};
+              const Expression &expr, std::shared_ptr<ast::Type> type);
 };
 
 /* operation taking the address of a value */
@@ -228,8 +214,7 @@ public:
   const Expression &expr;
 
   Address(const SourceLocation &loc, const Value &val, const Expression &expr,
-          std::shared_ptr<ast::Type> type)
-      : Expression(loc, val, std::move(type)), expr(expr){};
+          std::shared_ptr<ast::Type> type);
 };
 
 /* dereference operation on a pointer */
@@ -240,8 +225,21 @@ public:
   bool isAddressable() const override;
 
   Dereference(const SourceLocation &loc, const Value &val,
-              const Expression &expr, std::shared_ptr<ast::Type> type)
-      : Expression(loc, val, std::move(type)), expr(expr){};
+              const Expression &expr, std::shared_ptr<ast::Type> type);
+};
+
+/* a field selection on a ProductType */
+class FieldSelect : public Expression {
+public:
+  const Expression &expr;
+
+  uint64_t field_index;
+
+  bool isAddressable() const override;
+
+  FieldSelect(const SourceLocation &loc, const Value &val,
+              const Expression &expr, uint64_t field_index,
+              std::shared_ptr<ast::Type> type);
 };
 
 /* A store into a value (has to be a value produced by Allocation)
@@ -252,14 +250,13 @@ public:
   const Expression &value;
 
   Store(const SourceLocation &loc, const Expression &storage,
-        const Expression &value)
-      : Instruction(loc), storage(storage), value(value){};
+        const Expression &value);
 };
 
 /* basic block terminating instructions (jumps + returns) */
 class BasicBlockTerminator : public Instruction {
 public:
-  explicit BasicBlockTerminator(const SourceLocation &loc) : Instruction(loc){};
+  explicit BasicBlockTerminator(const SourceLocation &loc);
 };
 
 /* an unconditional jump to a label */
@@ -267,8 +264,7 @@ class Jump : public BasicBlockTerminator {
 public:
   const BasicBlock &label;
 
-  Jump(const SourceLocation &loc, const BasicBlock &label)
-      : BasicBlockTerminator(loc), label(label){};
+  Jump(const SourceLocation &loc, const BasicBlock &label);
 };
 
 /* a conditional jump to a label */
@@ -279,9 +275,7 @@ public:
   const Expression &condition;
 
   ConditionalJump(const SourceLocation &loc, const BasicBlock &true_label,
-                  const BasicBlock &false_label, const Expression &condition)
-      : BasicBlockTerminator(loc), true_label(true_label),
-        false_label(false_label), condition(condition){};
+                  const BasicBlock &false_label, const Expression &condition);
 };
 
 /* a return from a function */
@@ -290,8 +284,7 @@ public:
   // expr may be null if nothing is returned
   const Expression *expr;
 
-  Return(const SourceLocation &loc, const Expression *expression)
-      : BasicBlockTerminator(loc), expr(expression){};
+  Return(const SourceLocation &loc, const Expression *expression);
 };
 
 } // namespace ovid::ir

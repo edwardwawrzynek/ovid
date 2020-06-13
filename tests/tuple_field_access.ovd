@@ -22,3 +22,13 @@ fn test(a t1, b *t1) -> t1 {
 
     return (c, f)
 }
+
+fn test2(a *mut t1, b *t1) {
+    (*a).0 = 6
+    (*a).1 = &(*b).0
+
+    (*b).0 = 6 // __error: "left side of assignment is non mutable"
+
+    test(*a, b).0 = 1 // __error: "left side of assignment is non assignable"
+    &test(*a, b).0 // __error: "cannot take address of expression"
+}

@@ -1,0 +1,12 @@
+// __ovid_compiler_test
+//__mode: check_ir
+//__end_header
+
+module test
+
+type tuple = (i32, (i32, u8))
+
+fn test1(a tuple) -> (i32, i32) {
+    val b = a.1
+    return (a.0, b.0)
+}

@@ -114,7 +114,6 @@ public:
 
 /* ast types */
 class Type {
-  virtual const Type &withoutMutability() const;
 
 public:
   SourceLocation loc;
@@ -127,6 +126,7 @@ public:
   virtual bool equalToExpected(const Type &expected);
 
   explicit Type(const SourceLocation &loc) : loc(loc){};
+  virtual const Type &withoutMutability() const;
 };
 
 /* an unresolved type
