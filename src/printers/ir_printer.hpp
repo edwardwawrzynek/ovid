@@ -44,7 +44,7 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
   int visitReturn(Return &instruct, const ast::ASTPrinterState &state) override;
 
 public:
-  IRPrinter(std::ostream &output)
+  explicit IRPrinter(std::ostream &output)
       : BaseIRVisitor(0), output(output), type_printer(){};
 };
 } // namespace ovid::ir

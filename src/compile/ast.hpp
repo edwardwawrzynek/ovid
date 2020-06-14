@@ -127,7 +127,7 @@ public:
   // check if a type is or contains a pointer
   virtual bool containsPointer() const;
 
-  virtual const Type &withoutMutability() const;
+  virtual const Type *withoutMutability() const;
 
   explicit Type(const SourceLocation &loc) : loc(loc){};
 };
@@ -198,7 +198,7 @@ public:
 };
 
 class MutType : public Type {
-  const Type &withoutMutability() const override;
+  const Type *withoutMutability() const override;
 
 public:
   std::shared_ptr<Type> type;

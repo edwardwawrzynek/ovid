@@ -7,6 +7,7 @@
 #include "resolve_pass.hpp"
 #include "tokenizer.hpp"
 #include "type_check.hpp"
+#include "escape_analysis.hpp"
 #include <iostream>
 
 int main(int argc, char **argv) {
@@ -48,6 +49,11 @@ int main(int argc, char **argv) {
   std::cout << "\n---- IR ----\n";
   auto irPrinter = ovid::ir::IRPrinter(std::cout);
   irPrinter.visitInstructions(ir, ovid::ast::ASTPrinterState());
+
+  // run escape analysis
+  ovid::ir::FlowList globalFlows;
+  auto escape_analysis = ovid::ir::EscapeAnalysisPass();
+  escape_analysis.visitInstructions(ir, ovid::ir::EscapeAnalysisState(false, &globalFlows));
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";

@@ -48,6 +48,8 @@ public:
   /* check if the flow value actually contains anything
    * eg an indirection on a type without pointers (eg i32) is empty */
   bool isEmpty();
+
+  void print(std::ostream& output);
 };
 
 /* a flow of one FlowValue to another */
@@ -61,9 +63,57 @@ public:
   /* check if anything is actually flowing
    * if value is empty, so is the flow */
   bool isEmpty();
+
+  void print(std::ostream& output);
 };
 
 typedef std::vector<Flow> FlowList;
+
+class EscapeAnalysisState {
+public:
+  /* if inside a function declaration or not */
+  bool in_func;
+  /* current flow list to add to */
+  FlowList *curFlowList;
+
+  EscapeAnalysisState(bool in_func, FlowList *curFlowList)
+      : in_func(in_func), curFlowList(curFlowList){};
+
+  EscapeAnalysisState() : in_func(false), curFlowList(nullptr){};
+};
+
+// main escape analysis pass -- visit ir nodes, calculate pointer flow and
+// adjust allocation types
+class EscapeAnalysisPass : public BaseIRVisitor<int, EscapeAnalysisState> {
+
+  int visitFunctionDeclare(FunctionDeclare &instruct,
+                           const EscapeAnalysisState &state) override;
+  int visitIntLiteral(IntLiteral &instruct,
+                      const EscapeAnalysisState &state) override;
+  int visitBoolLiteral(BoolLiteral &instruct,
+                       const EscapeAnalysisState &state) override;
+  int visitTupleLiteral(TupleLiteral &instruct,
+                        const EscapeAnalysisState &state) override;
+  int visitFunctionCall(FunctionCall &instruct,
+                        const EscapeAnalysisState &state) override;
+  int visitAllocation(Allocation &instruct,
+                      const EscapeAnalysisState &state) override;
+  int visitAddress(Address &instruct,
+                   const EscapeAnalysisState &state) override;
+  int visitDereference(Dereference &instruct,
+                       const EscapeAnalysisState &state) override;
+  int visitBuiltinCast(BuiltinCast &instruct,
+                       const EscapeAnalysisState &state) override;
+  int visitFieldSelect(FieldSelect &instruct,
+                       const EscapeAnalysisState &state) override;
+
+  int visitStore(Store &instruct, const EscapeAnalysisState &state) override;
+  int visitBasicBlock(BasicBlock &instruct,
+                      const EscapeAnalysisState &state) override;
+
+public:
+  EscapeAnalysisPass() : BaseIRVisitor(0){};
+};
 
 } // namespace ovid::ir
 

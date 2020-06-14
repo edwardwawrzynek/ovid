@@ -8,5 +8,15 @@ fn foo(p **i32) {
 fn main() {
 	val x = 42
 	val addr = &x
-	foo(&addr)
+	val addr1 = &addr
+	val addr2 = *addr1
+	foo(&addr2)
+}
+
+fn e(a *i32) {}
+
+fn test() {
+    val a = 42
+    val b = a
+    e(&b)
 }

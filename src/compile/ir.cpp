@@ -101,7 +101,7 @@ Dereference::Dereference(const SourceLocation &loc, const Value &val,
     : Expression(loc, val, std::move(type)), expr(expr) {
   // check that expr is a pointer type, and that type matches what it points to
   auto exprPointerType =
-      dynamic_cast<const ast::PointerType *>(&expr.type->withoutMutability());
+      dynamic_cast<const ast::PointerType *>(expr.type->withoutMutability());
   assert(exprPointerType != nullptr);
   assert(Expression::type->equalToExpected(*exprPointerType->type));
 }
@@ -113,7 +113,7 @@ FieldSelect::FieldSelect(const SourceLocation &loc, const Value &val,
       field_index(field_index) {
   // check that expr is product type
   auto exprProductType =
-      dynamic_cast<const ast::ProductType *>(&expr.type->withoutMutability());
+      dynamic_cast<const ast::ProductType *>(expr.type->withoutMutability());
   assert(exprProductType != nullptr);
 }
 
@@ -165,7 +165,7 @@ ConditionalJump::ConditionalJump(const SourceLocation &loc,
       false_label(false_label), condition(condition) {
   // make sure expr is boolean
   auto exprBoolType =
-      dynamic_cast<const ast::BoolType *>(&condition.type->withoutMutability());
+      dynamic_cast<const ast::BoolType *>(condition.type->withoutMutability());
   assert(exprBoolType != nullptr);
 }
 

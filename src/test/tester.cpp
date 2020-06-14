@@ -7,6 +7,7 @@
 #include "resolve_pass.hpp"
 #include "tokenizer.hpp"
 #include "type_check.hpp"
+#include "escape_analysis.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -411,6 +412,9 @@ int TesterInstance::run() {
       } else {
         // generate ir
         auto ir = ast::typeCheckProduceIR(errorMan, packageName, ast);
+        // run escape analysis
+        auto escape_analysis = ir::EscapeAnalysisPass();
+        escape_analysis.visitInstructions(ir, ir::EscapeAnalysisState());
 
         if (modes.count(TestMode::CheckIR) > 0) {
           if (errorMan.criticalErrorOccurred()) {
