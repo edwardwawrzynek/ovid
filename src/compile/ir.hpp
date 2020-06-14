@@ -12,30 +12,12 @@
  * instructions Compared to the AST, the IR is represented as a linear series of
  * instructions, instead of as a tree, and has gone through type checking
  *
- * The IR consists of global function, variable, and type declarations
- * The body of function declarations contain labels and expressions
- * All expressions in the IR take a number of arguments and produce one value
- * (jumps produce a void value). The result of every instruction is assigned to
- * a value
- *
- * fn f(a i32, b pkg:type i32) {
- *  val var := 5
- *  return (var + 1) * (7 + 5)
- * }
- *
- * EX:
- * FUNCTION pkg:mod:f(a i32, b pkg:type) i32 {
- *  var = ALLOCATE i32 // var is i32
- *  STORE var 5
- *  tmp1 = 1
- *  tmp2 = CALL i32:add var tmp1
- *  tmp3 = 7
- *  tmp4 = 5
- *  tmp5 = CALL i32:add tmp3 tmp4
- *  tmp6 = CALL i32:mul tmp2 tmp5
- *  RETURN tmp6
- * }
- *
+ * The IR consists of a set of instructions. The major types of instructions
+ * are: BasicBlock - a labelled set of instructions that end with a terminator
+ * BasicBlockTerminator - instructions that alter program flow (jumps + returns)
+ * Expression - instructions that produce a value
+ *  FunctionDecl - expression containing args + a number of basic blocks that
+ * make a body FunctionCall, etc
  */
 
 namespace ovid::ir {
@@ -233,12 +215,12 @@ class FieldSelect : public Expression {
 public:
   const Expression &expr;
 
-  uint64_t field_index;
+  int32_t field_index;
 
   bool isAddressable() const override;
 
   FieldSelect(const SourceLocation &loc, const Value &val,
-              const Expression &expr, uint64_t field_index,
+              const Expression &expr, int32_t field_index,
               std::shared_ptr<ast::Type> type);
 };
 

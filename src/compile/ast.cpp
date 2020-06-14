@@ -1,4 +1,3 @@
-
 #include "ast.hpp"
 
 namespace ovid::ast {
@@ -6,6 +5,11 @@ namespace ovid::ast {
 const Type &ast::Type::withoutMutability() const { return *this; }
 
 bool Type::equalToExpected(const Type &expected) { return false; }
+
+bool Type::containsPointer() const {
+  // false provides a default for most of the builtin types
+  return false;
+}
 
 const Type &ast::MutType::withoutMutability() const { return *type; }
 
@@ -21,6 +25,9 @@ bool UnresolvedType::equalToExpected(const Type &expected) {
 
 bool ResolvedAlias::equalToExpected(const Type &expected) {
   return alias->type->equalToExpected(expected);
+}
+bool ResolvedAlias::containsPointer() const {
+  return alias->type->containsPointer();
 }
 
 bool VoidType::equalToExpected(const Type &expected) {
@@ -56,6 +63,16 @@ bool TupleType::equalToExpected(const Type &expected) {
   return true;
 }
 
+bool TupleType::containsPointer() const {
+  // check if any interior types are pointers
+  for (auto &type : types) {
+    if (type->containsPointer())
+      return true;
+  }
+
+  return false;
+}
+
 bool FloatType::equalToExpected(const Type &expected) {
   const auto expectFloat = dynamic_cast<const FloatType *>(&expected);
 
@@ -75,6 +92,8 @@ bool MutType::equalToExpected(const Type &expected) {
   return type->equalToExpected(expected);
 }
 
+bool MutType::containsPointer() const { return type->containsPointer(); }
+
 bool PointerType::equalToExpected(const Type &expected) {
   const auto expectPointer = dynamic_cast<const PointerType *>(&expected);
 
@@ -83,6 +102,8 @@ bool PointerType::equalToExpected(const Type &expected) {
 
   return type->equalToExpected(*expectPointer->type);
 }
+
+bool PointerType::containsPointer() const { return true; }
 
 bool FunctionType::equalToExpected(const Type &expected) {
   const auto expectFunctionType = dynamic_cast<const FunctionType *>(&expected);
@@ -123,6 +144,16 @@ bool NamedFunctionType::equalToExpected(const Type &expected) {
   }
 
   return false;
+}
+
+std::shared_ptr<Type> ProductType::getTypeOfField(int32_t field_index) const {
+  assert(false);
+}
+
+std::shared_ptr<Type> TupleType::getTypeOfField(int32_t field_index) const {
+  assert(field_index >= 0 && field_index < types.size());
+
+  return types[field_index];
 }
 
 } // namespace ovid::ast

@@ -107,7 +107,7 @@ Dereference::Dereference(const SourceLocation &loc, const Value &val,
 }
 
 FieldSelect::FieldSelect(const SourceLocation &loc, const Value &val,
-                         const Expression &expr, uint64_t field_index,
+                         const Expression &expr, int32_t field_index,
                          std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), expr(expr),
       field_index(field_index) {

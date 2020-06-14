@@ -124,9 +124,12 @@ public:
   // valid (mut -> non mut is valid) if the expected type has a mut that this
   // type doesn't, invalid (non mut -> mut invalid)
   virtual bool equalToExpected(const Type &expected);
+  // check if a type is or contains a pointer
+  virtual bool containsPointer() const;
+
+  virtual const Type &withoutMutability() const;
 
   explicit Type(const SourceLocation &loc) : loc(loc){};
-  virtual const Type &withoutMutability() const;
 };
 
 /* an unresolved type
@@ -153,6 +156,7 @@ public:
   std::shared_ptr<TypeAlias> alias;
 
   bool equalToExpected(const Type &expected) override;
+  bool containsPointer() const override;
 
   ResolvedAlias(const SourceLocation &loc, std::shared_ptr<TypeAlias> alias)
       : Type(loc), alias(std::move(alias)){};
@@ -201,6 +205,8 @@ public:
 
   bool equalToExpected(const Type &expected) override;
 
+  bool containsPointer() const override;
+
   explicit MutType(const SourceLocation &loc, std::shared_ptr<Type> type)
       : Type(loc), type(std::move(type)){};
 };
@@ -210,6 +216,8 @@ public:
   std::shared_ptr<Type> type;
 
   bool equalToExpected(const Type &expected) override;
+
+  bool containsPointer() const override;
 
   explicit PointerType(const SourceLocation &loc, std::shared_ptr<Type> type)
       : Type(loc), type(std::move(type)){};
@@ -246,6 +254,8 @@ public:
 class ProductType : public Type {
 public:
   ProductType(const SourceLocation &loc) : Type(loc){};
+
+  virtual std::shared_ptr<Type> getTypeOfField(int32_t field_index) const;
 };
 
 class TupleType : public ProductType {
@@ -253,6 +263,9 @@ public:
   TypeList types;
 
   bool equalToExpected(const Type &expected) override;
+
+  bool containsPointer() const override;
+  std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
 
   TupleType(const SourceLocation &loc, TypeList types)
       : ProductType(loc), types(std::move(types)){};
@@ -444,7 +457,7 @@ public:
   std::unique_ptr<Expression> lvalue;
 
   std::string field;
-  uint64_t field_num;
+  int32_t field_num;
 
   bool has_field_num;
 
@@ -454,7 +467,7 @@ public:
         has_field_num(false){};
 
   FieldAccess(const SourceLocation &loc, std::unique_ptr<Expression> lvalue,
-              uint64_t field_num)
+              int32_t field_num)
       : Expression(loc), lvalue(std::move(lvalue)), field(""),
         field_num(field_num), has_field_num(true){};
 };
