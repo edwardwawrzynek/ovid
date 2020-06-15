@@ -4,7 +4,7 @@ namespace ovid::ast {
 
 const Type *ast::Type::withoutMutability() const { return this; }
 
-bool Type::equalToExpected(const Type &expected) { return false; }
+bool Type::equalToExpected(const Type &expected) const { return false; }
 
 bool Type::containsPointer() const {
   // false provides a default for most of the builtin types
@@ -17,28 +17,28 @@ void ScopedBlock::addStatement(std::unique_ptr<Statement> statement) {
   statements.push_back(std::move(statement));
 }
 
-bool UnresolvedType::equalToExpected(const Type &expected) {
+bool UnresolvedType::equalToExpected(const Type &expected) const {
   assert(false);
 
   return false;
 }
 
-bool ResolvedAlias::equalToExpected(const Type &expected) {
+bool ResolvedAlias::equalToExpected(const Type &expected) const {
   return alias->type->equalToExpected(expected);
 }
 bool ResolvedAlias::containsPointer() const {
   return alias->type->containsPointer();
 }
 
-bool VoidType::equalToExpected(const Type &expected) {
+bool VoidType::equalToExpected(const Type &expected) const {
   return dynamic_cast<const VoidType *>(&expected) != nullptr;
 }
 
-bool BoolType::equalToExpected(const Type &expected) {
+bool BoolType::equalToExpected(const Type &expected) const {
   return dynamic_cast<const BoolType *>(&expected) != nullptr;
 }
 
-bool IntType::equalToExpected(const Type &expected) {
+bool IntType::equalToExpected(const Type &expected) const {
   const auto expectInt = dynamic_cast<const IntType *>(&expected);
 
   if (expectInt == nullptr)
@@ -47,7 +47,7 @@ bool IntType::equalToExpected(const Type &expected) {
   return expectInt->isUnsigned == isUnsigned && expectInt->size == size;
 }
 
-bool TupleType::equalToExpected(const Type &expected) {
+bool TupleType::equalToExpected(const Type &expected) const {
   const auto expectTuple = dynamic_cast<const TupleType *>(&expected);
 
   if (expectTuple == nullptr)
@@ -73,7 +73,7 @@ bool TupleType::containsPointer() const {
   return false;
 }
 
-bool FloatType::equalToExpected(const Type &expected) {
+bool FloatType::equalToExpected(const Type &expected) const {
   const auto expectFloat = dynamic_cast<const FloatType *>(&expected);
 
   if (expectFloat == nullptr)
@@ -82,7 +82,7 @@ bool FloatType::equalToExpected(const Type &expected) {
   return expectFloat->size == size;
 }
 
-bool MutType::equalToExpected(const Type &expected) {
+bool MutType::equalToExpected(const Type &expected) const {
   // if expected is mut, check inner types
   auto expectMut = dynamic_cast<const MutType *>(&expected);
   if (expectMut != nullptr) {
@@ -94,7 +94,7 @@ bool MutType::equalToExpected(const Type &expected) {
 
 bool MutType::containsPointer() const { return type->containsPointer(); }
 
-bool PointerType::equalToExpected(const Type &expected) {
+bool PointerType::equalToExpected(const Type &expected) const {
   const auto expectPointer = dynamic_cast<const PointerType *>(&expected);
 
   if (expectPointer == nullptr)
@@ -105,7 +105,7 @@ bool PointerType::equalToExpected(const Type &expected) {
 
 bool PointerType::containsPointer() const { return true; }
 
-bool FunctionType::equalToExpected(const Type &expected) {
+bool FunctionType::equalToExpected(const Type &expected) const {
   const auto expectFunctionType = dynamic_cast<const FunctionType *>(&expected);
   const auto expectNamedFunctionType =
       dynamic_cast<const NamedFunctionType *>(&expected);
@@ -130,7 +130,7 @@ bool FunctionType::equalToExpected(const Type &expected) {
   return false;
 }
 
-bool NamedFunctionType::equalToExpected(const Type &expected) {
+bool NamedFunctionType::equalToExpected(const Type &expected) const {
   const auto expectFunctionType = dynamic_cast<const FunctionType *>(&expected);
   const auto expectNamedFunctionType =
       dynamic_cast<const NamedFunctionType *>(&expected);
@@ -150,11 +150,15 @@ std::shared_ptr<Type> ProductType::getTypeOfField(int32_t field_index) const {
   assert(false);
 }
 
+size_t ProductType::getNumFields() const { assert(false); }
+
 std::shared_ptr<Type> TupleType::getTypeOfField(int32_t field_index) const {
   assert(field_index >= 0 && field_index < types.size());
 
   return types[field_index];
 }
+
+size_t TupleType::getNumFields() const { return types.size(); }
 
 } // namespace ovid::ast
 

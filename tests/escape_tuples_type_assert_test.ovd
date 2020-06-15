@@ -1,0 +1,24 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+module test
+
+/* the escape analysis pass performs checks to make flows are of the same type. test those */
+
+type t1 = (i32, *mut u8)
+type t2 = (*mut *t1, *t1, t1, (t1, i32))
+
+fn test(arg t1) -> t2 {
+    val a = 5
+    mut tmp u8 = 7
+    val b = &tmp
+
+    val c = (a, b)
+    val d = (arg.0, arg.1)
+    val e = &d
+    val f = *e
+    mut g = &*&f
+
+    return (&g, &arg, c, (d, a))
+}

@@ -1,22 +1,16 @@
 val a i32 = 1
 mut sink *i32 = &a
 
+type a = (i32, a)
+
 fn foo(p **i32) {
 	sink = *p
 }
 
 fn main() {
-	val x = 42
-	val addr = &x
-	val addr1 = &addr
-	val addr2 = *addr1
-	foo(&addr2)
-}
-
-fn e(a *i32) {}
-
-fn test() {
-    val a = 42
-    val b = a
-    e(&b)
+	val a = 1
+	val b = 2
+	val c = 3
+	val d = (&a, (&b, &c))
+	val e = &d.0
 }

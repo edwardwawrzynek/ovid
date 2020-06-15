@@ -81,7 +81,7 @@ TypeCheckResult TypeCheck::visitTuple(Tuple &node,
       return TypeCheckResult(nullptr, nullptr);
 
     exprs.emplace_back(*exprRes.resultInstruction);
-    exprTypes.push_back(exprRes.resultType);
+    exprTypes.push_back(withoutMutType(exprRes.resultType));
   }
 
   // construct instruction

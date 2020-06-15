@@ -2,12 +2,12 @@
 #include "ast.hpp"
 #include "ast_printer.hpp"
 #include "error.hpp"
+#include "escape_analysis.hpp"
 #include "ir_printer.hpp"
 #include "parser.hpp"
 #include "resolve_pass.hpp"
 #include "tokenizer.hpp"
 #include "type_check.hpp"
-#include "escape_analysis.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -413,8 +413,7 @@ int TesterInstance::run() {
         // generate ir
         auto ir = ast::typeCheckProduceIR(errorMan, packageName, ast);
         // run escape analysis
-        auto escape_analysis = ir::EscapeAnalysisPass();
-        escape_analysis.visitInstructions(ir, ir::EscapeAnalysisState());
+        ir::runEscapeAnalysis(ir);
 
         if (modes.count(TestMode::CheckIR) > 0) {
           if (errorMan.criticalErrorOccurred()) {

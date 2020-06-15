@@ -47,10 +47,30 @@ public:
 
   /* check if the flow value actually contains anything
    * eg an indirection on a type without pointers (eg i32) is empty */
-  bool isEmpty();
+  bool isEmpty() const;
 
-  void print(std::ostream& output);
+  void print(std::ostream &output) const;
+
+  /* get the type of the value with indirections + field applied
+   * returns an array because indirection on product type may produce multiple
+   * types */
+  std::vector<const ast::Type *> getFlowingTypes() const;
+
+private:
+  // get the type of the value without indirections, with the field selector
+  // applied
+  const ast::Type *getTypeAfterField() const;
 };
+
+// given a product type, produce an array of all of its types (including nested
+// product types)
+std::vector<const ast::Type *> flattenProductType(const ast::ProductType *type);
+
+// get the potential type of a derefrencing the given type
+// this returns a vector, because indirection on a product type may produce
+// multiple types
+std::vector<const ast::Type *> getIndirectedTypes(uint32_t indirect_level,
+                                                  const ast::Type *type);
 
 /* a flow of one FlowValue to another */
 class Flow {
@@ -64,7 +84,7 @@ public:
    * if value is empty, so is the flow */
   bool isEmpty();
 
-  void print(std::ostream& output);
+  void print(std::ostream &output);
 };
 
 typedef std::vector<Flow> FlowList;
@@ -114,6 +134,9 @@ class EscapeAnalysisPass : public BaseIRVisitor<int, EscapeAnalysisState> {
 public:
   EscapeAnalysisPass() : BaseIRVisitor(0){};
 };
+
+// run escape analysis on ir (thin wrapper around EscapeAnalysisPass)
+void runEscapeAnalysis(const ir::InstructionList &ir);
 
 } // namespace ovid::ir
 

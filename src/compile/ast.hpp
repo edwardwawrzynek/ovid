@@ -123,7 +123,7 @@ public:
   // if this type has a mut (anywhere in the chain) that isn't in expected,
   // valid (mut -> non mut is valid) if the expected type has a mut that this
   // type doesn't, invalid (non mut -> mut invalid)
-  virtual bool equalToExpected(const Type &expected);
+  virtual bool equalToExpected(const Type &expected) const;
   // check if a type is or contains a pointer
   virtual bool containsPointer() const;
 
@@ -141,7 +141,7 @@ public:
   // if the type began with ::
   bool is_root_scoped;
 
-  bool equalToExpected(const Type &expected) override;
+  bool equalToExpected(const Type &expected) const override;
 
   UnresolvedType(const SourceLocation &loc,
                  const std::vector<std::string> &scopes,
@@ -155,7 +155,7 @@ class ResolvedAlias : public Type {
 public:
   std::shared_ptr<TypeAlias> alias;
 
-  bool equalToExpected(const Type &expected) override;
+  bool equalToExpected(const Type &expected) const override;
   bool containsPointer() const override;
 
   ResolvedAlias(const SourceLocation &loc, std::shared_ptr<TypeAlias> alias)
@@ -164,14 +164,14 @@ public:
 
 class VoidType : public Type {
 public:
-  bool equalToExpected(const Type &expected) override;
+  bool equalToExpected(const Type &expected) const override;
 
   VoidType(const SourceLocation &loc) : Type(loc){};
 };
 
 class BoolType : public Type {
 public:
-  bool equalToExpected(const Type &expected) override;
+  bool equalToExpected(const Type &expected) const override;
 
   BoolType(const SourceLocation &loc) : Type(loc){};
 };
@@ -181,7 +181,7 @@ public:
   int size; // in bits
   bool isUnsigned;
 
-  bool equalToExpected(const Type &expected) override;
+  bool equalToExpected(const Type &expected) const override;
 
   IntType(const SourceLocation &loc, int size, bool isUnsigned)
       : Type(loc), size(size), isUnsigned(isUnsigned){};
@@ -191,7 +191,7 @@ class FloatType : public Type {
 public:
   int size; // in bits
 
-  bool equalToExpected(const Type &expected) override;
+  bool equalToExpected(const Type &expected) const override;
 
   explicit FloatType(const SourceLocation &loc, int size)
       : Type(loc), size(size){};
@@ -203,7 +203,7 @@ class MutType : public Type {
 public:
   std::shared_ptr<Type> type;
 
-  bool equalToExpected(const Type &expected) override;
+  bool equalToExpected(const Type &expected) const override;
 
   bool containsPointer() const override;
 
@@ -215,7 +215,7 @@ class PointerType : public Type {
 public:
   std::shared_ptr<Type> type;
 
-  bool equalToExpected(const Type &expected) override;
+  bool equalToExpected(const Type &expected) const override;
 
   bool containsPointer() const override;
 
@@ -228,7 +228,7 @@ public:
   TypeList argTypes;
   std::shared_ptr<Type> retType;
 
-  bool equalToExpected(const Type &expected) override;
+  bool equalToExpected(const Type &expected) const override;
 
   FunctionType(const SourceLocation &loc, TypeList argTypes,
                std::shared_ptr<Type> retType)
@@ -241,7 +241,7 @@ public:
   std::vector<std::string> argNames;
   std::vector<std::shared_ptr<Symbol>> resolvedArgs;
 
-  bool equalToExpected(const Type &expected) override;
+  bool equalToExpected(const Type &expected) const override;
 
   NamedFunctionType(const SourceLocation &loc,
                     std::shared_ptr<FunctionType> type,
@@ -256,16 +256,18 @@ public:
   ProductType(const SourceLocation &loc) : Type(loc){};
 
   virtual std::shared_ptr<Type> getTypeOfField(int32_t field_index) const;
+  virtual size_t getNumFields() const;
 };
 
 class TupleType : public ProductType {
 public:
   TypeList types;
 
-  bool equalToExpected(const Type &expected) override;
+  bool equalToExpected(const Type &expected) const override;
 
   bool containsPointer() const override;
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
+  size_t getNumFields() const override;
 
   TupleType(const SourceLocation &loc, TypeList types)
       : ProductType(loc), types(std::move(types)){};

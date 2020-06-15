@@ -4,17 +4,15 @@ namespace ovid::ir {
 
 Flow::Flow(const FlowValue &value, const FlowValue &into)
     : value(value), into(into) {
-  // types of value and into should match (with indirection)
-  // TODO: fix to account for indirection
-  /*ast::Type* valueType = value.value.type.get();
-  ast::Type* intoType = into.value.type.get();
-  if(value.field >= 0) {
-    valueType = dynamic_cast<ast::ProductType*>(valueType)->getTypeOfField(value.field).get();
+  // types of value and into should match (with indirections + field selects
+  // applied)
+  auto valueTypes = value.getFlowingTypes();
+  auto intoTypes = into.getFlowingTypes();
+
+  assert(valueTypes.size() == intoTypes.size());
+  for (size_t i = 0; i < valueTypes.size(); i++) {
+    assert(valueTypes[i]->equalToExpected(*intoTypes[i]));
   }
-  if(into.field >= 0) {
-    intoType = dynamic_cast<ast::ProductType*>(intoType)->getTypeOfField(into.field).get();
-  }
-  assert(valueType->equalToExpected(*intoType));*/
 }
 
 FlowValue::FlowValue(const Expression &value, uint32_t indirect_level)
@@ -26,49 +24,116 @@ FlowValue::FlowValue(const Expression &value, uint32_t indirect_level,
   assert(field >= 0 || field == -1);
   // if field isn't -1, make sure expression is a product type
   if (field >= 0) {
-    auto productType = dynamic_cast<const ast::ProductType *>(value.type->withoutMutability());
+    auto productType =
+        dynamic_cast<const ast::ProductType *>(value.type->withoutMutability());
     assert(productType != nullptr);
     assert(productType->getTypeOfField(field) != nullptr);
   }
 }
 
-bool FlowValue::isEmpty() {
-  // if no indirection, value can't be empty
-  if (indirect_level <= 0)
-    return false;
-  // otherwise, value is an indirection (dereference)
-  // if it doesn't contain pointers, it is empty (nothing to be dereference)
-  if (field == -1) {
-    return !value.type->containsPointer();
+std::vector<const ast::Type *>
+flattenProductType(const ast::ProductType *type) {
+  std::vector<const ast::Type *> types;
+  for (size_t i = 0; i < type->getNumFields(); i++) {
+    auto fieldType = type->getTypeOfField(i)->withoutMutability();
+    auto fieldProductType = dynamic_cast<const ast::ProductType *>(fieldType);
+    if (fieldProductType != nullptr) {
+      auto compTypes = flattenProductType(fieldProductType);
+      types.insert(types.end(), compTypes.begin(), compTypes.end());
+    } else {
+      types.push_back(fieldType);
+    }
+  }
+
+  return types;
+}
+
+std::vector<const ast::Type *> getIndirectedTypes(uint32_t indirect_level,
+                                                  const ast::Type *type) {
+  std::vector<const ast::Type *> types;
+  if (indirect_level == 0) {
+    types.push_back(type);
   } else {
-    auto productType = dynamic_cast<const ast::ProductType *>(value.type->withoutMutability());
+    auto pointerType = dynamic_cast<const ast::PointerType *>(type);
+    auto productType = dynamic_cast<const ast::ProductType *>(type);
+    // if type is pointer, produces dereference type
+    if (pointerType != nullptr) {
+      auto newTypes = getIndirectedTypes(
+          indirect_level - 1, pointerType->type->withoutMutability());
+      types.insert(types.end(), newTypes.begin(), newTypes.end());
+    }
+    // if type is product, produce derefrences of all pointer types in it
+    else if (productType != nullptr) {
+      auto fieldTypes = flattenProductType(productType);
+      for (auto &fieldType : fieldTypes) {
+        auto pointerType = dynamic_cast<const ast::PointerType *>(fieldType);
+        // if field is a pointer, add it's dereference type
+        if (pointerType != nullptr) {
+          auto newTypes = getIndirectedTypes(
+              indirect_level - 1, pointerType->type->withoutMutability());
+          types.insert(types.end(), newTypes.begin(), newTypes.end());
+        }
+      }
+    }
+    // otherwise, type shouldn't contain pointers
+    else {
+      assert(!type->containsPointer());
+    }
+  }
+
+  return types;
+}
+
+const ast::Type *FlowValue::getTypeAfterField() const {
+  if (field == -1) {
+    return value.type->withoutMutability();
+  } else {
+    auto productType =
+        dynamic_cast<const ast::ProductType *>(value.type->withoutMutability());
     assert(productType != nullptr);
-    return !productType->getTypeOfField(field)->containsPointer();
+    return productType->getTypeOfField(field)->withoutMutability();
   }
 }
 
-void FlowValue::print(std::ostream &output) {
-  for(uint32_t i = 0; i < indirect_level; i++) output << "*";
+std::vector<const ast::Type *> FlowValue::getFlowingTypes() const {
+  return getIndirectedTypes(indirect_level, getTypeAfterField());
+}
+
+bool FlowValue::isEmpty() const {
+  // if no indirection, value can't be empty
+  if (indirect_level == 0)
+    return false;
+  // otherwise, value is an indirection (dereference)
+  // evaluate what it may point to
+  auto indirectedTypes = getFlowingTypes();
+
+  return indirectedTypes.empty();
+}
+
+void FlowValue::print(std::ostream &output) const {
+  for (uint32_t i = 0; i < indirect_level; i++)
+    output << "*";
   // print value
   auto val = value.val;
   output << "%";
-  if(val.hasSourceName) {
-    for(size_t i = 0; i < val.sourceName.size(); i++) {
+  if (val.hasSourceName) {
+    for (size_t i = 0; i < val.sourceName.size(); i++) {
       output << val.sourceName[i];
-      if(i < val.sourceName.size() - 1) output << ":";
+      if (i < val.sourceName.size() - 1)
+        output << ":";
     }
   } else {
     output << val.id;
   }
-  if(field >= 0) output << "." << field;
+  if (field >= 0)
+    output << "." << field;
 }
 
 bool Flow::isEmpty() {
   // if value is empty, into should also be empty (b/c their types should match)
-  //assert(value.isEmpty() == into.isEmpty());
+  assert(value.isEmpty() == into.isEmpty());
 
-  //return value.isEmpty();
-  return false;
+  return value.isEmpty();
 }
 
 void Flow::print(std::ostream &output) {
@@ -91,11 +156,11 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
 
   // TODO: unify/solve flows
   std::cout << "flows in function ";
-  for(auto &scope: instruct.val.sourceName) {
+  for (auto &scope : instruct.val.sourceName) {
     std::cout << scope << ":";
   }
   std::cout << "\n";
-  for(auto &flow: flows) {
+  for (auto &flow : flows) {
     flow.print(std::cout);
   }
   return 0;
@@ -219,6 +284,12 @@ int EscapeAnalysisPass::visitBuiltinCast(BuiltinCast &instruct,
   assert(!instruct.expr.type->containsPointer());
 
   return 0;
+}
+
+void runEscapeAnalysis(const ir::InstructionList &ir) {
+  auto pass = EscapeAnalysisPass();
+  auto globalFlows = ir::FlowList();
+  pass.visitInstructions(ir, EscapeAnalysisState(false, &globalFlows));
 }
 
 } // namespace ovid::ir
