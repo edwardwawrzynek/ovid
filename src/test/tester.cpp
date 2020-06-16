@@ -413,7 +413,7 @@ int TesterInstance::run() {
         // generate ir
         auto ir = ast::typeCheckProduceIR(errorMan, packageName, ast);
         // run escape analysis
-        ir::runEscapeAnalysis(ir);
+        ir::runEscapeAnalysis(ir, true, std::cout);
 
         if (modes.count(TestMode::CheckIR) > 0) {
           if (errorMan.criticalErrorOccurred()) {

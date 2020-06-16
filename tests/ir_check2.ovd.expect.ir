@@ -2,28 +2,28 @@
 (6:5)	%ovidc_test:var = ALLOCATION i32
 (6:5)	STORE %ovidc_test:var <- %0
 (8:1)	%ovidc_test:sum = FUNCTIONDECLARE (a *i32, b *mut i32) -> *i32 {
-    (8:1)	BASICBLOCK @1 {
+    (8:1)	BASICBLOCK @2 {
         (8:10)	%a = ALLOCATION *i32
         (8:18)	%b = ALLOCATION *mut i32
-        (9:5)	%2 = DEREFERENCE i32 %a
-        (10:5)	%3 = DEREFERENCE i32 %b
+        (9:5)	%5 = DEREFERENCE i32 %a
+        (10:5)	%6 = DEREFERENCE i32 %b
     }
 }
 (13:1)	%ovidc_test:test = FUNCTIONDECLARE () -> void {
-    (13:1)	BASICBLOCK @4 {
-        (14:13)	%5 = INTLITERAL i32 5
+    (13:1)	BASICBLOCK @8 {
+        (14:13)	%9 = INTLITERAL i32 5
         (14:5)	%a = ALLOCATION i32
-        (14:5)	STORE %a <- %5
-        (15:13)	%6 = INTLITERAL i32 7
+        (14:5)	STORE %a <- %9
+        (15:13)	%11 = INTLITERAL i32 7
         (15:5)	%b = ALLOCATION i32
-        (15:5)	STORE %b <- %6
-        (17:16)	%7 = ADDRESS *i32 %a
+        (15:5)	STORE %b <- %11
+        (17:16)	%13 = ADDRESS *i32 %a
         (17:5)	%addr = ALLOCATION *i32
-        (17:5)	STORE %addr <- %7
-        (19:26)	%8 = ADDRESS *mut i32 %b
-        (19:16)	%9 = FUNCTIONCALL *i32 %ovidc_test:sum(%addr, %8)
-        (19:15)	%10 = DEREFERENCE i32 %9
+        (17:5)	STORE %addr <- %13
+        (19:26)	%15 = ADDRESS *mut i32 %b
+        (19:16)	%16 = FUNCTIONCALL *i32 %ovidc_test:sum(%addr, %15)
+        (19:15)	%17 = DEREFERENCE i32 %16
         (19:5)	%res = ALLOCATION i32
-        (19:5)	STORE %res <- %10
+        (19:5)	STORE %res <- %17
     }
 }

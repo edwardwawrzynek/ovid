@@ -53,10 +53,10 @@ public:
   std::shared_ptr<Type> resultType;
   // instruction corresponding to the result of the expression (null for
   // statements)
-  const ir::Expression *resultInstruction;
+  ir::Expression *resultInstruction;
 
   TypeCheckResult(std::shared_ptr<Type> resultType,
-                  const ir::Expression *resultInstruction)
+                  ir::Expression *resultInstruction)
       : resultType(std::move(resultType)),
         resultInstruction(resultInstruction){};
 };

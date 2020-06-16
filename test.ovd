@@ -1,16 +1,14 @@
-val a i32 = 1
+/*val a i32 = 1
 mut sink *i32 = &a
 
 type a = (i32, a)
 
 fn foo(p **i32) {
 	sink = *p
-}
+}*/
 
-fn main() {
-	val a = 1
-	val b = 2
-	val c = 3
-	val d = (&a, (&b, &c))
-	val e = &d.0
+fn test(arg1 *i32, arg2 *i32) -> i32 {
+    val c = (arg1, 0)
+    val d = &c
+    val e = (*d).0
 }

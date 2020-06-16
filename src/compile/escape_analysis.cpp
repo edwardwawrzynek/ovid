@@ -3,7 +3,7 @@
 namespace ovid::ir {
 
 Flow::Flow(const FlowValue &value, const FlowValue &into)
-    : value(value), into(into) {
+    : from(value), into(into) {
   // types of value and into should match (with indirections + field selects
   // applied)
   auto valueTypes = value.getFlowingTypes();
@@ -16,11 +16,16 @@ Flow::Flow(const FlowValue &value, const FlowValue &into)
 }
 
 FlowValue::FlowValue(const Expression &value, uint32_t indirect_level)
-    : value(value), indirect_level(indirect_level), field(-1) {}
+    : FlowValue(value, indirect_level, -1, false) {}
 
 FlowValue::FlowValue(const Expression &value, uint32_t indirect_level,
                      int32_t field)
-    : value(value), indirect_level(indirect_level), field(field) {
+    : FlowValue(value, indirect_level, field, false) {}
+
+FlowValue::FlowValue(const Expression &value, uint32_t indirect_level,
+                     int32_t field, bool is_escape)
+    : expr(value), indirect_level(indirect_level), field(field),
+      is_escape(is_escape) {
   assert(field >= 0 || field == -1);
   // if field isn't -1, make sure expression is a product type
   if (field >= 0) {
@@ -84,12 +89,23 @@ std::vector<const ast::Type *> getIndirectedTypes(uint32_t indirect_level,
   return types;
 }
 
+Allocation *getOwningAllocation(Expression *expr) {
+  auto alloc = dynamic_cast<Allocation *>(expr);
+  if (alloc != nullptr)
+    return alloc;
+  auto fieldselect = dynamic_cast<FieldSelect *>(expr);
+  if (fieldselect != nullptr)
+    return getOwningAllocation(&fieldselect->expr);
+
+  return nullptr;
+}
+
 const ast::Type *FlowValue::getTypeAfterField() const {
   if (field == -1) {
-    return value.type->withoutMutability();
+    return expr.type->withoutMutability();
   } else {
     auto productType =
-        dynamic_cast<const ast::ProductType *>(value.type->withoutMutability());
+        dynamic_cast<const ast::ProductType *>(expr.type->withoutMutability());
     assert(productType != nullptr);
     return productType->getTypeOfField(field)->withoutMutability();
   }
@@ -111,36 +127,96 @@ bool FlowValue::isEmpty() const {
 }
 
 void FlowValue::print(std::ostream &output) const {
-  for (uint32_t i = 0; i < indirect_level; i++)
-    output << "*";
-  // print value
-  auto val = value.val;
-  output << "%";
-  if (val.hasSourceName) {
-    for (size_t i = 0; i < val.sourceName.size(); i++) {
-      output << val.sourceName[i];
-      if (i < val.sourceName.size() - 1)
-        output << ":";
-    }
+  if (is_escape) {
+    output << "ESCAPE";
   } else {
-    output << val.id;
+    for (uint32_t i = 0; i < indirect_level; i++)
+      output << "*";
+    // print value
+    auto val = expr.val;
+    output << "%";
+    if (val.hasSourceName) {
+      for (size_t i = 0; i < val.sourceName.size(); i++) {
+        output << val.sourceName[i];
+        if (i < val.sourceName.size() - 1)
+          output << ":";
+      }
+    } else {
+      output << val.id;
+    }
+    if (field >= 0)
+      output << "." << field;
   }
-  if (field >= 0)
-    output << "." << field;
 }
 
 bool Flow::isEmpty() {
   // if value is empty, into should also be empty (b/c their types should match)
-  assert(value.isEmpty() == into.isEmpty());
+  assert(from.isEmpty() == into.isEmpty());
 
-  return value.isEmpty();
+  return from.isEmpty();
 }
 
 void Flow::print(std::ostream &output) {
-  value.print(output);
+  from.print(output);
   output << "\tflows to\t";
   into.print(output);
   output << "\n";
+}
+
+Flow Flow::withAddedIndirection(uint32_t indirections) const {
+  auto newValue = FlowValue(from.expr, from.indirect_level + indirections,
+                            from.field, from.is_escape);
+  auto newInto = FlowValue(into.expr, into.indirect_level + indirections,
+                           into.field, from.is_escape);
+  return Flow(newValue, newInto);
+}
+
+std::vector<FlowValue> findExpressionFlows(const FlowList &flows,
+                                           const ir::Expression &expr) {
+  std::vector<FlowValue> res;
+  for (auto &flow : flows) {
+    if (flow.from.expr.val.id == expr.val.id) {
+      res.push_back(flow.from);
+    }
+  }
+
+  return res;
+}
+
+void traceFlow(const FlowList &flows, const FlowValue &flowValue,
+               std::vector<FlowValue> &collectedFlows) {
+  /* look through flow list and find any flows with matching sources */
+  for (auto &flow : flows) {
+    // only consider flows with matching sources
+    if (flow.from.expr.val.id != flowValue.expr.val.id)
+      continue;
+    // if flow's indirection level is higher than flowValue's, don't consider it
+    if (flow.from.indirect_level > flowValue.indirect_level)
+      continue;
+    // if both flowValue and flow.from have an explicitly specified field, and
+    // they don't match, don't continue
+    if (flowValue.field != -1 && flow.from.field != -1 &&
+        flow.from.field != flowValue.field)
+      continue;
+
+    // if flow's indirection level is lower than flowValue, add indirection
+    auto levelDiff = flowValue.indirect_level - flow.from.indirect_level;
+    auto newFlow = flow.withAddedIndirection(levelDiff);
+    // if flowValue had a field set, and both flow.from and flow.into didn't,
+    // carry the field forward ie, if flowValue is *%a.field, and *%a -> *%b,
+    // then *%a.field -> *%b.field
+    if (flowValue.field != -1 && flow.from.field == -1 &&
+        flow.into.field == -1 &&
+        flow.from.indirect_level == flow.into.indirect_level) {
+      newFlow.into.field = flowValue.field;
+    }
+
+    if (newFlow.isEmpty())
+      continue;
+
+    collectedFlows.push_back(newFlow.into);
+    traceFlow(flows, newFlow.into, collectedFlows);
+  }
 }
 
 int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
@@ -154,15 +230,43 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
     visitInstruction(*block, newState);
   }
 
-  // TODO: unify/solve flows
-  std::cout << "flows in function ";
-  for (auto &scope : instruct.val.sourceName) {
-    std::cout << scope << ":";
+  // print flows
+  if (print_flows) {
+    output << "FUNCTION ";
+    for (auto &scope : instruct.val.sourceName) {
+      output << scope << ":";
+    }
+    output << "\n";
+    for (auto &flow : flows) {
+      output << "\t";
+      flow.print(output);
+    }
   }
-  std::cout << "\n";
-  for (auto &flow : flows) {
-    flow.print(std::cout);
+
+  // calculate flows needed for function metadata
+  // these are flows where the source is an argument and the dest is another
+  // arg, escape, or return
+  for (auto &arg : instruct.argAllocs) {
+    // find all uses of the arg in flow sources
+    auto argUses = findExpressionFlows(flows, arg.get());
+    // visit each use
+    for (auto &use : argUses) {
+      std::vector<FlowValue> tracedFlows;
+      traceFlow(flows, use, tracedFlows);
+      // TODO: sort out flows to args/escape/return
+      if (print_flows) {
+        output << "\tARG ";
+        use.print(output);
+        output << " flows to:\n";
+        for (auto &flowValue : tracedFlows) {
+          output << "\t\t";
+          flowValue.print(output);
+          output << "\n";
+        }
+      }
+    }
   }
+
   return 0;
 }
 
@@ -227,6 +331,15 @@ int EscapeAnalysisPass::visitAddress(Address &instruct,
   assert(!flow.isEmpty());
   state.curFlowList->push_back(flow);
 
+  // if expression is an argument, set it's type to ARG_COPY_TO_STACK, as it
+  // needs to be addressable
+  auto alloc = getOwningAllocation(&instruct.expr);
+  if (alloc != nullptr &&
+      (alloc->allocType == AllocationType::ARG ||
+       alloc->allocType == AllocationType::UNRESOLVED_FUNC_ARG)) {
+    alloc->allocType = AllocationType::ARG_COPY_TO_STACK;
+  }
+
   return 0;
 }
 
@@ -286,8 +399,9 @@ int EscapeAnalysisPass::visitBuiltinCast(BuiltinCast &instruct,
   return 0;
 }
 
-void runEscapeAnalysis(const ir::InstructionList &ir) {
-  auto pass = EscapeAnalysisPass();
+void runEscapeAnalysis(const ir::InstructionList &ir, bool print_flows,
+                       std::ostream &output) {
+  auto pass = EscapeAnalysisPass(print_flows, output);
   auto globalFlows = ir::FlowList();
   pass.visitInstructions(ir, EscapeAnalysisState(false, &globalFlows));
 }

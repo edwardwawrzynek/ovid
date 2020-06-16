@@ -17,8 +17,16 @@ fn test(arg t1) -> t2 {
     val c = (a, b)
     val d = (arg.0, arg.1)
     val e = &d
-    val f = *e
+    /*val f = *e
     mut g = &*&f
 
-    return (&g, &arg, c, (d, a))
+    val h = arg
+    val i = &h
+    val j = *i
+
+    val res = (&g, &arg, c, (d, a))
+    val k = &res
+    val l = **(*k).0
+
+    return res*/
 }

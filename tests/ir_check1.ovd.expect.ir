@@ -2,47 +2,47 @@
 (8:5)	%ovidc_test:mod:a = ALLOCATION i32
 (8:5)	STORE %ovidc_test:mod:a <- %0
 (10:1)	%ovidc_test:mod:test = FUNCTIONDECLARE (b i32) -> i32 {
-    (10:1)	BASICBLOCK @1 {
+    (10:1)	BASICBLOCK @2 {
         (10:11)	%b = ALLOCATION i32
-        (11:9)	%2 = INTLITERAL i32 2
-        (11:5)	STORE %ovidc_test:mod:a <- %2
+        (11:9)	%4 = INTLITERAL i32 2
+        (11:5)	STORE %ovidc_test:mod:a <- %4
         (12:5)	%c = ALLOCATION i32
         (12:5)	STORE %c <- %b
     }
 }
 (15:1)	%ovidc_test:mod:cond_test = FUNCTIONDECLARE (cond bool) -> void {
-    (15:1)	BASICBLOCK @3 {
+    (15:1)	BASICBLOCK @7 {
         (15:19)	%cond = ALLOCATION bool
-        (16:8)	CONDITIONALJUMP %cond @5(true) @6(false)
+        (16:8)	CONDITIONALJUMP %cond @10(true) @11(false)
     }
-    (16:8)	BASICBLOCK @5 {
-        (17:18)	%7 = INTLITERAL i32 1
+    (16:8)	BASICBLOCK @10 {
+        (17:18)	%12 = INTLITERAL i32 1
         (17:9)	%v1 = ALLOCATION i32
-        (17:9)	STORE %v1 <- %7
-        (16:8)	JUMP @4
+        (17:9)	STORE %v1 <- %12
+        (16:8)	JUMP @9
     }
-    (16:8)	BASICBLOCK @6 {
-        (18:13)	%8 = BOOLLITERAL bool true
-        (18:13)	CONDITIONALJUMP %8 @9(true) @10(false)
+    (16:8)	BASICBLOCK @11 {
+        (18:13)	%14 = BOOLLITERAL bool true
+        (18:13)	CONDITIONALJUMP %14 @15(true) @16(false)
     }
-    (18:13)	BASICBLOCK @9 {
-        (19:18)	%11 = INTLITERAL i32 2
+    (18:13)	BASICBLOCK @15 {
+        (19:18)	%17 = INTLITERAL i32 2
         (19:9)	%v2 = ALLOCATION i32
-        (19:9)	STORE %v2 <- %11
-        (18:13)	JUMP @4
+        (19:9)	STORE %v2 <- %17
+        (18:13)	JUMP @9
     }
-    (18:13)	BASICBLOCK @10 {
-        (20:12)	%12 = BOOLLITERAL bool true
-        (20:12)	CONDITIONALJUMP %12 @13(true) @4(false)
+    (18:13)	BASICBLOCK @16 {
+        (20:12)	%19 = BOOLLITERAL bool true
+        (20:12)	CONDITIONALJUMP %19 @20(true) @9(false)
     }
-    (20:12)	BASICBLOCK @13 {
-        (21:18)	%14 = INTLITERAL i32 3
+    (20:12)	BASICBLOCK @20 {
+        (21:18)	%21 = INTLITERAL i32 3
         (21:9)	%v3 = ALLOCATION i32
-        (21:9)	STORE %v3 <- %14
-        (20:12)	JUMP @4
+        (21:9)	STORE %v3 <- %21
+        (20:12)	JUMP @9
     }
-    (16:5)	BASICBLOCK @4 {
-        (23:9)	%15 = INTLITERAL i32 6
-        (23:5)	STORE %ovidc_test:mod:a <- %15
+    (16:5)	BASICBLOCK @9 {
+        (23:9)	%23 = INTLITERAL i32 6
+        (23:5)	STORE %ovidc_test:mod:a <- %23
     }
 }

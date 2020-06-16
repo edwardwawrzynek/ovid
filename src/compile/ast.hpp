@@ -36,7 +36,7 @@ public:
   bool is_mut;
   /* the symbol's declaration location in the ir
    * set and used by the type checker */
-  const ir::Expression *ir_decl_instruction;
+  ir::Expression *ir_decl_instruction;
   /* if the symbol is in a global scope */
   bool is_global;
   /* TODO: escape analysis metadata and other information loaded from headers */

@@ -51,7 +51,8 @@ int main(int argc, char **argv) {
   irPrinter.visitInstructions(ir, ovid::ast::ASTPrinterState());
 
   // run escape analysis
-  ovid::ir::runEscapeAnalysis(ir);
+  std::cout << "\n---- ESCAPE ANALYSIS ----\n";
+  ovid::ir::runEscapeAnalysis(ir, true, std::cout);
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";

@@ -118,14 +118,14 @@ typedef std::vector<std::unique_ptr<BasicBlock>> BasicBlockList;
  * object */
 class FunctionDeclare : public Expression {
 public:
-  std::vector<std::reference_wrapper<const Allocation>> argAllocs;
+  std::vector<std::reference_wrapper<Allocation>> argAllocs;
 
   BasicBlockList body;
 
   FunctionDeclare(
       const SourceLocation &loc, const Value &val,
       std::shared_ptr<ast::NamedFunctionType> type,
-      const std::vector<std::reference_wrapper<const Allocation>> &argAllocs,
+      const std::vector<std::reference_wrapper<Allocation>> &argAllocs,
       BasicBlockList body);
 };
 
@@ -149,12 +149,11 @@ public:
 /* tuple literal */
 class TupleLiteral : public Expression {
 public:
-  std::vector<std::reference_wrapper<const Expression>> exprs;
+  std::vector<std::reference_wrapper<Expression>> exprs;
 
-  TupleLiteral(
-      const SourceLocation &loc, const Value &val,
-      const std::vector<std::reference_wrapper<const Expression>> &exprs,
-      std::shared_ptr<ast::Type> type);
+  TupleLiteral(const SourceLocation &loc, const Value &val,
+               const std::vector<std::reference_wrapper<Expression>> &exprs,
+               std::shared_ptr<ast::Type> type);
 };
 
 /* a function call (including builtins)
@@ -162,14 +161,14 @@ public:
 class FunctionCall : public Expression {
 public:
   // the function being called
-  const Expression &function;
+  Expression &function;
   // arguments to function
-  std::vector<std::reference_wrapper<const Expression>> arguments;
+  std::vector<std::reference_wrapper<Expression>> arguments;
 
-  FunctionCall(
-      const SourceLocation &loc, const Value &val, const Expression &function,
-      const std::vector<std::reference_wrapper<const Expression>> &arguments,
-      std::shared_ptr<ast::Type> type);
+  FunctionCall(const SourceLocation &loc, const Value &val,
+               Expression &function,
+               const std::vector<std::reference_wrapper<Expression>> &arguments,
+               std::shared_ptr<ast::Type> type);
 };
 
 /* a builtin function (arithmetic operators, etc) */
@@ -184,55 +183,53 @@ public:
 /* builtin cast function (casts between int's, float's, etc) */
 class BuiltinCast : public Expression {
 public:
-  const Expression &expr;
+  Expression &expr;
 
-  BuiltinCast(const SourceLocation &loc, const Value &val,
-              const Expression &expr, std::shared_ptr<ast::Type> type);
+  BuiltinCast(const SourceLocation &loc, const Value &val, Expression &expr,
+              std::shared_ptr<ast::Type> type);
 };
 
 /* operation taking the address of a value */
 class Address : public Expression {
 public:
-  const Expression &expr;
+  Expression &expr;
 
-  Address(const SourceLocation &loc, const Value &val, const Expression &expr,
+  Address(const SourceLocation &loc, const Value &val, Expression &expr,
           std::shared_ptr<ast::Type> type);
 };
 
 /* dereference operation on a pointer */
 class Dereference : public Expression {
 public:
-  const Expression &expr;
+  Expression &expr;
 
   bool isAddressable() const override;
 
-  Dereference(const SourceLocation &loc, const Value &val,
-              const Expression &expr, std::shared_ptr<ast::Type> type);
+  Dereference(const SourceLocation &loc, const Value &val, Expression &expr,
+              std::shared_ptr<ast::Type> type);
 };
 
 /* a field selection on a ProductType */
 class FieldSelect : public Expression {
 public:
-  const Expression &expr;
+  Expression &expr;
 
   int32_t field_index;
 
   bool isAddressable() const override;
 
-  FieldSelect(const SourceLocation &loc, const Value &val,
-              const Expression &expr, int32_t field_index,
-              std::shared_ptr<ast::Type> type);
+  FieldSelect(const SourceLocation &loc, const Value &val, Expression &expr,
+              int32_t field_index, std::shared_ptr<ast::Type> type);
 };
 
 /* A store into a value (has to be a value produced by Allocation)
  */
 class Store : public Instruction {
 public:
-  const Expression &storage;
-  const Expression &value;
+  Expression &storage;
+  Expression &value;
 
-  Store(const SourceLocation &loc, const Expression &storage,
-        const Expression &value);
+  Store(const SourceLocation &loc, Expression &storage, Expression &value);
 };
 
 /* basic block terminating instructions (jumps + returns) */
@@ -254,10 +251,10 @@ class ConditionalJump : public BasicBlockTerminator {
 public:
   const BasicBlock &true_label;
   const BasicBlock &false_label;
-  const Expression &condition;
+  Expression &condition;
 
   ConditionalJump(const SourceLocation &loc, const BasicBlock &true_label,
-                  const BasicBlock &false_label, const Expression &condition);
+                  const BasicBlock &false_label, Expression &condition);
 };
 
 /* a return from a function */
@@ -266,7 +263,7 @@ public:
   // expr may be null if nothing is returned
   const Expression *expr;
 
-  Return(const SourceLocation &loc, const Expression *expression);
+  Return(const SourceLocation &loc, Expression *expression);
 };
 
 } // namespace ovid::ir

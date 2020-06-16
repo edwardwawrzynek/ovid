@@ -63,7 +63,7 @@ TypeCheckResult TypeCheck::visitTuple(Tuple &node,
                                       const TypeCheckState &state) {
   auto typeHint = std::dynamic_pointer_cast<TupleType>(state.typeHint);
 
-  std::vector<std::reference_wrapper<const ir::Expression>> exprs;
+  std::vector<std::reference_wrapper<ir::Expression>> exprs;
   std::vector<std::shared_ptr<ast::Type>> exprTypes;
   for (size_t i = 0; i < node.expressions.size(); i++) {
     auto &expr = node.expressions[i];
@@ -155,8 +155,8 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
       node.loc, ir::Value(sourceName), initialType,
       (node.resolved_symbol->is_global ? ir::AllocationType::UNRESOLVED_GLOBAL
                                        : ir::AllocationType::UNRESOLVED_LOCAL));
-  const auto allocPointer = alloc.get();
-  const auto &allocRef = *alloc;
+  auto allocPointer = alloc.get();
+  auto &allocRef = *alloc;
   curInstructionList->push_back(std::move(alloc));
   // create the store instruction
   auto store = std::make_unique<ir::Store>(node.loc, allocRef,
@@ -284,7 +284,7 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   sourceName.push_back(node.name);
 
   // create allocations for arguments
-  std::vector<std::reference_wrapper<const ir::Allocation>> argAllocs;
+  std::vector<std::reference_wrapper<ir::Allocation>> argAllocs;
 
   assert(node.type->argNames.size() == node.type->type->argTypes.size());
   assert(node.type->argNames.size() == node.type->resolvedArgs.size());
@@ -565,7 +565,7 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
       return TypeCheckResult(nullptr, nullptr);
     }
 
-    std::vector<std::reference_wrapper<const ir::Expression>> args;
+    std::vector<std::reference_wrapper<ir::Expression>> args;
     // visit each arg
     for (size_t i = 0; i < node.args.size(); i++) {
       auto &arg = node.args[i];
@@ -803,14 +803,14 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
 
   curInstructionList->push_back(std::move(opInstr));
   // construct function call instruction
-  std::vector<std::reference_wrapper<const ir::Expression>> argExprs;
+  std::vector<std::reference_wrapper<ir::Expression>> argExprs;
   argExprs.reserve(args.size());
   for (auto &arg : args)
     argExprs.emplace_back(*arg.resultInstruction);
 
   auto instr = std::make_unique<ir::FunctionCall>(
       node.loc, ir::Value(), opInstrRef, argExprs, opRetType);
-  const ir::Expression *instrPointer = instr.get();
+  ir::Expression *instrPointer = instr.get();
 
   curInstructionList->push_back(std::move(instr));
   // do implicit convert if needed

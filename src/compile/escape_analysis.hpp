@@ -34,16 +34,21 @@ namespace ovid::ir {
  */
 class FlowValue {
 public:
-  const ir::Expression &value;
+  const ir::Expression &expr;
   uint32_t indirect_level; // 0 if the value is flowing, 1 if it's dereference
                            // is, etc
   int32_t field; // -1 if value doesn't have fields or all fields are flowing,
                  // id of field flowing otherwise
 
+  // if the value is an escape (global or return)
+  bool is_escape;
+
   FlowValue(const ir::Expression &value, uint32_t indirect_level);
 
   FlowValue(const ir::Expression &value, uint32_t indirect_level,
             int32_t field);
+  FlowValue(const ir::Expression &value, uint32_t indirect_level, int32_t field,
+            bool is_escape);
 
   /* check if the flow value actually contains anything
    * eg an indirection on a type without pointers (eg i32) is empty */
@@ -72,10 +77,14 @@ std::vector<const ast::Type *> flattenProductType(const ast::ProductType *type);
 std::vector<const ast::Type *> getIndirectedTypes(uint32_t indirect_level,
                                                   const ast::Type *type);
 
+// given an Expression, get the allocation that owns it (if any)
+// field selects on an allocation are owned by that allocation
+Allocation *getOwningAllocation(Expression *expr);
+
 /* a flow of one FlowValue to another */
 class Flow {
 public:
-  FlowValue value;
+  FlowValue from;
   FlowValue into;
 
   Flow(const FlowValue &value, const FlowValue &into);
@@ -84,10 +93,24 @@ public:
    * if value is empty, so is the flow */
   bool isEmpty();
 
+  /* return a copy of the flow with the given number of indirections added */
+  Flow withAddedIndirection(uint32_t indirections) const;
+
   void print(std::ostream &output);
 };
 
 typedef std::vector<Flow> FlowList;
+
+/* given an ir expression, find all of it's uses as the source of flows */
+std::vector<FlowValue> findExpressionFlows(const FlowList &flows,
+                                           const ir::Expression &expr);
+
+/* given a flowing value and a list of flows, get the full set of where the
+ * value flows each result flow value is added to collectedFlows
+ * tmpFlows is an set used for scratch. collectedFlows may point to elements of
+ * it */
+void traceFlow(const FlowList &flows, const FlowValue &flowValue,
+               std::vector<FlowValue> &collectedFlows);
 
 class EscapeAnalysisState {
 public:
@@ -105,6 +128,8 @@ public:
 // main escape analysis pass -- visit ir nodes, calculate pointer flow and
 // adjust allocation types
 class EscapeAnalysisPass : public BaseIRVisitor<int, EscapeAnalysisState> {
+  bool print_flows;
+  std::ostream &output;
 
   int visitFunctionDeclare(FunctionDeclare &instruct,
                            const EscapeAnalysisState &state) override;
@@ -132,11 +157,13 @@ class EscapeAnalysisPass : public BaseIRVisitor<int, EscapeAnalysisState> {
                       const EscapeAnalysisState &state) override;
 
 public:
-  EscapeAnalysisPass() : BaseIRVisitor(0){};
+  EscapeAnalysisPass(bool print_flows, std::ostream &output)
+      : BaseIRVisitor(0), print_flows(print_flows), output(output){};
 };
 
 // run escape analysis on ir (thin wrapper around EscapeAnalysisPass)
-void runEscapeAnalysis(const ir::InstructionList &ir);
+void runEscapeAnalysis(const ir::InstructionList &ir, bool print_flows,
+                       std::ostream &output);
 
 } // namespace ovid::ir
 

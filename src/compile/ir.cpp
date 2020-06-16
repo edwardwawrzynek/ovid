@@ -31,7 +31,7 @@ bool FieldSelect::isAddressable() const {
  */
 
 Value::Value(const std::vector<std::string> &sourceName)
-    : sourceName(sourceName), id(0), hasSourceName(true) {}
+    : sourceName(sourceName), id(next_id()), hasSourceName(true) {}
 
 Value::Value() : id(next_id()), hasSourceName(false) {}
 
@@ -55,7 +55,7 @@ BasicBlock::BasicBlock(const SourceLocation &loc, InstructionList body)
 
 TupleLiteral::TupleLiteral(
     const SourceLocation &loc, const Value &val,
-    const std::vector<std::reference_wrapper<const Expression>> &exprs,
+    const std::vector<std::reference_wrapper<Expression>> &exprs,
     std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), exprs(exprs) {
   // check that types of expressions match tuple types
@@ -68,8 +68,8 @@ TupleLiteral::TupleLiteral(
 }
 
 FunctionCall::FunctionCall(
-    const SourceLocation &loc, const Value &val, const Expression &function,
-    const std::vector<std::reference_wrapper<const Expression>> &arguments,
+    const SourceLocation &loc, const Value &val, Expression &function,
+    const std::vector<std::reference_wrapper<Expression>> &arguments,
     std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), function(function),
       arguments(arguments) {
@@ -86,8 +86,8 @@ FunctionCall::FunctionCall(
   }
 }
 
-Address::Address(const SourceLocation &loc, const Value &val,
-                 const Expression &expr, std::shared_ptr<ast::Type> type)
+Address::Address(const SourceLocation &loc, const Value &val, Expression &expr,
+                 std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), expr(expr) {
   // check that type is pointer to type of expr
   auto pointerType = dynamic_cast<ast::PointerType *>(Expression::type.get());
@@ -96,8 +96,7 @@ Address::Address(const SourceLocation &loc, const Value &val,
 }
 
 Dereference::Dereference(const SourceLocation &loc, const Value &val,
-                         const Expression &expr,
-                         std::shared_ptr<ast::Type> type)
+                         Expression &expr, std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), expr(expr) {
   // check that expr is a pointer type, and that type matches what it points to
   auto exprPointerType =
@@ -107,7 +106,7 @@ Dereference::Dereference(const SourceLocation &loc, const Value &val,
 }
 
 FieldSelect::FieldSelect(const SourceLocation &loc, const Value &val,
-                         const Expression &expr, int32_t field_index,
+                         Expression &expr, int32_t field_index,
                          std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), expr(expr),
       field_index(field_index) {
@@ -120,7 +119,7 @@ FieldSelect::FieldSelect(const SourceLocation &loc, const Value &val,
 FunctionDeclare::FunctionDeclare(
     const SourceLocation &loc, const Value &val,
     std::shared_ptr<ast::NamedFunctionType> type,
-    const std::vector<std::reference_wrapper<const Allocation>> &argAllocs,
+    const std::vector<std::reference_wrapper<Allocation>> &argAllocs,
     BasicBlockList body)
     : Expression(loc, val, std::move(type)), argAllocs(argAllocs),
       body(std::move(body)) {}
@@ -140,12 +139,10 @@ BuiltinOperator::BuiltinOperator(const SourceLocation &loc, const Value &val,
     : Expression(loc, val, std::move(type)), opType(opType) {}
 
 BuiltinCast::BuiltinCast(const SourceLocation &loc, const Value &val,
-                         const Expression &expr,
-                         std::shared_ptr<ast::Type> type)
+                         Expression &expr, std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), expr(expr) {}
 
-Store::Store(const SourceLocation &loc, const Expression &storage,
-             const Expression &value)
+Store::Store(const SourceLocation &loc, Expression &storage, Expression &value)
     : Instruction(loc), storage(storage), value(value) {
   // storage must have an address
   assert(storage.isAddressable());
@@ -160,7 +157,7 @@ Jump::Jump(const SourceLocation &loc, const BasicBlock &label)
 ConditionalJump::ConditionalJump(const SourceLocation &loc,
                                  const BasicBlock &true_label,
                                  const BasicBlock &false_label,
-                                 const Expression &condition)
+                                 Expression &condition)
     : BasicBlockTerminator(loc), true_label(true_label),
       false_label(false_label), condition(condition) {
   // make sure expr is boolean
@@ -169,7 +166,7 @@ ConditionalJump::ConditionalJump(const SourceLocation &loc,
   assert(exprBoolType != nullptr);
 }
 
-Return::Return(const SourceLocation &loc, const Expression *expression)
+Return::Return(const SourceLocation &loc, Expression *expression)
     : BasicBlockTerminator(loc), expr(expression) {}
 
 } // namespace ovid::ir
