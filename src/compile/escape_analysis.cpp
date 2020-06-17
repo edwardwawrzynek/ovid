@@ -2,38 +2,231 @@
 
 namespace ovid::ir {
 
-Flow::Flow(const FlowValue &value, const FlowValue &into)
-    : from(value), into(into) {
-  // types of value and into should match (with indirections + field selects
-  // applied)
-  auto valueTypes = value.getFlowingTypes();
-  auto intoTypes = into.getFlowingTypes();
+FlowValue::FlowValue(Expression &expr, int32_t indirect_level,
+                     const std::vector<std::vector<int32_t>> &field_selects,
+                     EscapeType is_escape)
+    : expr(expr), indirect_level(indirect_level), field_selects(field_selects),
+      is_escape(is_escape) {
+  /* indirection level may reach -1 if an address is used */
+  assert(indirect_level >= -1);
+  assert(field_selects.size() == (uint32_t)(indirect_level + 1));
+}
 
-  assert(valueTypes.size() == intoTypes.size());
-  for (size_t i = 0; i < valueTypes.size(); i++) {
-    assert(valueTypes[i]->equalToExpected(*intoTypes[i]));
+FlowValue::FlowValue(Expression &expr, int32_t indirect_level,
+                     const std::vector<std::vector<int32_t>> &field_selects)
+    : FlowValue(expr, indirect_level, field_selects, isGlobalEscape(expr)) {}
+
+EscapeType FlowValue::isGlobalEscape(Expression &expr) {
+
+  /* globals will be allocations with allocType set to global */
+  auto globalAlloc = dynamic_cast<const Allocation *>(&expr);
+  if (globalAlloc != nullptr &&
+      (globalAlloc->allocType == AllocationType::UNRESOLVED_GLOBAL ||
+       globalAlloc->allocType == AllocationType::STATIC)) {
+    return EscapeType::OTHER;
+  }
+
+  return EscapeType::NONE;
+}
+
+const ast::Type *
+FlowValue::applyFieldSelectToType(const ast::Type *type,
+                                  const std::vector<int32_t> &field_select) {
+  for (auto &field : field_select) {
+    auto productType = dynamic_cast<const ast::ProductType *>(type);
+    assert(productType != nullptr);
+
+    type = productType->getTypeOfField(field)->withoutMutability();
+  }
+
+  return type;
+}
+
+std::vector<const ast::Type *> FlowValue::getFlowingTypesFromType(
+    const ast::Type *exprType, int32_t indirect_level,
+    std::vector<std::vector<int32_t>> &field_selects) {
+  std::vector<const ast::Type *> res;
+  /* values with indirection -1 can't flow */
+  assert(indirect_level >= 0);
+
+  auto type = exprType->withoutMutability();
+
+  /* apply field selections */
+  type = applyFieldSelectToType(
+      type, field_selects[field_selects.size() - indirect_level - 1]);
+
+  /* if no indirections are left, just return type */
+  if (indirect_level == 0) {
+    /* if product type, flatten and add component types */
+    auto productType = dynamic_cast<const ast::ProductType *>(type);
+    if (productType != nullptr) {
+      auto componentTypes = flattenProductType(productType);
+      for (auto &compType : componentTypes) {
+        res.push_back(compType);
+      }
+    } else {
+      res.push_back(type);
+    }
+
+    return res;
+  } else {
+    /* get types of one indirection level down */
+    auto pointerType = dynamic_cast<const ast::PointerType *>(type);
+    auto productType = dynamic_cast<const ast::ProductType *>(type);
+    /* apply indirection */
+    if (pointerType != nullptr) {
+      auto derefedType =
+          getFlowingTypesFromType(pointerType->type->withoutMutability(),
+                                  indirect_level - 1, field_selects);
+      res.insert(res.end(), derefedType.begin(), derefedType.end());
+    } else if (productType != nullptr) {
+      /* flatten product type into component types */
+      auto componentTypes = flattenProductType(productType);
+      for (auto &compType : componentTypes) {
+        /* only pointers will flow */
+        auto pointerCompType = dynamic_cast<const ast::PointerType *>(
+            compType->withoutMutability());
+        if (pointerCompType != nullptr) {
+          auto derefedType = getFlowingTypesFromType(
+              pointerCompType->type->withoutMutability(), indirect_level - 1,
+              field_selects);
+          res.insert(res.begin(), derefedType.begin(), derefedType.end());
+        } else {
+          assert(!compType->containsPointer());
+        }
+      }
+    } else {
+      assert(!type->containsPointer());
+    }
+  }
+
+  return res;
+}
+
+std::vector<const ast::Type *> FlowValue::getFlowingTypes() {
+  auto baseType =
+      getFlowingTypesFromType(expr.type.get(), indirect_level, field_selects);
+  for (auto &type : baseType) {
+    type = applyFieldSelectToType(type, field_selects[indirect_level]);
+  }
+  return baseType;
+}
+
+bool FlowValue::isEmpty() {
+  auto flowingTypes = getFlowingTypes();
+
+  return flowingTypes.empty();
+}
+
+FlowValue FlowValue::getFlowFromExpressionWithoutCopy(Expression &expr) {
+  auto fieldSelect = dynamic_cast<FieldSelect *>(&expr);
+  if (fieldSelect != nullptr) {
+    auto value = getFlowFromExpressionWithoutCopy(fieldSelect->expr);
+    /* add field select onto value */
+    value.field_selects[value.field_selects.size() - 1].push_back(
+        fieldSelect->field_index);
+
+    return value;
+  }
+  auto deref = dynamic_cast<Dereference *>(&expr);
+  if (deref != nullptr) {
+    auto value = getFlowFromExpressionWithoutCopy(deref->expr);
+    /* add dereference (with no field select) */
+    value.indirect_level++;
+    value.field_selects.emplace_back();
+
+    return value;
+  }
+  auto addr = dynamic_cast<Address *>(&expr);
+  if (addr != nullptr) {
+    auto value = getFlowFromExpressionWithoutCopy(addr->expr);
+    /* remove most recent dereference
+     * this may produce a value with indirect_level -1, which should be handled
+     * by the implicit dereference added on copy */
+    assert(value.indirect_level >= 0);
+    value.indirect_level--;
+    /* field selection is lost when address of field is taken
+     * ie -- if &(%a.field), &%a flows, not just &%a.field */
+    value.field_selects.pop_back();
+
+    return value;
+  }
+
+  /* create value with no field select */
+  std::vector<std::vector<int32_t>> field_selects;
+  field_selects.emplace_back();
+  auto value = FlowValue(expr, 0, field_selects);
+
+  return value;
+}
+
+void FlowValue::print(std::ostream &output) {
+  for (int32_t i = 0; i < indirect_level; i++) {
+    output << "*(";
+  }
+  output << "%";
+  if (is_escape == EscapeType::RETURN) {
+    output << "RETURN";
+  } else if (is_escape == EscapeType::OTHER) {
+    output << "ESCAPE";
+  } else {
+    if (expr.val.hasSourceName) {
+      for (size_t i = 0; i < expr.val.sourceName.size(); i++) {
+        output << expr.val.sourceName[i];
+        if (i < expr.val.sourceName.size() - 1)
+          output << ":";
+      }
+    } else {
+      output << expr.val.id;
+    }
+  }
+
+  for (int32_t i = indirect_level; i >= 0; i--) {
+    for (auto &select : field_selects[i]) {
+      output << "." << select;
+    }
+
+    if (i > 0)
+      output << ")";
   }
 }
 
-FlowValue::FlowValue(const Expression &value, uint32_t indirect_level)
-    : FlowValue(value, indirect_level, -1, EscapeType::NONE) {}
+FlowValue FlowValue::getFlowFromExpression(Expression &expr) {
+  auto value = getFlowFromExpressionWithoutCopy(expr);
+  value.indirect_level++;
+  value.field_selects.emplace_back();
 
-FlowValue::FlowValue(const Expression &value, uint32_t indirect_level,
-                     int32_t field)
-    : FlowValue(value, indirect_level, field, EscapeType::NONE) {}
+  return value;
+}
 
-FlowValue::FlowValue(const Expression &value, uint32_t indirect_level,
-                     int32_t field, EscapeType is_escape)
-    : expr(value), indirect_level(indirect_level), field(field),
-      is_escape(is_escape) {
-  assert(field >= 0 || field == -1);
-  // if field isn't -1, make sure expression is a product type
-  if (field >= 0) {
-    auto productType =
-        dynamic_cast<const ast::ProductType *>(value.type->withoutMutability());
-    assert(productType != nullptr);
-    assert(productType->getTypeOfField(field) != nullptr);
-  }
+Flow::Flow(const FlowValue &from, const FlowValue &into)
+    : from(from), into(into) {}
+
+bool Flow::isEmpty() {
+  /* empty-ness of both values should match, as they should have the same types
+   * flowing */
+  assert(from.isEmpty() == into.isEmpty());
+
+  return from.isEmpty();
+  return false;
+}
+
+void Flow::print(std::ostream &output) {
+  from.print(output);
+  output << " flows to ";
+  into.print(output);
+  output << "\n";
+}
+
+Allocation *getOwningAllocation(Expression *expr) {
+  auto alloc = dynamic_cast<Allocation *>(expr);
+  if (alloc != nullptr)
+    return alloc;
+  auto fieldselect = dynamic_cast<FieldSelect *>(expr);
+  if (fieldselect != nullptr)
+    return getOwningAllocation(&fieldselect->expr);
+
+  return nullptr;
 }
 
 std::vector<const ast::Type *>
@@ -53,225 +246,10 @@ flattenProductType(const ast::ProductType *type) {
   return types;
 }
 
-std::vector<const ast::Type *> getIndirectedTypes(uint32_t indirect_level,
-                                                  const ast::Type *type) {
-  std::vector<const ast::Type *> types;
-  if (indirect_level == 0) {
-    types.push_back(type);
-  } else {
-    auto pointerType = dynamic_cast<const ast::PointerType *>(type);
-    auto productType = dynamic_cast<const ast::ProductType *>(type);
-    // if type is pointer, produces dereference type
-    if (pointerType != nullptr) {
-      auto newTypes = getIndirectedTypes(
-          indirect_level - 1, pointerType->type->withoutMutability());
-      types.insert(types.end(), newTypes.begin(), newTypes.end());
-    }
-    // if type is product, produce derefrences of all pointer types in it
-    else if (productType != nullptr) {
-      auto fieldTypes = flattenProductType(productType);
-      for (auto &fieldType : fieldTypes) {
-        auto pointerType = dynamic_cast<const ast::PointerType *>(fieldType);
-        // if field is a pointer, add it's dereference type
-        if (pointerType != nullptr) {
-          auto newTypes = getIndirectedTypes(
-              indirect_level - 1, pointerType->type->withoutMutability());
-          types.insert(types.end(), newTypes.begin(), newTypes.end());
-        }
-      }
-    }
-    // otherwise, type shouldn't contain pointers
-    else {
-      assert(!type->containsPointer());
-    }
-  }
-
-  return types;
-}
-
-Allocation *getOwningAllocation(Expression *expr) {
-  auto alloc = dynamic_cast<Allocation *>(expr);
-  if (alloc != nullptr)
-    return alloc;
-  auto fieldselect = dynamic_cast<FieldSelect *>(expr);
-  if (fieldselect != nullptr)
-    return getOwningAllocation(&fieldselect->expr);
-
-  return nullptr;
-}
-
-const ast::Type *FlowValue::getTypeAfterField() const {
-  if (field == -1) {
-    return expr.type->withoutMutability();
-  } else {
-    auto productType =
-        dynamic_cast<const ast::ProductType *>(expr.type->withoutMutability());
-    assert(productType != nullptr);
-    return productType->getTypeOfField(field)->withoutMutability();
-  }
-}
-
-std::vector<const ast::Type *> FlowValue::getFlowingTypes() const {
-  return getIndirectedTypes(indirect_level, getTypeAfterField());
-}
-
-bool FlowValue::isEmpty() const {
-  // if no indirection, value can't be empty
-  if (indirect_level == 0)
-    return false;
-  // otherwise, value is an indirection (dereference)
-  // evaluate what it may point to
-  auto indirectedTypes = getFlowingTypes();
-
-  return indirectedTypes.empty();
-}
-
-void FlowValue::print(std::ostream &output) const {
-  if (is_escape == EscapeType::OTHER) {
-    output << "ESCAPE";
-  } else if(is_escape == EscapeType::RETURN) {
-    for (uint32_t i = 0; i < indirect_level; i++)
-      output << "*";
-    output << "RETURN";
-    if (field >= 0)
-      output << "." << field;
-  } else {
-    for (uint32_t i = 0; i < indirect_level; i++)
-      output << "*";
-    // print value
-    auto val = expr.val;
-    output << "%";
-    if (val.hasSourceName) {
-      for (size_t i = 0; i < val.sourceName.size(); i++) {
-        output << val.sourceName[i];
-        if (i < val.sourceName.size() - 1)
-          output << ":";
-      }
-    } else {
-      output << val.id;
-    }
-    if (field >= 0)
-      output << "." << field;
-  }
-}
-
-bool Flow::isEmpty() {
-  // if value is empty, into should also be empty (b/c their types should match)
-  assert(from.isEmpty() == into.isEmpty());
-
-  return from.isEmpty();
-}
-
-void Flow::print(std::ostream &output) {
-  from.print(output);
-  output << "\tflows to\t";
-  into.print(output);
-  output << "\n";
-}
-
-Flow Flow::withAddedIndirection(uint32_t indirections) const {
-  auto newValue = FlowValue(from.expr, from.indirect_level + indirections,
-                            from.field, from.is_escape);
-  auto newInto = FlowValue(into.expr, into.indirect_level + indirections,
-                           into.field, into.is_escape);
-  return Flow(newValue, newInto);
-}
-
-std::vector<FlowValue> findExpressionFlows(const FlowList &flows,
-                                           const ir::Expression &expr) {
-  std::vector<FlowValue> res;
-  for (auto &flow : flows) {
-    if (flow.from.expr.val.id == expr.val.id) {
-      res.push_back(flow.from);
-    }
-  }
-
-  return res;
-}
-
-void traceFlow(const FlowList &flows, const FlowValue &flowValue,
-               std::vector<FlowValue> &collectedFlows) {
-  /* look through flow list and find any flows with matching sources */
-  for (auto &flow : flows) {
-    // only consider flows with matching sources
-    if (flow.from.expr.val.id != flowValue.expr.val.id)
-      continue;
-    // if flow's indirection level is higher than flowValue's, don't consider it
-    if (flow.from.indirect_level > flowValue.indirect_level)
-      continue;
-    // if both flowValue and flow.from have an explicitly specified field, and
-    // they don't match, don't continue
-    if (flowValue.field != -1 && flow.from.field != -1 &&
-        flow.from.field != flowValue.field)
-      continue;
-
-    // if flow's indirection level is lower than flowValue, add indirection
-    auto levelDiff = flowValue.indirect_level - flow.from.indirect_level;
-    auto newFlow = flow.withAddedIndirection(levelDiff);
-    // if flowValue had a field set, and both flow.from and flow.into didn't,
-    // carry the field forward ie, if flowValue is *%a.field, and *%a -> *%b,
-    // then *%a.field -> *%b.field
-    if (flowValue.field != -1 && flow.from.field == -1 &&
-        flow.into.field == -1 &&
-        flow.from.indirect_level == flow.into.indirect_level) {
-      newFlow.into.field = flowValue.field;
-    }
-
-    if (newFlow.isEmpty())
-      continue;
-
-    collectedFlows.push_back(newFlow.into);
-    // if dest is an escape, don't follow
-    if(newFlow.into.is_escape == EscapeType::RETURN || newFlow.into.is_escape == EscapeType::OTHER) continue;
-    // follow flow
-    traceFlow(flows, newFlow.into, collectedFlows);
-  }
-}
-
-AliasValue getFlowFromExpression(Expression& expr) {
-  auto fieldSelect = dynamic_cast<FieldSelect *>(&expr);
-  if(fieldSelect != nullptr) {
-    auto value = getFlowFromExpression(fieldSelect->expr);
-    /* add field select onto value */
-    // make sure no field select is already applied
-    assert(value.field_selects[value.field_selects.size() - 1] == -1);
-    value.field_selects[value.field_selects.size() - 1] = fieldSelect->field_index;
-
-    return value;
-  }
-  auto deref = dynamic_cast<Dereference *>(&expr);
-  if(deref != nullptr) {
-    auto value = getFlowFromExpression(deref->expr);
-    /* add dereference (with no field select) */
-    value.indirect_level++;
-    value.field_selects.push_back(-1);
-
-    return value;
-  }
-  auto addr = dynamic_cast<Address *>(&expr);
-  if(addr != nullptr) {
-    auto value = getFlowFromExpression(addr->expr);
-    /* remove most recent dereference
-     * this may produce a value with indirect_level -1, which should be handled by the implicit dereference added on copy */
-    assert(value.indirect_level >= 0);
-    value.indirect_level--;
-    /* field selection is lost when address of field is taken
-     * ie -- if &(%a.field), &%a flows, not just &%a.field */
-    value.field_selects.pop_back();
-
-    return value;
-  }
-
-  /* create value with no field select */
-  std::vector<int32_t> field_selects;
-  field_selects.push_back(-1);
-  auto value = AliasValue(expr, 0, field_selects);
-}
-
 int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                              const EscapeAnalysisState &state) {
   // pointer flow for this function
-  FlowList flows;
+  AliasFlowList flows;
   auto newState = EscapeAnalysisState(true, &flows);
 
   // visit children of function, calculate flow
@@ -295,26 +273,6 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
   // calculate flows needed for function metadata
   // these are flows where the source is an argument and the dest is another
   // arg, escape, or return
-  for (auto &arg : instruct.argAllocs) {
-    // find all uses of the arg in flow sources
-    auto argUses = findExpressionFlows(flows, arg.get());
-    // visit each use
-    for (auto &use : argUses) {
-      std::vector<FlowValue> tracedFlows;
-      traceFlow(flows, use, tracedFlows);
-      // TODO: sort out flows to args/escape/return
-      if (print_flows) {
-        output << "\tARG ";
-        use.print(output);
-        output << " flows to:\n";
-        for (auto &flowValue : tracedFlows) {
-          output << "\t\t";
-          flowValue.print(output);
-          output << "\n";
-        }
-      }
-    }
-  }
 
   return 0;
 }
@@ -362,9 +320,10 @@ int EscapeAnalysisPass::visitFunctionCall(FunctionCall &instruct,
 int EscapeAnalysisPass::visitStore(Store &instruct,
                                    const EscapeAnalysisState &state) {
   // store instruction is equivalent to assignment
-  // for store %b <- %a, flow is FlowValue(%a, 1) -> FlowValue(%b, 1)
-  auto flow =
-      Flow(FlowValue(instruct.value, 1), FlowValue(instruct.storage, 1));
+  // for store %a into %b, flow is *%a -> *%b
+  auto from = FlowValue::getFlowFromExpression(instruct.value);
+  auto into = FlowValue::getFlowFromExpression(instruct.storage);
+  auto flow = Flow(from, into);
   // only add flow if it isn't empty
   if (!flow.isEmpty())
     state.curFlowList->push_back(flow);
@@ -374,11 +333,8 @@ int EscapeAnalysisPass::visitStore(Store &instruct,
 
 int EscapeAnalysisPass::visitAddress(Address &instruct,
                                      const EscapeAnalysisState &state) {
-  // for %b = &%a, flow is FlowValue(%a, 0) -> FlowValue(%b, 1)
-  auto flow = Flow(FlowValue(instruct.expr, 0), FlowValue(instruct, 1));
-  // an address flow can't be empty
-  assert(!flow.isEmpty());
-  state.curFlowList->push_back(flow);
+  // no flow needs to be calculated for addr (handled by
+  // FlowValue::getFlowFromExpression)
 
   // if expression is an argument, set it's type to ARG_COPY_TO_STACK, as it
   // needs to be addressable
@@ -392,34 +348,19 @@ int EscapeAnalysisPass::visitAddress(Address &instruct,
   return 0;
 }
 
-int EscapeAnalysisPass::visitDereference(Dereference &instruct,
-                                         const EscapeAnalysisState &state) {
-  // for %b = *%a, flow is FlowValue(%a, 2) -> FlowValue(%b, 1)
-  auto flow = Flow(FlowValue(instruct.expr, 2), FlowValue(instruct, 1));
-  if (!flow.isEmpty())
-    state.curFlowList->push_back(flow);
-
-  return 0;
-}
-
-int EscapeAnalysisPass::visitFieldSelect(FieldSelect &instruct,
-                                         const EscapeAnalysisState &state) {
-  // for %b = %a.field, flow is FlowValue(%a, 1, field) -> FlowValue(%b, 1)
-  auto flow = Flow(FlowValue(instruct.expr, 1, instruct.field_index),
-                   FlowValue(instruct, 1));
-  if (!flow.isEmpty())
-    state.curFlowList->push_back(flow);
-
-  return 0;
-}
-
 int EscapeAnalysisPass::visitTupleLiteral(TupleLiteral &instruct,
                                           const EscapeAnalysisState &state) {
   // all arguments flow into their appropriate fields with indirection level 1
   for (size_t i = 0; i < instruct.exprs.size(); i++) {
     auto &expr = instruct.exprs[i];
 
-    auto flow = Flow(FlowValue(expr, 1), FlowValue(instruct, 1, i));
+    auto from = FlowValue::getFlowFromExpression(expr);
+    auto into = FlowValue::getFlowFromExpression(instruct);
+    /* add field select to into */
+    assert(into.field_selects.size() == 2);
+    into.field_selects[0].push_back(i);
+
+    auto flow = Flow(from, into);
     // flow may be empty if arg doesn't contain pointers
     if (!flow.isEmpty())
       state.curFlowList->push_back(flow);
@@ -430,14 +371,21 @@ int EscapeAnalysisPass::visitTupleLiteral(TupleLiteral &instruct,
 
 int EscapeAnalysisPass::visitReturn(Return &instruct,
                                     const EscapeAnalysisState &state) {
-  // return without an expression
-  if(instruct.expr == nullptr) return 0;
+  // nothing to do for return without an expression
+  if (instruct.expr == nullptr)
+    return 0;
 
-  // return with expression
-  // reuse expression as dest (to make types match), but label with RETURN escape
-  auto flow = Flow(FlowValue(*instruct.expr, 1), FlowValue(*instruct.expr, 1, -1, EscapeType::RETURN));
+  // handle return with an expression
+  // reuse expression as dest (to make types match), but label with RETURN
+  // escape
+  auto from = FlowValue::getFlowFromExpression(*instruct.expr);
+  std::vector<std::vector<int32_t>> selects;
+  selects.emplace_back();
+  selects.emplace_back();
+  auto into = FlowValue(*instruct.expr, 1, selects, EscapeType::RETURN);
+  auto flow = Flow(from, into);
 
-  if(!flow.isEmpty())
+  if (!flow.isEmpty())
     state.curFlowList->push_back(flow);
 
   return 0;
@@ -466,7 +414,7 @@ int EscapeAnalysisPass::visitBuiltinCast(BuiltinCast &instruct,
 void runEscapeAnalysis(const ir::InstructionList &ir, bool print_flows,
                        std::ostream &output) {
   auto pass = EscapeAnalysisPass(print_flows, output);
-  auto globalFlows = ir::FlowList();
+  auto globalFlows = ir::AliasFlowList();
   pass.visitInstructions(ir, EscapeAnalysisState(false, &globalFlows));
 }
 

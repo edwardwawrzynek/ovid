@@ -261,7 +261,7 @@ public:
 class Return : public BasicBlockTerminator {
 public:
   // expr may be null if nothing is returned
-  const Expression *expr;
+  Expression *expr;
 
   Return(const SourceLocation &loc, Expression *expression);
 };
