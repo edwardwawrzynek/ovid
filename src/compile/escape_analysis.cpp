@@ -16,14 +16,14 @@ Flow::Flow(const FlowValue &value, const FlowValue &into)
 }
 
 FlowValue::FlowValue(const Expression &value, uint32_t indirect_level)
-    : FlowValue(value, indirect_level, -1, false) {}
+    : FlowValue(value, indirect_level, -1, EscapeType::NONE) {}
 
 FlowValue::FlowValue(const Expression &value, uint32_t indirect_level,
                      int32_t field)
-    : FlowValue(value, indirect_level, field, false) {}
+    : FlowValue(value, indirect_level, field, EscapeType::NONE) {}
 
 FlowValue::FlowValue(const Expression &value, uint32_t indirect_level,
-                     int32_t field, bool is_escape)
+                     int32_t field, EscapeType is_escape)
     : expr(value), indirect_level(indirect_level), field(field),
       is_escape(is_escape) {
   assert(field >= 0 || field == -1);
@@ -127,8 +127,14 @@ bool FlowValue::isEmpty() const {
 }
 
 void FlowValue::print(std::ostream &output) const {
-  if (is_escape) {
+  if (is_escape == EscapeType::OTHER) {
     output << "ESCAPE";
+  } else if(is_escape == EscapeType::RETURN) {
+    for (uint32_t i = 0; i < indirect_level; i++)
+      output << "*";
+    output << "RETURN";
+    if (field >= 0)
+      output << "." << field;
   } else {
     for (uint32_t i = 0; i < indirect_level; i++)
       output << "*";
@@ -167,7 +173,7 @@ Flow Flow::withAddedIndirection(uint32_t indirections) const {
   auto newValue = FlowValue(from.expr, from.indirect_level + indirections,
                             from.field, from.is_escape);
   auto newInto = FlowValue(into.expr, into.indirect_level + indirections,
-                           into.field, from.is_escape);
+                           into.field, into.is_escape);
   return Flow(newValue, newInto);
 }
 
@@ -215,8 +221,51 @@ void traceFlow(const FlowList &flows, const FlowValue &flowValue,
       continue;
 
     collectedFlows.push_back(newFlow.into);
+    // if dest is an escape, don't follow
+    if(newFlow.into.is_escape == EscapeType::RETURN || newFlow.into.is_escape == EscapeType::OTHER) continue;
+    // follow flow
     traceFlow(flows, newFlow.into, collectedFlows);
   }
+}
+
+AliasValue getFlowFromExpression(Expression& expr) {
+  auto fieldSelect = dynamic_cast<FieldSelect *>(&expr);
+  if(fieldSelect != nullptr) {
+    auto value = getFlowFromExpression(fieldSelect->expr);
+    /* add field select onto value */
+    // make sure no field select is already applied
+    assert(value.field_selects[value.field_selects.size() - 1] == -1);
+    value.field_selects[value.field_selects.size() - 1] = fieldSelect->field_index;
+
+    return value;
+  }
+  auto deref = dynamic_cast<Dereference *>(&expr);
+  if(deref != nullptr) {
+    auto value = getFlowFromExpression(deref->expr);
+    /* add dereference (with no field select) */
+    value.indirect_level++;
+    value.field_selects.push_back(-1);
+
+    return value;
+  }
+  auto addr = dynamic_cast<Address *>(&expr);
+  if(addr != nullptr) {
+    auto value = getFlowFromExpression(addr->expr);
+    /* remove most recent dereference
+     * this may produce a value with indirect_level -1, which should be handled by the implicit dereference added on copy */
+    assert(value.indirect_level >= 0);
+    value.indirect_level--;
+    /* field selection is lost when address of field is taken
+     * ie -- if &(%a.field), &%a flows, not just &%a.field */
+    value.field_selects.pop_back();
+
+    return value;
+  }
+
+  /* create value with no field select */
+  std::vector<int32_t> field_selects;
+  field_selects.push_back(-1);
+  auto value = AliasValue(expr, 0, field_selects);
 }
 
 int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
@@ -375,6 +424,21 @@ int EscapeAnalysisPass::visitTupleLiteral(TupleLiteral &instruct,
     if (!flow.isEmpty())
       state.curFlowList->push_back(flow);
   }
+
+  return 0;
+}
+
+int EscapeAnalysisPass::visitReturn(Return &instruct,
+                                    const EscapeAnalysisState &state) {
+  // return without an expression
+  if(instruct.expr == nullptr) return 0;
+
+  // return with expression
+  // reuse expression as dest (to make types match), but label with RETURN escape
+  auto flow = Flow(FlowValue(*instruct.expr, 1), FlowValue(*instruct.expr, 1, -1, EscapeType::RETURN));
+
+  if(!flow.isEmpty())
+    state.curFlowList->push_back(flow);
 
   return 0;
 }

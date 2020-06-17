@@ -25,6 +25,12 @@
 
 namespace ovid::ir {
 
+enum class EscapeType {
+  NONE,
+  RETURN,
+  OTHER
+};
+
 /* A Value object from the ir, with information about how it flows
  * This contains:
  *  A reference to the Value flowing
@@ -41,14 +47,14 @@ public:
                  // id of field flowing otherwise
 
   // if the value is an escape (global or return)
-  bool is_escape;
+  EscapeType is_escape;
 
   FlowValue(const ir::Expression &value, uint32_t indirect_level);
 
   FlowValue(const ir::Expression &value, uint32_t indirect_level,
             int32_t field);
   FlowValue(const ir::Expression &value, uint32_t indirect_level, int32_t field,
-            bool is_escape);
+            EscapeType is_escape);
 
   /* check if the flow value actually contains anything
    * eg an indirection on a type without pointers (eg i32) is empty */
@@ -66,6 +72,47 @@ private:
   // applied
   const ast::Type *getTypeAfterField() const;
 };
+
+// replacement for FlowValue
+class AliasValue {
+public:
+  /* expression flowing */
+  Expression &expr;
+  /* number of dereferences on the expression */
+  uint32_t indirect_level;
+  /* field selections for each indirection
+   * if field is -1, the whole value is used
+   * [0] is the field select on the value, [1] is the field select on the dereference of the value, etc
+   * length should be equivalent to indirect_level + 1 */
+  std::vector<int32_t> field_selects;
+
+  /* if the value should be considered to be an escaping route
+   * if RETURN, expr is not meaningful */
+  EscapeType is_escape;
+
+  /* get all the types that could be flowing through the value
+   * if a product type is dereferenced without a field select, multiple types may be flowing */
+  std::vector<const ast::Type *> getFlowingTypes();
+
+  /* check if anything is actually flowing through the value */
+  bool isEmpty();
+
+  AliasValue(Expression& expr, uint32_t indirect_level, const std::vector<int32_t> field_selects);
+};
+
+// replacement for Flow
+class AliasFlow {
+  AliasValue from;
+  AliasValue into;
+
+  // if anything is actually flowing
+  bool isEmpty();
+};
+
+/* given an ir::Expression, produce a flow value of the expression including field selects, dereferences, and addresses
+ *
+ * this returns the flow value without the dereference expected if a copy is involved (such as in assignment). Because of this, the indirect_level may be -1 (eg -- an address was taken) */
+AliasValue getFlowFromExpression(const Expression& expr);
 
 // given a product type, produce an array of all of its types (including nested
 // product types)
@@ -151,6 +198,7 @@ class EscapeAnalysisPass : public BaseIRVisitor<int, EscapeAnalysisState> {
                        const EscapeAnalysisState &state) override;
   int visitFieldSelect(FieldSelect &instruct,
                        const EscapeAnalysisState &state) override;
+  int visitReturn(Return &instruct, const EscapeAnalysisState &state) override;
 
   int visitStore(Store &instruct, const EscapeAnalysisState &state) override;
   int visitBasicBlock(BasicBlock &instruct,
