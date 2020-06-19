@@ -1,34 +1,22 @@
-// __ovid_compiler_test
-//__mode: compile
-//__end_header
+val a i32 = 5
+mut sink *i32 = &a
 
-module test
-
-type t1 = (i32, *i32)
-
-fn test(a t1, b *t1) -> t1 {
-    val c i32 = a.0
-    val d *i32 = a.1
-
-    val e i32 = (*b).0
-    val f *i32 = (*b).1
-
-    val g = b.0 // __error: "cannot take a field on type *(i32, *i32)"
-    val h = a.2 // __error: "type (i32, *i32) does not have field 2"
-    val i = a.test // __error: "type (i32, *i32) does not have field test"
-
-    val j = *b.0 // __error: "cannot take a field on type *(i32, *i32)"
-    val k = *b.1 // __error: "cannot take a field on type *(i32, *i32)"
-
-    return (c, f)
+fn foo(a **i32) {
+    sink = *a
 }
 
-fn test2(a *mut t1, b *t1) {
-    (*a).0 = 6
-    (*a).1 = &(*b).0
+fn test() {
+    val var = 5
+    val addr = &var
+    val arg = &addr
+    foo(arg)
+}
 
-    (*b).0 = 6 // __error: "left side of assignment is non mutable"
+fn test2(a **(i32, **(*(u8, *i32), *i32))) -> *i32 {
+    val b = (**(**a).1).0
+    return (*b).1
+}
 
-    test(*a, b).0 = 1 // __error: "left side of assignment is non assignable"
-    &test(*a, b).0 // __error: "cannot take address of expression"
+fn test3(a **(i32, *i32)) -> *i32 {
+    return (**a).1
 }

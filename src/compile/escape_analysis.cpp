@@ -44,7 +44,7 @@ FlowValue::applyFieldSelectToType(const ast::Type *type,
 
 std::vector<const ast::Type *> FlowValue::getFlowingTypesFromType(
     const ast::Type *exprType, int32_t indirect_level,
-    std::vector<std::vector<int32_t>> &field_selects) {
+    const std::vector<std::vector<int32_t>> &field_selects) {
   std::vector<const ast::Type *> res;
   /* values with indirection -1 can't flow */
   assert(indirect_level >= 0);
@@ -103,25 +103,27 @@ std::vector<const ast::Type *> FlowValue::getFlowingTypesFromType(
   return res;
 }
 
-std::vector<const ast::Type *> FlowValue::getFlowingTypes() {
-  auto baseType =
-      getFlowingTypesFromType(expr.type.get(), indirect_level, field_selects);
-  for (auto &type : baseType) {
-    type = applyFieldSelectToType(type, field_selects[indirect_level]);
-  }
-  return baseType;
+std::vector<const ast::Type *> FlowValue::getFlowingTypes() const {
+  return getFlowingTypesFromType(expr.type.get(), indirect_level,
+                                 field_selects);
 }
 
-bool FlowValue::isEmpty() {
+bool FlowValue::isEmpty() const {
   auto flowingTypes = getFlowingTypes();
 
   return flowingTypes.empty();
 }
 
-FlowValue FlowValue::getFlowFromExpressionWithoutCopy(Expression &expr) {
+FlowValue FlowValue::getFlowFromExpressionWithoutCopy(
+    Expression &expr, std::vector<int32_t> &field_selects_on_deref) {
+  std::vector<int32_t> retroactive_field_selects;
   auto fieldSelect = dynamic_cast<FieldSelect *>(&expr);
   if (fieldSelect != nullptr) {
-    auto value = getFlowFromExpressionWithoutCopy(fieldSelect->expr);
+    auto value = getFlowFromExpressionWithoutCopy(fieldSelect->expr,
+                                                  retroactive_field_selects);
+    /* can't take a field on a pointer (type check should have checked this
+     * already) */
+    assert(retroactive_field_selects.empty());
     /* add field select onto value */
     value.field_selects[value.field_selects.size() - 1].push_back(
         fieldSelect->field_index);
@@ -130,23 +132,33 @@ FlowValue FlowValue::getFlowFromExpressionWithoutCopy(Expression &expr) {
   }
   auto deref = dynamic_cast<Dereference *>(&expr);
   if (deref != nullptr) {
-    auto value = getFlowFromExpressionWithoutCopy(deref->expr);
+    auto value = getFlowFromExpressionWithoutCopy(deref->expr,
+                                                  retroactive_field_selects);
     /* add dereference (with no field select) */
     value.indirect_level++;
-    value.field_selects.emplace_back();
+    value.field_selects.push_back(retroactive_field_selects);
 
     return value;
   }
   auto addr = dynamic_cast<Address *>(&expr);
   if (addr != nullptr) {
-    auto value = getFlowFromExpressionWithoutCopy(addr->expr);
+    auto value =
+        getFlowFromExpressionWithoutCopy(addr->expr, retroactive_field_selects);
+    /* can't take an address of an address (type check should have checked this
+     * already) */
+    assert(retroactive_field_selects.empty());
     /* remove most recent dereference
      * this may produce a value with indirect_level -1, which should be handled
      * by the implicit dereference added on copy */
     assert(value.indirect_level >= 0);
     value.indirect_level--;
     /* field selection is lost when address of field is taken
-     * ie -- if &(%a.field), &%a flows, not just &%a.field */
+     * ie -- if &(%a.field), &%a flows, not just &%a.field
+     * however, it should be preserved on the next deref
+     * ie -- if *&(%a.field), %a.field flows */
+    auto lastSelects = value.field_selects.back();
+    field_selects_on_deref.insert(field_selects_on_deref.end(),
+                                  lastSelects.begin(), lastSelects.end());
     value.field_selects.pop_back();
 
     return value;
@@ -160,10 +172,11 @@ FlowValue FlowValue::getFlowFromExpressionWithoutCopy(Expression &expr) {
   return value;
 }
 
-void FlowValue::print(std::ostream &output) {
+void FlowValue::print(std::ostream &output) const {
   for (int32_t i = 0; i < indirect_level; i++) {
     output << "*(";
   }
+
   output << "%";
   if (is_escape == EscapeType::RETURN) {
     output << "RETURN";
@@ -181,41 +194,158 @@ void FlowValue::print(std::ostream &output) {
     }
   }
 
-  for (int32_t i = indirect_level; i >= 0; i--) {
+  for (int32_t i = 0; i <= indirect_level; i++) {
+    if (i < indirect_level)
+      output << ")";
+
     for (auto &select : field_selects[i]) {
       output << "." << select;
     }
-
-    if (i > 0)
-      output << ")";
   }
 }
 
 FlowValue FlowValue::getFlowFromExpression(Expression &expr) {
-  auto value = getFlowFromExpressionWithoutCopy(expr);
+  std::vector<int32_t> field_sels_to_apply;
+  auto value = getFlowFromExpressionWithoutCopy(expr, field_sels_to_apply);
   value.indirect_level++;
-  value.field_selects.emplace_back();
+  value.field_selects.push_back(field_sels_to_apply);
 
   return value;
 }
 
-Flow::Flow(const FlowValue &from, const FlowValue &into)
-    : from(from), into(into) {}
+bool FlowValue::fieldsMatchOrContain(const FlowValue &value) const {
+  if (indirect_level != value.indirect_level ||
+      expr.val.id != value.expr.val.id) {
+    assert(false);
 
-bool Flow::isEmpty() {
+    return false;
+  }
+
+  assert(field_selects.size() == value.field_selects.size());
+
+  for (size_t i = 0; i < field_selects.size(); i++) {
+    auto &thisSelects = field_selects[i];
+    auto &valueSelects = value.field_selects[i];
+    /* if value is more general than this, fail */
+    if (thisSelects.size() > valueSelects.size())
+      return false;
+    for (size_t j = 0; j < thisSelects.size(); j++) {
+      if (valueSelects[j] != thisSelects[j])
+        return false;
+    }
+  }
+
+  return true;
+}
+
+Flow::Flow(const FlowValue &from, const FlowValue &into)
+    : from(from), into(into) {
+  /* make sure flowing types are the same */
+  auto fromFlowing = Flow::from.getFlowingTypes();
+  auto intoFlowing = Flow::into.getFlowingTypes();
+
+  assert(fromFlowing.size() == intoFlowing.size());
+}
+
+bool Flow::isEmpty() const {
   /* empty-ness of both values should match, as they should have the same types
    * flowing */
   assert(from.isEmpty() == into.isEmpty());
 
   return from.isEmpty();
-  return false;
 }
 
-void Flow::print(std::ostream &output) {
+void Flow::print(std::ostream &output) const {
   from.print(output);
   output << " flows to ";
   into.print(output);
   output << "\n";
+}
+
+Flow Flow::specializeFieldsTo(const FlowValue &value) const {
+  assert(from.fieldsMatchOrContain(value));
+  assert(from.indirect_level == value.indirect_level);
+
+  auto newInto = FlowValue(into.expr, into.indirect_level, into.field_selects,
+                           into.is_escape);
+  for (int32_t i = newInto.indirect_level; i >= 0; i--) {
+    auto &intoSelects = newInto.field_selects[i];
+    auto &valueSelects =
+        value
+            .field_selects[i + (value.indirect_level - newInto.indirect_level)];
+
+    /* if value has a field select that into doesn't, add it */
+    for (size_t j = 0; j < valueSelects.size(); j++) {
+      if (j < intoSelects.size()) {
+        assert(intoSelects[j] == valueSelects[j]);
+      } else {
+        intoSelects.push_back(valueSelects[j]);
+      }
+    }
+  }
+
+  return Flow(value, newInto);
+}
+
+Flow Flow::indirectionsFor(const FlowValue &value) const {
+  assert(from.indirect_level <= value.indirect_level);
+
+  if (from.indirect_level == value.indirect_level)
+    return *this;
+
+  auto numToAdd = value.indirect_level - from.indirect_level;
+
+  auto newFrom = FlowValue(from.expr, from.indirect_level, from.field_selects,
+                           from.is_escape);
+  newFrom.indirect_level += numToAdd;
+  for (auto i = 0; i < numToAdd; i++)
+    newFrom.field_selects.emplace_back();
+
+  auto newInto = FlowValue(into.expr, into.indirect_level, into.field_selects,
+                           into.is_escape);
+  newInto.indirect_level += numToAdd;
+  for (auto i = 0; i < numToAdd; i++)
+    newInto.field_selects.emplace_back();
+
+  return Flow(newFrom, newInto);
+}
+
+bool Flow::contains(const FlowValue &value) const {
+  /* a flow of %b doesn't contain %a */
+  if (from.expr.val.id != value.expr.val.id)
+    return false;
+  /* a flow of **%a doesn't contain *%a */
+  if (from.indirect_level > value.indirect_level)
+    return false;
+
+  /* construct a new flow with matching indirection level
+   * ie -- flow of *%a contains **%a */
+  const Flow &newFlow = value.indirect_level > from.indirect_level
+                            ? indirectionsFor(value)
+                            : *this;
+
+  return newFlow.from.fieldsMatchOrContain(value);
+}
+
+Flow Flow::specializedTo(const FlowValue &value) const {
+  assert(contains(value));
+
+  return indirectionsFor(value).specializeFieldsTo(value);
+}
+
+void traceFlow(const FlowValue &value, const FlowList &flows,
+               const std::function<void(const FlowValue &)> &func) {
+  for (auto &flow : flows) {
+    if (flow.contains(value)) {
+      auto specialized = flow.specializedTo(value);
+
+      func(specialized.into);
+      /* don't follow escaping flows */
+      if (specialized.into.is_escape == EscapeType::NONE) {
+        traceFlow(specialized.into, flows, func);
+      }
+    }
+  }
 }
 
 Allocation *getOwningAllocation(Expression *expr) {
@@ -249,7 +379,7 @@ flattenProductType(const ast::ProductType *type) {
 int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                              const EscapeAnalysisState &state) {
   // pointer flow for this function
-  AliasFlowList flows;
+  FlowList flows;
   auto newState = EscapeAnalysisState(true, &flows);
 
   // visit children of function, calculate flow
@@ -273,6 +403,19 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
   // calculate flows needed for function metadata
   // these are flows where the source is an argument and the dest is another
   // arg, escape, or return
+  for (auto &arg : instruct.argAllocs) {
+    output << "ARG *%" << arg.get().val.sourceName[0] << " flows to:\n";
+    /* TODO: figure out dereference levels + field selects to visit at
+     * right now just indirect_level of 1 */
+    std::vector<std::vector<int32_t>> selects;
+    selects.emplace_back();
+    selects.emplace_back();
+    auto value = FlowValue(arg.get(), 1, selects);
+    traceFlow(value, flows, [this](const FlowValue &value) {
+      value.print(output);
+      output << "\n";
+    });
+  }
 
   return 0;
 }
@@ -414,7 +557,7 @@ int EscapeAnalysisPass::visitBuiltinCast(BuiltinCast &instruct,
 void runEscapeAnalysis(const ir::InstructionList &ir, bool print_flows,
                        std::ostream &output) {
   auto pass = EscapeAnalysisPass(print_flows, output);
-  auto globalFlows = ir::AliasFlowList();
+  auto globalFlows = ir::FlowList();
   pass.visitInstructions(ir, EscapeAnalysisState(false, &globalFlows));
 }
 

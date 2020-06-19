@@ -2,6 +2,7 @@
 
 #include "ast.hpp"
 #include "error.hpp"
+#include "escape_analysis.hpp"
 #include "symbols.hpp"
 #include "tokenizer.hpp"
 #include <sstream>
@@ -230,6 +231,40 @@ TEST(ActiveScopesDeathTest, Symbols) {
   EXPECT_EXIT(scopes.names.getRootScope()->addScopeTable(
                   "test1", true, scopes.names.getRootScope()),
               ::testing::KilledBySignal(SIGABRT), "");
+}
+
+TEST(EscapeAnalysisValueContains, EscapeAnalsysis) {
+  auto loc = SourceLocation("test", 0, 0, 0, 0, nullptr);
+
+  ast::TypeList types1;
+  types1.push_back(std::make_shared<ast::BoolType>(loc));
+
+  ast::TypeList types2;
+  types2.push_back(std::make_shared<ast::PointerType>(
+      loc, std::make_shared<ast::TupleType>(loc, types1)));
+  auto expr = ir::Expression(loc, ir::Value(),
+                             std::make_shared<ast::TupleType>(loc, types2));
+
+  std::vector<std::vector<int32_t>> field_sels;
+  field_sels.emplace_back();
+  field_sels.emplace_back();
+  auto val1 = ir::FlowValue(expr, 1, field_sels);
+  field_sels[0].push_back(0);
+  auto val2 = ir::FlowValue(expr, 1, field_sels);
+  field_sels[1].push_back(0);
+  auto val3 = ir::FlowValue(expr, 1, field_sels);
+
+  EXPECT_TRUE(val1.fieldsMatchOrContain(val2));
+  EXPECT_TRUE(val1.fieldsMatchOrContain(val3));
+  EXPECT_TRUE(val2.fieldsMatchOrContain(val3));
+
+  EXPECT_FALSE(val2.fieldsMatchOrContain(val1));
+  EXPECT_FALSE(val3.fieldsMatchOrContain(val2));
+  EXPECT_FALSE(val3.fieldsMatchOrContain(val1));
+
+  EXPECT_TRUE(val1.fieldsMatchOrContain(val1));
+  EXPECT_TRUE(val2.fieldsMatchOrContain(val2));
+  EXPECT_TRUE(val3.fieldsMatchOrContain(val3));
 }
 
 } // namespace ovid

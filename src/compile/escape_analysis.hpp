@@ -46,16 +46,21 @@ public:
   /* get all the types that could be flowing through the value
    * if a product type is dereferenced without a field select, multiple types
    * may be flowing */
-  std::vector<const ast::Type *> getFlowingTypes();
+  std::vector<const ast::Type *> getFlowingTypes() const;
 
   /* check if anything is actually flowing through the value */
-  bool isEmpty();
+  bool isEmpty() const;
 
-  void print(std::ostream &output);
+  void print(std::ostream &output) const;
 
   /* wrapper around getFlowFromExpressionWithoutCopy that adds the indirection
    * expected in a copy */
   static FlowValue getFlowFromExpression(Expression &expr);
+
+  /* check if the field selects match or are more general for this value, such
+   * that the passed value would flow with it
+   * indirection level should match, as should expr */
+  bool fieldsMatchOrContain(const FlowValue &value) const;
 
   FlowValue(Expression &expr, int32_t indirect_level,
             const std::vector<std::vector<int32_t>> &field_selects,
@@ -68,9 +73,9 @@ private:
   /* add any types that may flow a type and indirections and field selects
    *applied to it
    **/
-  static std::vector<const ast::Type *>
-  getFlowingTypesFromType(const ast::Type *exprType, int32_t indirect_level,
-                          std::vector<std::vector<int32_t>> &field_selects);
+  static std::vector<const ast::Type *> getFlowingTypesFromType(
+      const ast::Type *exprType, int32_t indirect_level,
+      const std::vector<std::vector<int32_t>> &field_selects);
 
   static const ast::Type *
   applyFieldSelectToType(const ast::Type *type,
@@ -84,8 +89,12 @@ private:
    *
    * this returns the flow value with the dereference expected if a copy is
    * involved (such as in assignment). Because of this, the indirect_level may
-   * be -1 (eg -- an address was taken) */
-  static FlowValue getFlowFromExpressionWithoutCopy(Expression &expr);
+   * be -1 (eg -- an address was taken)
+   *
+   * if an address is taken, field_selects_on_deref will hold the lost field
+   * selects that should be added back on if a dereference is later taken */
+  static FlowValue getFlowFromExpressionWithoutCopy(
+      Expression &expr, std::vector<int32_t> &field_selects_on_deref);
 };
 
 /* flow from one value to another */
@@ -95,14 +104,37 @@ public:
   FlowValue into;
 
   // if anything is actually flowing
-  bool isEmpty();
+  bool isEmpty() const;
 
-  void print(std::ostream &output);
+  void print(std::ostream &output) const;
 
   Flow(const FlowValue &from, const FlowValue &into);
+
+  /* return true if the given value flows through this flow
+   * ie -- if it is contained in from */
+  bool contains(const FlowValue &value) const;
+  /* produce the most specialized flow for value contained in this flow */
+  Flow specializedTo(const FlowValue &value) const;
+
+private:
+  /* specialize the flow's field selects for the given value. indirection level
+   * + expr on from must match value. from must be a more general form of value
+   * (ie from.fieldsMatchOrContain(value) is true)
+   */
+  Flow specializeFieldsTo(const FlowValue &value) const;
+
+  /* add indirections to this flow to match the given value
+   * from.indirect_level must be <= value.indirect_level */
+  Flow indirectionsFor(const FlowValue &value) const;
 };
 
-typedef std::vector<Flow> AliasFlowList;
+typedef std::vector<Flow> FlowList;
+
+/* given a value and a list of flows, find all values to which th value may flow
+ * values are passed to func
+ */
+void traceFlow(const FlowValue &value, const FlowList &flows,
+               const std::function<void(const FlowValue &)> &func);
 
 // given a product type, produce an array of all of its types (including nested
 // product types)
@@ -117,9 +149,9 @@ public:
   /* if inside a function declaration or not */
   bool in_func;
   /* current flow list to add to */
-  AliasFlowList *curFlowList;
+  FlowList *curFlowList;
 
-  EscapeAnalysisState(bool in_func, AliasFlowList *curFlowList)
+  EscapeAnalysisState(bool in_func, FlowList *curFlowList)
       : in_func(in_func), curFlowList(curFlowList){};
 
   EscapeAnalysisState() : in_func(false), curFlowList(nullptr){};
