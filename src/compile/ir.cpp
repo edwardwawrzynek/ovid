@@ -9,6 +9,14 @@ uint64_t next_id() { return ir_id++; }
 
 void reset_id() { ir_id = 0; }
 
+bool AllocationTypeIsArg(AllocationType type) {
+  return type == AllocationType::UNRESOLVED_FUNC_ARG || type == AllocationType::ARG || type == AllocationType::ARG_COPY_TO_STACK || type == AllocationType::ARG_HEAP;
+}
+
+bool AllocationTypeIsGlobal(AllocationType type) {
+  return type == AllocationType::UNRESOLVED_GLOBAL || type == AllocationType::STATIC;
+}
+
 bool Expression::isAddressable() const { return false; }
 
 bool Allocation::isAddressable() const {

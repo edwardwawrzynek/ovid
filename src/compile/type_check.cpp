@@ -899,7 +899,7 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
       return TypeCheckResult(nullptr, nullptr);
     }
     // make sure field is in right range
-    if (node.field_num >= tupleType->types.size()) {
+    if (node.field_num >= (int32_t)(tupleType->types.size())) {
       errorMan.logError(
           string_format(
               "type \x1b[1m%s\x1b[m does not have field \x1b[1m%lu\x1b[m",

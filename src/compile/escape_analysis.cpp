@@ -262,23 +262,26 @@ void Flow::print(std::ostream &output) const {
   output << "\n";
 }
 
+
 Flow Flow::specializeFieldsTo(const FlowValue &value) const {
   assert(from.fieldsMatchOrContain(value));
   assert(from.indirect_level == value.indirect_level);
 
+  /* how many indirections to examine */
+  auto levelsDeep = std::min(from.indirect_level, value.indirect_level) + 1;
+
   auto newInto = FlowValue(into.expr, into.indirect_level, into.field_selects,
                            into.is_escape);
-  for (int32_t i = newInto.indirect_level; i >= 0; i--) {
-    auto &intoSelects = newInto.field_selects[i];
-    auto &valueSelects =
-        value
-            .field_selects[i + (value.indirect_level - newInto.indirect_level)];
+  for(int32_t i = 0; i < levelsDeep; i++) {
+    auto& valueSelects = value.field_selects[value.indirect_level - i];
+    auto& fromSelects = from.field_selects[from.indirect_level - i];
+    auto& intoSelects = newInto.field_selects[newInto.indirect_level - i];
 
-    /* if value has a field select that into doesn't, add it */
-    for (size_t j = 0; j < valueSelects.size(); j++) {
-      if (j < intoSelects.size()) {
-        assert(intoSelects[j] == valueSelects[j]);
+    for(size_t j = 0; j < valueSelects.size(); j++) {
+      if(j < fromSelects.size()) {
+        assert(valueSelects[j] == fromSelects[j]);
       } else {
+        /* if value has a field selector that from doesn't, add that selector in the appropriate spot to into */
         intoSelects.push_back(valueSelects[j]);
       }
     }
@@ -376,6 +379,17 @@ flattenProductType(const ast::ProductType *type) {
   return types;
 }
 
+void visitAllocations(const BasicBlockList& blocks, const std::function<void(Allocation&)>& func) {
+  for(auto &block: blocks) {
+    for(auto &instruct: block->body) {
+      auto alloc = dynamic_cast<Allocation*>(instruct.get());
+      if(alloc != nullptr) {
+        func(*alloc);
+      }
+    }
+  }
+}
+
 int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                              const EscapeAnalysisState &state) {
   // pointer flow for this function
@@ -399,6 +413,30 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
       flow.print(output);
     }
   }
+
+  /* trace flows for each allocation and mark escaping */
+  visitAllocations(instruct.body, [this, &flows](Allocation& alloc) {
+    /* trace flow of address of allocation */
+    std::vector<std::vector<int32_t>> selects;
+    selects.emplace_back();
+    auto value = FlowValue(alloc, 0, selects);
+
+    traceFlow(value, flows, [this, &alloc](const FlowValue &dst) {
+      if(dst.is_escape != EscapeType::NONE) {
+        /* mark as heap allocated */
+        if(AllocationTypeIsArg(alloc.allocType)) {
+          alloc.allocType = AllocationType::ARG_HEAP;
+        } else {
+          alloc.allocType = AllocationType::HEAP;
+        }
+        /* print debug info */
+        if(print_flows) {
+          output << "%" << alloc.val.sourceName[0] << " escapes\n";
+        }
+      }
+    });
+  });
+
 
   // calculate flows needed for function metadata
   // these are flows where the source is an argument and the dest is another

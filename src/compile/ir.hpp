@@ -91,6 +91,9 @@ enum class AllocationType {
 
 };
 
+bool AllocationTypeIsArg(AllocationType type);
+bool AllocationTypeIsGlobal(AllocationType type);
+
 class Allocation : public Expression {
 public:
   AllocationType allocType;

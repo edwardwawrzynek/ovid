@@ -144,6 +144,9 @@ std::vector<const ast::Type *> flattenProductType(const ast::ProductType *type);
 // field selects on an allocation are owned by that allocation
 Allocation *getOwningAllocation(Expression *expr);
 
+/* given a list of basic blocks, call func on each allocation */
+void visitAllocations(const BasicBlockList& blocks, const std::function<void(Allocation&)>& func);
+
 class EscapeAnalysisState {
 public:
   /* if inside a function declaration or not */
