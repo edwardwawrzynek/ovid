@@ -28,6 +28,116 @@ void reset_id();
 class Instruction;
 typedef std::vector<std::unique_ptr<Instruction>> InstructionList;
 
+/* escape analysis structures */
+enum class EscapeType { NONE, RETURN, OTHER };
+
+class FlowValue {
+public:
+  /* expression flowing */
+  Expression &expr;
+  /* number of dereferences on the expression */
+  int32_t indirect_level;
+  /* field selections for each indirection
+   * [0] is the field select on the value, [1] is the field select on the first
+   * dereference of the value, etc
+   * length should be equivalent to indirect_level + 1 */
+  std::vector<std::vector<int32_t>> field_selects;
+
+  /* if the value should be considered to be an escaping route
+   * if RETURN, expr is not meaningful */
+  EscapeType is_escape;
+
+  /* get all the types that could be flowing through the value
+   * if a product type is dereferenced without a field select, multiple types
+   * may be flowing */
+  std::vector<const ast::Type *> getFlowingTypes() const;
+
+  /* check if anything is actually flowing through the value */
+  bool isEmpty() const;
+
+  void print(std::ostream &output) const;
+
+  /* wrapper around getFlowFromExpressionWithoutCopy that adds the indirection
+   * expected in a copy */
+  static FlowValue getFlowFromExpression(Expression &expr);
+
+  /* get a flow vaue of the dereference of the expression with no field selects
+   */
+  static FlowValue getFlowForDereference(Expression &expr);
+
+  /* check if the field selects match or are more general for this value, such
+   * that the passed value would flow with it
+   * indirection level should match, as should expr */
+  bool fieldsMatchOrContain(const FlowValue &value) const;
+
+  FlowValue(Expression &expr, int32_t indirect_level,
+            const std::vector<std::vector<int32_t>> &field_selects,
+            EscapeType is_escape);
+
+  FlowValue(Expression &expr, int32_t indirect_level,
+            const std::vector<std::vector<int32_t>> &field_selects);
+
+private:
+  /* add any types that may flow a type and indirections and field selects
+   *applied to it
+   **/
+  static std::vector<const ast::Type *> getFlowingTypesFromType(
+      const ast::Type *exprType, int32_t indirect_level,
+      const std::vector<std::vector<int32_t>> &field_selects);
+
+  static const ast::Type *
+  applyFieldSelectToType(const ast::Type *type,
+                         const std::vector<int32_t> &field_select);
+
+  /* check if an expression is a global escape */
+  static EscapeType isGlobalEscape(Expression &expr);
+
+  /* given an ir::Expression, produce a flow value of the expression including
+   * field selects, dereferences, and addresses
+   *
+   * this returns the flow value with the dereference expected if a copy is
+   * involved (such as in assignment). Because of this, the indirect_level may
+   * be -1 (eg -- an address was taken)
+   *
+   * if an address is taken, field_selects_on_deref will hold the lost field
+   * selects that should be added back on if a dereference is later taken */
+  static FlowValue getFlowFromExpressionWithoutCopy(
+      Expression &expr, std::vector<int32_t> &field_selects_on_deref);
+};
+
+/* flow from one value to another */
+class Flow {
+public:
+  FlowValue from;
+  FlowValue into;
+
+  // if anything is actually flowing
+  bool isEmpty() const;
+
+  void print(std::ostream &output) const;
+
+  Flow(const FlowValue &from, const FlowValue &into);
+
+  /* return true if the given value flows through this flow
+   * ie -- if it is contained in from */
+  bool contains(const FlowValue &value) const;
+  /* produce the most specialized flow for value contained in this flow */
+  Flow specializedTo(const FlowValue &value) const;
+
+private:
+  /* specialize the flow's field selects for the given value. indirection level
+   * + expr on from must match value. from must be a more general form of value
+   * (ie from.fieldsMatchOrContain(value) is true)
+   */
+  Flow specializeFieldsTo(const FlowValue &value) const;
+
+  /* add indirections to this flow to match the given value
+   * from.indirect_level must be <= value.indirect_level */
+  Flow indirectionsFor(const FlowValue &value) const;
+};
+
+typedef std::vector<Flow> FlowList;
+
 /* a value in the ir -- holds the result of an instruction */
 class Value {
 public:
@@ -63,6 +173,14 @@ public:
 
   // if the expression has an address
   virtual bool isAddressable() const;
+
+  // if the expression has flow metadata available to be calculated
+  virtual bool hasFlowMetadata();
+  /* add flow metadata to flows, adjusting arg flows to args */
+  virtual void
+  addFlowMetadata(FlowList &flows,
+                  const std::vector<std::reference_wrapper<Expression>> &args,
+                  Expression &returnExpr);
 
   Expression(const SourceLocation &loc, const Value &val,
              std::shared_ptr<ast::Type> type);
@@ -116,6 +234,13 @@ public:
 
 typedef std::vector<std::unique_ptr<BasicBlock>> BasicBlockList;
 
+/* what state function flow metadata is in */
+enum class FunctionEscapeAnalysisState {
+  NOT_VISITED,  // no information
+  CUR_VISITING, // flow is being calculated
+  VISITED       // flow is available
+};
+
 /* a function declaration in the ir
  * The function declaration is an expression b/c it produces a usable function
  * object */
@@ -124,6 +249,16 @@ public:
   std::vector<std::reference_wrapper<Allocation>> argAllocs;
 
   BasicBlockList body;
+
+  /* escape analysis metadata */
+  std::vector<Flow> flow_metadata;
+  FunctionEscapeAnalysisState flow_state;
+
+  bool hasFlowMetadata() override;
+  void
+  addFlowMetadata(FlowList &flows,
+                  const std::vector<std::reference_wrapper<Expression>> &args,
+                  Expression &returnExpr) override;
 
   FunctionDeclare(
       const SourceLocation &loc, const Value &val,

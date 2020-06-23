@@ -1,0 +1,9 @@
+FUNCTION ovidc_test:test:test1:
+%b escapes
+FUNCTION ovidc_test:test:test2:
+FUNCTION ovidc_test:test:test3:
+%a escapes
+FUNCTION ovidc_test:test:test4:
+%a escapes
+%b escapes
+%c escapes

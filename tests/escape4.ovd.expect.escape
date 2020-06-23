@@ -1,0 +1,3 @@
+FUNCTION ovidc_test:test:test1:
+%arg escapes
+FUNCTION ovidc_test:test:test2:

@@ -10,11 +10,15 @@ uint64_t next_id() { return ir_id++; }
 void reset_id() { ir_id = 0; }
 
 bool AllocationTypeIsArg(AllocationType type) {
-  return type == AllocationType::UNRESOLVED_FUNC_ARG || type == AllocationType::ARG || type == AllocationType::ARG_COPY_TO_STACK || type == AllocationType::ARG_HEAP;
+  return type == AllocationType::UNRESOLVED_FUNC_ARG ||
+         type == AllocationType::ARG ||
+         type == AllocationType::ARG_COPY_TO_STACK ||
+         type == AllocationType::ARG_HEAP;
 }
 
 bool AllocationTypeIsGlobal(AllocationType type) {
-  return type == AllocationType::UNRESOLVED_GLOBAL || type == AllocationType::STATIC;
+  return type == AllocationType::UNRESOLVED_GLOBAL ||
+         type == AllocationType::STATIC;
 }
 
 bool Expression::isAddressable() const { return false; }
@@ -48,6 +52,15 @@ Instruction::Instruction(const SourceLocation &loc) : loc(loc) {}
 Expression::Expression(const SourceLocation &loc, const Value &val,
                        std::shared_ptr<ast::Type> type)
     : Instruction(loc), val(val), type(std::move(type)) {}
+
+bool Expression::hasFlowMetadata() { return false; }
+
+void Expression::addFlowMetadata(
+    FlowList &flows,
+    const std::vector<std::reference_wrapper<Expression>> &args,
+    Expression &returnExpr) {
+  assert(false);
+}
 
 Allocation::Allocation(const SourceLocation &loc, const Value &val,
                        std::shared_ptr<ast::Type> type,
@@ -130,7 +143,55 @@ FunctionDeclare::FunctionDeclare(
     const std::vector<std::reference_wrapper<Allocation>> &argAllocs,
     BasicBlockList body)
     : Expression(loc, val, std::move(type)), argAllocs(argAllocs),
-      body(std::move(body)) {}
+      body(std::move(body)), flow_metadata(),
+      flow_state(FunctionEscapeAnalysisState::NOT_VISITED) {}
+
+bool FunctionDeclare::hasFlowMetadata() {
+  /* if the function is being visited, metadata isn't available (trying to
+   * calculate would be infinite recursion) */
+  return flow_state != FunctionEscapeAnalysisState::CUR_VISITING;
+}
+
+size_t
+findIndexOfArg(const std::vector<std::reference_wrapper<Allocation>> &args,
+               const Expression &expr) {
+  for (size_t i = 0; i < args.size(); i++) {
+    auto arg = args[i].get();
+    if (arg.val.id == expr.val.id)
+      return i;
+  }
+
+  assert(false);
+  return 0;
+}
+
+void FunctionDeclare::addFlowMetadata(
+    FlowList &flows,
+    const std::vector<std::reference_wrapper<Expression>> &args,
+    Expression &returnExpr) {
+  assert(hasFlowMetadata());
+
+  for (auto &flow : flow_metadata) {
+    /* adjust from and into expressions for args */
+    auto &newFromExpr = args[findIndexOfArg(argAllocs, flow.from.expr)].get();
+    auto &newIntoExpr =
+        flow.into.is_escape == EscapeType::NONE
+            ? args[findIndexOfArg(argAllocs, flow.into.expr)].get()
+            : (flow.into.is_escape == EscapeType::RETURN ? returnExpr
+                                                         : flow.into.expr);
+
+    /* create flow and add */
+    auto from = FlowValue(newFromExpr, flow.from.indirect_level,
+                          flow.from.field_selects, flow.from.is_escape);
+    /* if flow was ->RETURN, clear is_escape */
+    auto into = FlowValue(
+        newIntoExpr, flow.into.indirect_level, flow.into.field_selects,
+        flow.into.is_escape == EscapeType::RETURN ? EscapeType::NONE
+                                                  : flow.into.is_escape);
+
+    flows.emplace_back(Flow(from, into));
+  }
+}
 
 IntLiteral::IntLiteral(const SourceLocation &loc, const Value &val,
                        std::shared_ptr<ast::IntType> type, uint64_t value)

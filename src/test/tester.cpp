@@ -119,15 +119,21 @@ void TesterInstance::readHeader() {
   while (!(arg = readToken()).empty()) {
     if (arg == "parse") {
       modes.insert(TestMode::Parse);
+    } else if (arg == "type_check") {
+      modes.insert(TestMode::Parse);
+      modes.insert(TestMode::TypeCheck);
     } else if (arg == "compile") {
       modes.insert(TestMode::Parse);
+      modes.insert(TestMode::TypeCheck);
       modes.insert(TestMode::Compile);
     } else if (arg == "run") {
       modes.insert(TestMode::Parse);
+      modes.insert(TestMode::TypeCheck);
       modes.insert(TestMode::Compile);
       modes.insert(TestMode::Run);
     } else if (arg == "run_check_output") {
       modes.insert(TestMode::Parse);
+      modes.insert(TestMode::TypeCheck);
       modes.insert(TestMode::Compile);
       modes.insert(TestMode::Run);
       modes.insert(TestMode::RunCheckOutput);
@@ -136,12 +142,18 @@ void TesterInstance::readHeader() {
       modes.insert(TestMode::CheckAST);
     } else if (arg == "check_ir") {
       modes.insert(TestMode::Parse);
+      modes.insert(TestMode::TypeCheck);
       modes.insert(TestMode::Compile);
       modes.insert(TestMode::CheckIR);
+    } else if (arg == "check_escape") {
+      modes.insert(TestMode::Parse);
+      modes.insert(TestMode::TypeCheck);
+      modes.insert(TestMode::Compile);
+      modes.insert(TestMode::CheckEscape);
     } else {
       doError("invalid test mode (expected parse, compile, run, "
               "run_check_output, "
-              "check_ast, and/or check_ir)");
+              "check_ast, check_ir, and/or check_escape)");
       return;
     }
   }
@@ -379,6 +391,37 @@ int TesterInstance::runCheckIR(ErrorManager &errorMan,
   return 0;
 }
 
+int TesterInstance::runCheckEscape(ErrorManager &errorMan,
+                                   const ir::InstructionList &ir) {
+  // run escape analysis and print escaping flows to string
+  std::ostringstream escape_out;
+  // only check escapes
+  ir::runEscapeAnalysis(ir, false, true, false, escape_out);
+  // read in expected escape info
+  auto escape_filename = filename + ".expect.escape";
+  auto escape_file = std::ifstream(escape_filename);
+  if (!escape_file.is_open()) {
+    doError(
+        string_format("failed to open file %s, expected by mode check_escape",
+                      escape_filename.c_str()));
+  }
+  std::string expected_escape(std::istreambuf_iterator<char>(escape_file), {});
+
+  // compare parsed to expected
+  if (escape_out.str() != expected_escape) {
+    std::cout << "check_escape " << filename
+              << ": escapes don't match expected escapes in file "
+              << escape_filename << "\n";
+    std::cout << "------------ expected escapes ------------\n"
+              << expected_escape << "\n";
+    std::cout << "------------  generated escapes  ------------\n"
+              << escape_out.str() << "\n";
+    return 1;
+  }
+
+  return 0;
+}
+
 int TesterInstance::run() {
   readHeader();
 
@@ -404,25 +447,37 @@ int TesterInstance::run() {
       }
     }
 
-    if (modes.count(TestMode::Compile) > 0) {
+    if (modes.count(TestMode::TypeCheck) > 0) {
       if (parseDidError) {
-        std::cout
-            << "\x1b[1;31mparse pass raised errors, cannot run compile\x1b[m\n";
+        std::cout << "\x1b[1;31mparse pass raised errors, cannot run "
+                     "type_check\x1b[m\n";
         failed = 1;
       } else {
         // generate ir
         auto ir = ast::typeCheckProduceIR(errorMan, packageName, ast);
-        // run escape analysis
-        ir::runEscapeAnalysis(ir, true, std::cout);
-
-        if (modes.count(TestMode::CheckIR) > 0) {
+        if (modes.count(TestMode::Compile) > 0) {
           if (errorMan.criticalErrorOccurred()) {
-            std::cout << "\x1b[1;31mcompile pass raised errors, cannot run "
-                         "check_ir\x1b[m\n";
+            std::cout << "\x1b[1;31mtype_check pass raised errors, cannot run "
+                         "compile\x1b[m\n";
             failed = 1;
-          } else {
-            if (runCheckIR(errorMan, ir))
+          }
+          // run escape analysis
+          if (modes.count(TestMode::CheckEscape) > 0) {
+            if (runCheckEscape(errorMan, ir))
               failed = 1;
+          } else {
+            ir::runEscapeAnalysis(ir, false, false, false, std::cout);
+          }
+
+          if (modes.count(TestMode::CheckIR) > 0) {
+            if (errorMan.criticalErrorOccurred()) {
+              std::cout << "\x1b[1;31mcompile pass raised errors, cannot run "
+                           "check_ir\x1b[m\n";
+              failed = 1;
+            } else {
+              if (runCheckIR(errorMan, ir))
+                failed = 1;
+            }
           }
         }
       }

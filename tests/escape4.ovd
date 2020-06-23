@@ -1,0 +1,14 @@
+// __ovid_compiler_test
+//__mode: check_escape
+//__end_header
+
+module test
+
+fn test1(arg i32) -> *i32 {
+    return &arg
+}
+
+fn test2() -> *i32 {
+    val a = 5
+    return test1(a)
+}

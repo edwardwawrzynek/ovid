@@ -1,5 +1,5 @@
 // __ovid_compiler_test
-//__mode: compile
+//__mode: type_check
 //__end_header
 
 val a i32 = 465

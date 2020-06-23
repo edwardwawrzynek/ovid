@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
 
   // run escape analysis
   std::cout << "\n---- ESCAPE ANALYSIS ----\n";
-  ovid::ir::runEscapeAnalysis(ir, true, std::cout);
+  ovid::ir::runEscapeAnalysis(ir, true, true, true, std::cout);
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";

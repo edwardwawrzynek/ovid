@@ -1,0 +1,34 @@
+// __ovid_compiler_test
+//__mode: check_escape
+//__end_header
+
+module test
+
+fn test1(a *i32) -> (*i32, *i32) {
+    val b = 5
+    val c = (*&a, &b)
+    return c
+}
+
+fn test2(a *(u32, u32)) -> *(u32, u32) {
+    val b = a
+    val c = &b
+    val d = *c
+
+    return d
+}
+
+fn test3() -> *i32 {
+    val a = 5
+    val b = (&a, a)
+    val c = &b
+    return (*c).0
+}
+
+fn test4() -> *mut (*i32, *mut i32) {
+    val a = 5
+    mut b = 6
+    mut c = (&a, &b)
+
+    return &c
+}
