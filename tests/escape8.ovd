@@ -1,0 +1,18 @@
+// __ovid_compiler_test
+//__mode: check_escape
+//__end_header
+
+module test
+
+
+val tmp i32 = 5
+mut sink *i32 = &tmp
+
+fn test(a *i32) {
+	sink = a
+}
+
+fn test2() {
+	val a = (5,6)
+	test(&a.1)
+}

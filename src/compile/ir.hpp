@@ -26,6 +26,8 @@ uint64_t next_id();
 void reset_id();
 
 class Instruction;
+class Expression;
+class Allocation;
 typedef std::vector<std::unique_ptr<Instruction>> InstructionList;
 
 /* escape analysis structures */
@@ -77,6 +79,18 @@ public:
   FlowValue(Expression &expr, int32_t indirect_level,
             const std::vector<std::vector<int32_t>> &field_selects);
 
+  /* given an ir::Expression, produce a flow value of the expression including
+   * field selects, dereferences, and addresses
+   *
+   * this returns the flow value with the dereference expected if a copy is
+   * involved (such as in assignment). Because of this, the indirect_level may
+   * be -1 (eg -- an address was taken)
+   *
+   * if an address is taken, field_selects_on_deref will hold the lost field
+   * selects that should be added back on if a dereference is later taken */
+  static FlowValue getFlowFromExpressionWithoutCopy(
+      Expression &expr, std::vector<int32_t> &field_selects_on_deref);
+
 private:
   /* add any types that may flow a type and indirections and field selects
    *applied to it
@@ -91,18 +105,6 @@ private:
 
   /* check if an expression is a global escape */
   static EscapeType isGlobalEscape(Expression &expr);
-
-  /* given an ir::Expression, produce a flow value of the expression including
-   * field selects, dereferences, and addresses
-   *
-   * this returns the flow value with the dereference expected if a copy is
-   * involved (such as in assignment). Because of this, the indirect_level may
-   * be -1 (eg -- an address was taken)
-   *
-   * if an address is taken, field_selects_on_deref will hold the lost field
-   * selects that should be added back on if a dereference is later taken */
-  static FlowValue getFlowFromExpressionWithoutCopy(
-      Expression &expr, std::vector<int32_t> &field_selects_on_deref);
 };
 
 /* flow from one value to another */
@@ -153,6 +155,53 @@ public:
 
   Value();
 };
+
+/* function flow metadata */
+class FuncFlowValue {
+public:
+  /* index of argument, -1 for return, -2 for escape */
+  int32_t arg_index;
+  int32_t indirect_level;
+  std::vector<std::vector<int32_t>> field_selects;
+
+  FuncFlowValue(int32_t arg_index, int32_t indirect_level,
+                const std::vector<std::vector<int32_t>> &field_selects);
+
+  void print(std::ostream &output);
+
+  /* given a flow value and a list of function args, create a func flow value */
+  static FuncFlowValue
+  fromFlowValue(const FlowValue &value,
+                const std::vector<std::reference_wrapper<Allocation>> &args);
+
+  /* given the expressions being passed to a function call, produce a FlowValue
+   * adapted to the proper expression returnExpr is the function call
+   * instruction escapeValue is a value that can be used if the value is an
+   * escape (to get type checking to work). If this isn't an escape, it can be
+   * null*/
+  FlowValue
+  toFlowValue(const std::vector<std::reference_wrapper<Expression>> &args,
+              Expression &returnExpr, const FlowValue *escapeValue);
+};
+
+class FuncFlow {
+public:
+  FuncFlowValue from;
+  FuncFlowValue into;
+
+  FuncFlow(const FuncFlowValue &from, const FuncFlowValue &into);
+
+  void print(std::ostream &output);
+
+  static FuncFlow
+  fromFlow(const Flow &flow,
+           const std::vector<std::reference_wrapper<Allocation>> &args);
+
+  Flow toFlow(const std::vector<std::reference_wrapper<Expression>> &args,
+              Expression &returnExpr);
+};
+
+typedef std::vector<FuncFlow> FuncFlowList;
 
 /* the base instruction type in the ir */
 class Instruction {
@@ -251,7 +300,7 @@ public:
   BasicBlockList body;
 
   /* escape analysis metadata */
-  std::vector<Flow> flow_metadata;
+  std::vector<FuncFlow> flow_metadata;
   FunctionEscapeAnalysisState flow_state;
 
   bool hasFlowMetadata() override;
@@ -266,6 +315,10 @@ public:
       const std::vector<std::reference_wrapper<Allocation>> &argAllocs,
       BasicBlockList body);
 };
+
+size_t
+findIndexOfArg(const std::vector<std::reference_wrapper<Allocation>> &args,
+               const Expression &expr);
 
 /* int literal instruction */
 class IntLiteral : public Expression {

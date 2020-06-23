@@ -172,24 +172,7 @@ void FunctionDeclare::addFlowMetadata(
   assert(hasFlowMetadata());
 
   for (auto &flow : flow_metadata) {
-    /* adjust from and into expressions for args */
-    auto &newFromExpr = args[findIndexOfArg(argAllocs, flow.from.expr)].get();
-    auto &newIntoExpr =
-        flow.into.is_escape == EscapeType::NONE
-            ? args[findIndexOfArg(argAllocs, flow.into.expr)].get()
-            : (flow.into.is_escape == EscapeType::RETURN ? returnExpr
-                                                         : flow.into.expr);
-
-    /* create flow and add */
-    auto from = FlowValue(newFromExpr, flow.from.indirect_level,
-                          flow.from.field_selects, flow.from.is_escape);
-    /* if flow was ->RETURN, clear is_escape */
-    auto into = FlowValue(
-        newIntoExpr, flow.into.indirect_level, flow.into.field_selects,
-        flow.into.is_escape == EscapeType::RETURN ? EscapeType::NONE
-                                                  : flow.into.is_escape);
-
-    flows.emplace_back(Flow(from, into));
+    flows.push_back(flow.toFlow(args, returnExpr));
   }
 }
 

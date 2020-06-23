@@ -10,8 +10,17 @@ fn test1(a *i32) -> (i32, (*(*i32, i32))) {
 }
 
 fn test2() -> *i32 {
-    val a = 5
-    val b = test1(&a)
+    val a = (5, 3)
+    val b = test1(&a.1)
 
     return (*(b.1)).0
+}
+
+fn test3() -> *i32 {
+    val a = 6
+    val b = 7
+    val c = (&a, &b)
+    val d = test1(c.1)
+
+    return (*(d.1)).0
 }

@@ -343,41 +343,135 @@ Flow Flow::specializedTo(const FlowValue &value) const {
   return indirectionsFor(value).specializeFieldsTo(value);
 }
 
+FuncFlowValue::FuncFlowValue(
+    int32_t arg_index, int32_t indirect_level,
+    const std::vector<std::vector<int32_t>> &field_selects)
+    : arg_index(arg_index), indirect_level(indirect_level),
+      field_selects(field_selects) {
+  assert(field_selects.size() == (uint32_t)(indirect_level + 1));
+}
+
+FuncFlow::FuncFlow(const FuncFlowValue &from, const FuncFlowValue &into)
+    : from(from), into(into) {}
+
+FuncFlowValue FuncFlowValue::fromFlowValue(
+    const FlowValue &value,
+    const std::vector<std::reference_wrapper<Allocation>> &args) {
+  int32_t arg_index = 0;
+  if (value.is_escape == EscapeType::RETURN) {
+    arg_index = -1;
+  } else if (value.is_escape == EscapeType::OTHER) {
+    arg_index = -2;
+  } else {
+    arg_index = findIndexOfArg(args, value.expr);
+  }
+
+  return FuncFlowValue(arg_index, value.indirect_level, value.field_selects);
+}
+
+FuncFlow FuncFlow::fromFlow(
+    const Flow &flow,
+    const std::vector<std::reference_wrapper<Allocation>> &args) {
+  return FuncFlow(FuncFlowValue::fromFlowValue(flow.from, args),
+                  FuncFlowValue::fromFlowValue(flow.into, args));
+}
+
+void FuncFlowValue::print(std::ostream &output) {
+  for (int32_t i = 0; i < indirect_level; i++) {
+    output << "*(";
+  }
+
+  output << "%";
+  if (arg_index == -1) {
+    output << "RETURN";
+  } else if (arg_index == -2) {
+    output << "ESCAPE";
+  } else {
+    output << "arg:" << arg_index;
+  }
+
+  for (int32_t i = 0; i <= indirect_level; i++) {
+    if (i < indirect_level)
+      output << ")";
+
+    for (auto &select : field_selects[i]) {
+      output << "." << select;
+    }
+  }
+}
+
+void FuncFlow::print(std::ostream &output) {
+  from.print(output);
+  output << " flows to ";
+  into.print(output);
+  output << "\n";
+}
+
+FlowValue FuncFlowValue::toFlowValue(
+    const std::vector<std::reference_wrapper<Expression>> &args,
+    Expression &returnExpr, const FlowValue *escapeValue) {
+  if (arg_index == -2) {
+    assert(escapeValue != nullptr);
+    /* copy escapeValue and set escape flag */
+    return FlowValue(escapeValue->expr, escapeValue->indirect_level,
+                     escapeValue->field_selects, EscapeType::OTHER);
+  }
+
+  /* select expression to use (arg or return) */
+  auto &expr = arg_index == -1 ? returnExpr : args[arg_index].get();
+
+  std::vector<int32_t> field_selects_on_deref;
+  auto exprValue =
+      FlowValue::getFlowFromExpressionWithoutCopy(expr, field_selects_on_deref);
+
+  assert(exprValue.field_selects.size() ==
+         (uint32_t)(exprValue.indirect_level + 1));
+
+  /* add this's indirects + field selects to exprValue */
+  exprValue.indirect_level += indirect_level;
+  /* combine outermost exprValue selects and innermost this selects */
+  if (!field_selects.front().empty()) {
+    auto &exprSelectsBack = exprValue.field_selects.back();
+    exprSelectsBack.insert(exprSelectsBack.end(), field_selects.front().begin(),
+                           field_selects.front().end());
+  }
+  /* add rest of this selects */
+  for (size_t i = 1; i < field_selects.size(); i++) {
+    exprValue.field_selects.push_back(field_selects[i]);
+  }
+  /* if needed, apply field_selects_on_deref */
+  if (!field_selects_on_deref.empty()) {
+    /* if field_selects_on_deref isn't empty, top level of expression was an
+     * address. can't take fields on pointers, so none should be present */
+    assert(exprValue.field_selects[0].empty());
+    /* add field selects */
+    exprValue.field_selects[0].insert(exprValue.field_selects[0].end(),
+                                      field_selects_on_deref.begin(),
+                                      field_selects_on_deref.end());
+  }
+  assert(exprValue.field_selects.size() ==
+         (uint32_t)(exprValue.indirect_level + 1));
+
+  return exprValue;
+}
+
+Flow FuncFlow::toFlow(
+    const std::vector<std::reference_wrapper<Expression>> &args,
+    Expression &returnExpr) {
+  /* from shouldn't be a return or escape */
+  assert(from.arg_index >= 0);
+  auto newFrom = from.toFlowValue(args, returnExpr, nullptr);
+  auto newInto = into.toFlowValue(args, returnExpr, &newFrom);
+
+  return Flow(newFrom, newInto);
+}
+
 template <class T>
 static bool vectorContains(const std::vector<T> &vector, const T &value) {
   return std::find(vector.begin(), vector.end(), value) != vector.end();
 }
 
-void traceFlow(const FlowValue &value, const FlowList &flows,
-               const std::function<void(const FlowValue &)> &func,
-               std::vector<FlowValue> &visited) {
-  for (auto &flow : flows) {
-    if (flow.contains(value)) {
-      auto specialized = flow.specializedTo(value);
-
-      auto &newVal = specialized.into;
-
-      if (vectorContains(visited, newVal))
-        continue;
-      visited.push_back(newVal);
-
-      func(specialized.into);
-      /* don't follow escaping flows */
-      if (newVal.is_escape == EscapeType::NONE) {
-        traceFlow(newVal, flows, func);
-      }
-    }
-  }
-}
-
-void traceFlow(const FlowValue &value, const FlowList &flows,
-               const std::function<void(const FlowValue &)> &func) {
-  std::vector<FlowValue> visited;
-
-  return traceFlow(value, flows, func, visited);
-}
-
-void traceFlowFindSpecialized(
+void traceFlow(
     const FlowValue &value, const FlowValue &initValue, const FlowList &flows,
     const std::function<void(const FlowValue &)> &func,
     const std::function<void(const FlowValue &)> &specializedFlowFunc,
@@ -391,39 +485,33 @@ void traceFlowFindSpecialized(
 
       if (vectorContains(visitedFlows, newVal))
         continue;
-      visitedFlows.push_back(newVal);
 
-      func(newVal);
+      func(specialized.into);
       /* don't follow escaping flows */
       if (newVal.is_escape == EscapeType::NONE) {
-        traceFlowFindSpecialized(newVal, flows, func, specializedFlowFunc);
+        traceFlow(newVal, initValue, flows, func, specializedFlowFunc,
+                  visitedFlows, visitedSpecializations);
       }
+
+      visitedFlows.push_back(newVal);
     } else if (flow.from.expr.val.id == value.expr.val.id) {
       /* flow is more specialized than value, adjust to initValue and call
        * specializedFlowFunc */
       auto generalFlow = Flow(value, initValue);
-      auto specialFlow = generalFlow.specializedTo(flow.from);
+      /* generalFlow may have field selects incompatible with flow.from */
+      if (!generalFlow.contains(flow.from))
+        continue;
 
+      auto specialFlow = generalFlow.specializedTo(flow.from);
       auto &specialVal = specialFlow.into;
 
       if (vectorContains(visitedSpecializations, specialVal))
         continue;
-      visitedSpecializations.push_back(specialVal);
 
       specializedFlowFunc(specialVal);
+      visitedSpecializations.push_back(specialVal);
     }
   }
-}
-
-void traceFlowFindSpecialized(
-    const FlowValue &value, const FlowList &flows,
-    const std::function<void(const FlowValue &)> &func,
-    const std::function<void(const FlowValue &)> &specializedFlowFunc) {
-  std::vector<FlowValue> visitedFlows;
-  std::vector<FlowValue> visitedSpecializations;
-  /* at root of search, value and initValue are the same */
-  traceFlowFindSpecialized(value, value, flows, func, specializedFlowFunc,
-                           visitedFlows, visitedSpecializations);
 }
 
 Allocation *getOwningAllocation(Expression *expr) {
@@ -517,35 +605,20 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
     selects.emplace_back();
     auto value = FlowValue(alloc, 0, selects);
 
-    traceFlow(value, flows, [this, &alloc](const FlowValue &dst) {
-      /* if value is already marked escaping, don't mark again */
-      if (alloc.allocType != AllocationType::HEAP &&
-          alloc.allocType != AllocationType::ARG_HEAP) {
-        if (dst.is_escape != EscapeType::NONE) {
-          /* mark as heap allocated */
-          if (AllocationTypeIsArg(alloc.allocType)) {
-            alloc.allocType = AllocationType::ARG_HEAP;
-          } else {
-            alloc.allocType = AllocationType::HEAP;
-          }
-          /* print debug info */
-          if (print_escapes) {
-            output << "%" << alloc.val.sourceName[0] << " escapes\n";
-          }
-        }
-      }
-    });
+    std::vector<FlowValue> tmp1, tmp2;
+    markEscapingAllocations(flows, alloc, value, tmp1, tmp2);
   });
 
   // calculate flows needed for function metadata
   // these are flows where the source is an argument and the dest is another
   // arg, escape, or return
   for (auto &arg : instruct.argAllocs) {
+    std::vector<FlowValue> tmp1, tmp2;
     std::vector<std::vector<int32_t>> selects;
     selects.emplace_back();
     auto value = FlowValue(arg.get(), 0, selects);
     calculateFunctionFlowMetadata(instruct.flow_metadata, instruct.argAllocs,
-                                  flows, value);
+                                  flows, value, tmp1, tmp2);
   }
 
   if (print_func_flow_metadata) {
@@ -560,6 +633,40 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
   return 0;
 }
 
+void EscapeAnalysisPass::markEscapingAllocations(
+    const ir::FlowList &flows, Allocation &alloc, const FlowValue &srcValue,
+    std::vector<FlowValue> &visitedFlows,
+    std::vector<FlowValue> &visitedSpecialization) {
+  traceFlow(
+      srcValue, srcValue, flows,
+      [this, &alloc](const FlowValue &dst) {
+        /* if value is already marked escaping, don't mark again */
+        if (dst.is_escape != EscapeType::NONE &&
+            alloc.allocType != AllocationType::HEAP &&
+            alloc.allocType != AllocationType::ARG_HEAP) {
+          /* mark as heap allocated */
+          if (AllocationTypeIsArg(alloc.allocType)) {
+            alloc.allocType = AllocationType::ARG_HEAP;
+          } else {
+            alloc.allocType = AllocationType::HEAP;
+          }
+          /* print debug info */
+          if (print_escapes) {
+            output << "%" << alloc.val.sourceName[0] << " escapes\n";
+          }
+        }
+      },
+      [this, &alloc, &flows, &visitedFlows,
+       &visitedSpecialization](const FlowValue &special) {
+        /* if %a.field escapes, so does %a */
+        if (special.indirect_level == 0) {
+          markEscapingAllocations(flows, alloc, special, visitedFlows,
+                                  visitedSpecialization);
+        }
+      },
+      visitedFlows, visitedSpecialization);
+}
+
 bool EscapeAnalysisPass::argsContain(
     const std::vector<std::reference_wrapper<Allocation>> &funcArgs,
     const Expression &expr) {
@@ -572,12 +679,14 @@ bool EscapeAnalysisPass::argsContain(
 }
 
 void EscapeAnalysisPass::calculateFunctionFlowMetadata(
-    ir::FlowList &functionFlows,
+    ir::FuncFlowList &functionFlows,
     const std::vector<std::reference_wrapper<Allocation>> &funcArgs,
-    const ir::FlowList &flows, const FlowValue &srcValue) {
-  traceFlowFindSpecialized(
-      srcValue, flows,
-      [&functionFlows, funcArgs, flows, srcValue](const FlowValue &dstValue) {
+    const ir::FlowList &flows, const FlowValue &srcValue,
+    std::vector<FlowValue> &visitedFlows,
+    std::vector<FlowValue> &visitedSpecialization) {
+  traceFlow(
+      srcValue, srcValue, flows,
+      [&functionFlows, &funcArgs, &srcValue](const FlowValue &dstValue) {
         /* srcValue flows to dstValue
          * only add flow if it involves an arg->arg, arg->escape or arg->return
          * flow */
@@ -593,17 +702,22 @@ void EscapeAnalysisPass::calculateFunctionFlowMetadata(
             newSelects.emplace_back();
             auto newSrc = FlowValue(srcValue.expr, srcValue.indirect_level + 1,
                                     newSelects, srcValue.is_escape);
-            functionFlows.emplace_back(flow.specializedTo(newSrc));
+            auto newFlow = flow.specializedTo(newSrc);
+
+            functionFlows.emplace_back(FuncFlow::fromFlow(newFlow, funcArgs));
           } else {
-            functionFlows.emplace_back(flow);
+            functionFlows.emplace_back(FuncFlow::fromFlow(flow, funcArgs));
           }
         }
       },
-      [this, &functionFlows, funcArgs, flows](const FlowValue &specialValue) {
+      [this, &functionFlows, &funcArgs, &flows, &visitedFlows,
+       &visitedSpecialization](const FlowValue &specialValue) {
         /* trace specialized value */
         calculateFunctionFlowMetadata(functionFlows, funcArgs, flows,
-                                      specialValue);
-      });
+                                      specialValue, visitedFlows,
+                                      visitedSpecialization);
+      },
+      visitedFlows, visitedSpecialization);
 }
 
 int EscapeAnalysisPass::visitBasicBlock(BasicBlock &instruct,
@@ -644,18 +758,7 @@ int EscapeAnalysisPass::visitFunctionCall(FunctionCall &instruct,
   /* if we can get escape information for function, use that */
   if (instruct.function.hasFlowMetadata()) {
     visitInstruction(instruct.function, EscapeAnalysisState(false, nullptr));
-    /* TODO: get flow values for each arg instead of this */
-    for (auto &argWrapper : instruct.arguments) {
-      auto &arg = argWrapper.get();
-      auto argFrom = FlowValue::getFlowFromExpression(arg);
-      auto argTo = FlowValue::getFlowForDereference(arg);
-      if (argFrom != argTo) {
-        auto flow = Flow(argFrom, argTo);
-        if (!flow.isEmpty())
-          state.curFlowList->push_back(flow);
-      }
-    }
-    /* add arg flows to flow list */
+    /* addjust function flows to  args and add to flow list */
     instruct.function.addFlowMetadata(*state.curFlowList, instruct.arguments,
                                       instruct);
   }

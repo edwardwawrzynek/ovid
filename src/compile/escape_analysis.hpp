@@ -15,27 +15,12 @@
 namespace ovid::ir {
 
 /* given a value and a list of flows, find all values to which the value may
- * flow values are passed to func
- */
-void traceFlow(const FlowValue &value, const FlowList &flows,
-               const std::function<void(const FlowValue &)> &func,
-               std::vector<FlowValue> &visited);
-
-void traceFlow(const FlowValue &value, const FlowList &flows,
-               const std::function<void(const FlowValue &)> &func);
-
-/* same as traceFlow, but if a flow matching a more specialized form of value is
- * found, that more specified form is passed to specializedFlowFunc (but not
- * followed)
+ * flow. if a flow matching a more specialized form of value is found, that more
+ * specified form is passed to specializedFlowFunc (but not followed)
  *
- * initValue is the
+ * initValue is the value to transform specialized variants onto
  */
-void traceFlowFindSpecialized(
-    const FlowValue &value, const FlowList &flows,
-    const std::function<void(const FlowValue &)> &func,
-    const std::function<void(const FlowValue &)> &specializedFlowFunc);
-
-void traceFlowFindSpecialized(
+void traceFlow(
     const FlowValue &value, const FlowValue &initValue, const FlowList &flows,
     const std::function<void(const FlowValue &)> &func,
     const std::function<void(const FlowValue &)> &specializedFlowFunc,
@@ -103,10 +88,18 @@ class EscapeAnalysisPass : public BaseIRVisitor<int, EscapeAnalysisState> {
   static bool
   argsContain(const std::vector<std::reference_wrapper<Allocation>> &funcArgs,
               const Expression &expr);
+
   void calculateFunctionFlowMetadata(
-      ir::FlowList &functionFlows,
+      ir::FuncFlowList &functionFlows,
       const std::vector<std::reference_wrapper<Allocation>> &funcArgs,
-      const ir::FlowList &flows, const FlowValue &srcValue);
+      const ir::FlowList &flows, const FlowValue &srcValue,
+      std::vector<FlowValue> &visitedFlows,
+      std::vector<FlowValue> &visitedSpecialization);
+
+  void markEscapingAllocations(const ir::FlowList &flows, Allocation &alloc,
+                               const FlowValue &srcValue,
+                               std::vector<FlowValue> &visitedFlows,
+                               std::vector<FlowValue> &visitedSpecialization);
 
 public:
   EscapeAnalysisPass(bool print_flows, bool print_escapes,

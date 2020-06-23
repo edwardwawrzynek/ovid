@@ -15,3 +15,10 @@ fn test2() -> *i32 {
 
     return (*(b.1)).0
 }
+
+fn test3() -> i32 {
+    val a = 5
+    val b = test1(&a)
+
+    return (*(b.1)).1
+}
