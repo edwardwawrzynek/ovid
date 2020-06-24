@@ -153,7 +153,7 @@ std::shared_ptr<Type> ProductType::getTypeOfField(int32_t field_index) const {
 size_t ProductType::getNumFields() const { assert(false); }
 
 std::shared_ptr<Type> TupleType::getTypeOfField(int32_t field_index) const {
-  assert(field_index >= 0 && field_index < types.size());
+  assert(field_index >= 0 && (uint32_t)field_index < types.size());
 
   return types[field_index];
 }

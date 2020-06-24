@@ -8,6 +8,7 @@
 #include "resolve_pass.hpp"
 #include "tokenizer.hpp"
 #include "type_check.hpp"
+#include "llvm_codegen.hpp"
 #include <iostream>
 
 int main(int argc, char **argv) {
@@ -53,6 +54,12 @@ int main(int argc, char **argv) {
   // run escape analysis
   std::cout << "\n---- ESCAPE ANALYSIS ----\n";
   ovid::ir::runEscapeAnalysis(ir, true, true, true, std::cout);
+
+  // generate llvm
+  std::cout << "\n---- LLVM OUT ----\n";
+  auto codegen = ovid::ir::LLVMCodegenPass(argv[1]);
+  codegen.visitInstructions(ir, ovid::ir::LLVMCodegenPassState());
+  codegen.llvm_module->print(llvm::outs(), nullptr);
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";
