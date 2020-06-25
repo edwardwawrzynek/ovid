@@ -4,11 +4,11 @@
 #include "escape_analysis.hpp"
 #include "ir.hpp"
 #include "ir_printer.hpp"
+#include "llvm_codegen.hpp"
 #include "parser.hpp"
 #include "resolve_pass.hpp"
 #include "tokenizer.hpp"
 #include "type_check.hpp"
-#include "llvm_codegen.hpp"
 #include <iostream>
 
 int main(int argc, char **argv) {

@@ -2,16 +2,32 @@
 //__mode: check_escape
 //__end_header
 
-fn test1(a *i32) -> (i32, (*(*i32, i32))) {
-    val b = (a, *a)
-    val c = (*a, &b)
+fn test2() {
+    val a = 5
+    val b = (&a, a)
+    val c = a
 
-    return c
+    return
 }
 
-fn test2() -> *i32 {
-    val a = 5
-    val b = test1(&a)
+/*fn test3(a *bool, b **u8, c bool, d *(i32, *(**i32, u8))) {
+    if c {
+        if c {
+        val var = 7
+            test2()
+        } else {
+            test2()
+        }
+        return
+    } else {
+        true
+    }
+}*/
 
-    return (*(b.1)).0
+fn test1(a i32) -> i32 {
+    return a + 1
+}
+
+fn sum(a i32, b *mut i32) -> i32 {
+    return a + test1(*b)
 }

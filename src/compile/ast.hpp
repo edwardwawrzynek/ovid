@@ -128,6 +128,7 @@ public:
   virtual bool containsPointer() const;
 
   virtual const Type *withoutMutability() const;
+  virtual Type *withoutMutability();
 
   explicit Type(const SourceLocation &loc) : loc(loc){};
 };
@@ -198,10 +199,11 @@ public:
 };
 
 class MutType : public Type {
-  const Type *withoutMutability() const override;
-
 public:
   std::shared_ptr<Type> type;
+
+  const Type *withoutMutability() const override;
+  Type *withoutMutability() override;
 
   bool equalToExpected(const Type &expected) const override;
 

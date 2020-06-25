@@ -1,6 +1,7 @@
 #ifndef LLVM_CODEGEN_H
 #define LLVM_CODEGEN_H
 
+#include "ast_visitor.hpp"
 #include "ir_visitor.hpp"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/Optional.h"
@@ -25,12 +26,57 @@
 #include "llvm/Target/TargetOptions.h"
 
 namespace ovid::ir {
+
+/* type visitor, which converts ast types to llvm types */
+class LLVMTypeGenState {
+public:
+  LLVMTypeGenState() = default;
+};
+
+class LLVMTypeGen
+    : public ast::BaseTypeVisitor<llvm::Type *, LLVMTypeGenState> {
+  llvm::LLVMContext &llvm_context;
+  llvm::Type *visitVoidType(ast::VoidType &type,
+                            const LLVMTypeGenState &state) override;
+  llvm::Type *visitBoolType(ast::BoolType &type,
+                            const LLVMTypeGenState &state) override;
+  llvm::Type *visitIntType(ast::IntType &type,
+                           const LLVMTypeGenState &state) override;
+  llvm::Type *visitFloatType(ast::FloatType &type,
+                             const LLVMTypeGenState &state) override;
+
+  llvm::Type *visitMutType(ast::MutType &type,
+                           const LLVMTypeGenState &state) override;
+  llvm::Type *visitPointerType(ast::PointerType &type,
+                               const LLVMTypeGenState &state) override;
+
+  llvm::Type *visitFunctionType(ast::FunctionType &type,
+                                const LLVMTypeGenState &state) override;
+  llvm::Type *visitNamedFunctionType(ast::NamedFunctionType &type,
+                                     const LLVMTypeGenState &state) override;
+
+  llvm::Type *visitTupleType(ast::TupleType &type,
+                             const LLVMTypeGenState &state) override;
+
+public:
+  using BaseTypeVisitor::visitType;
+  llvm::Type *visitType(ast::Type &type);
+
+  explicit LLVMTypeGen(llvm::LLVMContext &llvm_context)
+      : BaseTypeVisitor(nullptr), llvm_context(llvm_context){};
+};
+
 /* the llvm codegen pass over the ir.
  * the pass visits each ir instruction and emits the appropriate llvm ir
  */
 class LLVMCodegenPassState {
 public:
-  LLVMCodegenPassState() = default;
+  llvm::Function *curFunc;
+
+  LLVMCodegenPassState() : curFunc(nullptr){};
+  explicit LLVMCodegenPassState(llvm::Function *curFunc) : curFunc(curFunc){};
+
+  LLVMCodegenPassState withFunc(llvm::Function *func) const;
 };
 
 class LLVMCodegenPass
@@ -39,15 +85,16 @@ public:
   llvm::LLVMContext llvm_context;
   llvm::IRBuilder<> builder;
   std::unique_ptr<llvm::Module> llvm_module;
-private:
+  LLVMTypeGen type_gen;
 
-  /*llvm::Value *visitFunctionDeclare(FunctionDeclare &instruct,
-                                    const LLVMCodegenPassState &state) override;*/
+private:
+  llvm::Value *visitFunctionDeclare(FunctionDeclare &instruct,
+                                    const LLVMCodegenPassState &state) override;
   llvm::Value *visitIntLiteral(IntLiteral &instruct,
                                const LLVMCodegenPassState &state) override;
   llvm::Value *visitBoolLiteral(BoolLiteral &instruct,
                                 const LLVMCodegenPassState &state) override;
-  /*llvm::Value *visitTupleLiteral(TupleLiteral &instruct,
+  llvm::Value *visitTupleLiteral(TupleLiteral &instruct,
                                  const LLVMCodegenPassState &state) override;
   llvm::Value *visitFunctionCall(FunctionCall &instruct,
                                  const LLVMCodegenPassState &state) override;
@@ -74,13 +121,29 @@ private:
   llvm::Value *visitJump(Jump &instruct,
                          const LLVMCodegenPassState &state) override;
   llvm::Value *visitConditionalJump(ConditionalJump &instruct,
-                                    const LLVMCodegenPassState &state) override;*/
+                                    const LLVMCodegenPassState &state) override;
+
+  /* generate a function prototype definition */
+  llvm::Function *visitFunctionPrototype(ast::NamedFunctionType *proto,
+                                         const std::string &name,
+                                         const LLVMCodegenPassState &state);
+
+  /* create the nodes appropriate for using the given value
+   * if the value is addressable, this is a load
+   * otherwise, nothing */
+  llvm::Value *useValue(Expression &value, const LLVMCodegenPassState &state);
+
+  llvm::Value *useAddr(Expression &value, const LLVMCodegenPassState &state);
+
+  /* handle a function call on a builtin operator */
+  llvm::Value *builtinCall(FunctionCall &instruct,
+                           const LLVMCodegenPassState &state);
 
 public:
-  LLVMCodegenPass(const std::string &module_name)
+  explicit LLVMCodegenPass(const std::string &module_name)
       : BaseIRVisitor(nullptr), llvm_context(), builder(llvm_context),
-        llvm_module(
-            std::make_unique<llvm::Module>(module_name, llvm_context)){};
+        llvm_module(std::make_unique<llvm::Module>(module_name, llvm_context)),
+        type_gen(llvm_context){};
 };
 
 } // namespace ovid::ir

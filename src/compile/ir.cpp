@@ -24,8 +24,11 @@ bool AllocationTypeIsGlobal(AllocationType type) {
 bool Expression::isAddressable() const { return false; }
 
 bool Allocation::isAddressable() const {
-  // allocation always addressable
-  return true;
+  // function args don't have addresses
+  if (allocType == AllocationType::ARG)
+    return false;
+  else
+    return true;
 }
 
 bool Dereference::isAddressable() const {
@@ -43,7 +46,8 @@ bool FieldSelect::isAddressable() const {
  */
 
 Value::Value(const std::vector<std::string> &sourceName)
-    : sourceName(sourceName), id(next_id()), hasSourceName(true) {}
+    : sourceName(sourceName), id(next_id()), hasSourceName(true),
+      llvm_value(nullptr) {}
 
 Value::Value() : id(next_id()), hasSourceName(false) {}
 
@@ -72,7 +76,8 @@ Allocation::Allocation(const SourceLocation &loc, const Value &val,
 }
 
 BasicBlock::BasicBlock(const SourceLocation &loc, InstructionList body)
-    : Instruction(loc), id(next_id()), body(std::move(body)) {}
+    : Instruction(loc), id(next_id()), body(std::move(body)), llvm_bb(nullptr) {
+}
 
 TupleLiteral::TupleLiteral(
     const SourceLocation &loc, const Value &val,

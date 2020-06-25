@@ -3,6 +3,7 @@
 namespace ovid::ast {
 
 const Type *ast::Type::withoutMutability() const { return this; }
+Type *Type::withoutMutability() { return this; }
 
 bool Type::equalToExpected(const Type &expected) const { return false; }
 
@@ -12,6 +13,7 @@ bool Type::containsPointer() const {
 }
 
 const Type *ast::MutType::withoutMutability() const { return type.get(); }
+Type *MutType::withoutMutability() { return type.get(); }
 
 void ScopedBlock::addStatement(std::unique_ptr<Statement> statement) {
   statements.push_back(std::move(statement));

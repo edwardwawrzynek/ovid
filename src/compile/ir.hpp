@@ -5,6 +5,8 @@
 #include <utility>
 
 #include "ast.hpp"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Value.h"
 
 /**
  * The higher level intermediate representation in the compiler (the LLVM IR is
@@ -151,6 +153,9 @@ public:
   // if the value has a source location or is using id
   bool hasSourceName;
 
+  // the generated llvm value (used by llvm_codegen)
+  llvm::Value *llvm_value;
+
   explicit Value(const std::vector<std::string> &sourceName);
 
   Value();
@@ -277,6 +282,9 @@ class BasicBlock : public Instruction {
 public:
   uint64_t id;
   InstructionList body;
+
+  /* pointer to llvm block, used during llvm_codegen */
+  llvm::BasicBlock *llvm_bb;
 
   BasicBlock(const SourceLocation &loc, InstructionList body);
 };
