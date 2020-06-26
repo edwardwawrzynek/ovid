@@ -1,4 +1,5 @@
 #include "ir.hpp"
+#include "ast.hpp"
 
 // ir is mostly header -- see ir.hpp
 
@@ -146,9 +147,9 @@ FunctionDeclare::FunctionDeclare(
     const SourceLocation &loc, const Value &val,
     std::shared_ptr<ast::NamedFunctionType> type,
     const std::vector<std::reference_wrapper<Allocation>> &argAllocs,
-    BasicBlockList body)
+    BasicBlockList body, bool is_public)
     : Expression(loc, val, std::move(type)), argAllocs(argAllocs),
-      body(std::move(body)), flow_metadata(),
+      body(std::move(body)), is_public(is_public), flow_metadata(),
       flow_state(FunctionEscapeAnalysisState::NOT_VISITED) {}
 
 bool FunctionDeclare::hasFlowMetadata() {
@@ -226,4 +227,32 @@ ConditionalJump::ConditionalJump(const SourceLocation &loc,
 Return::Return(const SourceLocation &loc, Expression *expression)
     : BasicBlockTerminator(loc), expr(expression) {}
 
+ForwardIdentifier::ForwardIdentifier(const SourceLocation &loc,
+                                     std::shared_ptr<Symbol> symbol_ref)
+    : Expression(loc, ir::Value(), symbol_ref->type),
+      symbol_ref(std::move(symbol_ref)) {}
+
+bool ForwardIdentifier::isAddressable() const {
+  /* TODO: allow for external identifiers */
+  assert(symbol_ref->ir_decl_instruction != nullptr);
+
+  return symbol_ref->ir_decl_instruction->isAddressable();
+}
+
+bool ForwardIdentifier::hasFlowMetadata() {
+  /* TODO: allow for external identifiers */
+  assert(symbol_ref->ir_decl_instruction != nullptr);
+
+  return symbol_ref->ir_decl_instruction->hasFlowMetadata();
+}
+
+void ForwardIdentifier::addFlowMetadata(
+    FlowList &flows,
+    const std::vector<std::reference_wrapper<Expression>> &args,
+    Expression &returnExpr) {
+  /* TODO: allow for external identifiers */
+  assert(symbol_ref->ir_decl_instruction != nullptr);
+
+  symbol_ref->ir_decl_instruction->addFlowMetadata(flows, args, returnExpr);
+}
 } // namespace ovid::ir

@@ -126,6 +126,7 @@ private:
   /* generate a function prototype definition */
   llvm::Function *visitFunctionPrototype(ast::NamedFunctionType *proto,
                                          const std::string &name,
+                                         bool is_public,
                                          const LLVMCodegenPassState &state);
 
   /* create the nodes appropriate for using the given value
@@ -138,6 +139,10 @@ private:
   /* handle a function call on a builtin operator */
   llvm::Value *builtinCall(FunctionCall &instruct,
                            const LLVMCodegenPassState &state);
+
+  /* visit an allocation while constructing the function entry block */
+  llvm::Value *visitAllocationEntry(Allocation &instruct,
+                                    const LLVMCodegenPassState &state);
 
 public:
   explicit LLVMCodegenPass(const std::string &module_name)

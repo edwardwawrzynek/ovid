@@ -240,6 +240,22 @@ public:
              std::shared_ptr<ast::Type> type);
 };
 
+/* a forward declared expression (likely a function or global) */
+class ForwardIdentifier : public Expression {
+public:
+  std::shared_ptr<Symbol> symbol_ref;
+
+  bool isAddressable() const override;
+  bool hasFlowMetadata() override;
+  void
+  addFlowMetadata(FlowList &flows,
+                  const std::vector<std::reference_wrapper<Expression>> &args,
+                  Expression &returnExpr) override;
+
+  ForwardIdentifier(const SourceLocation &loc,
+                    std::shared_ptr<Symbol> symbol_ref);
+};
+
 /* An allocation of storage space (either stack or heap) with the given type
  * Type of allocation is unknown at instantiation (later determined by escape
  * analysis)
@@ -306,6 +322,8 @@ public:
   std::vector<std::reference_wrapper<Allocation>> argAllocs;
 
   BasicBlockList body;
+  /* if the function has to have external linkage */
+  bool is_public;
 
   /* escape analysis metadata */
   std::vector<FuncFlow> flow_metadata;
@@ -321,7 +339,7 @@ public:
       const SourceLocation &loc, const Value &val,
       std::shared_ptr<ast::NamedFunctionType> type,
       const std::vector<std::reference_wrapper<Allocation>> &argAllocs,
-      BasicBlockList body);
+      BasicBlockList body, bool is_public);
 };
 
 size_t

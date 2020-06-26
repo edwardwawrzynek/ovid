@@ -320,7 +320,8 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
 
   // construct the function declaration instruction
   auto instr = std::make_unique<ir::FunctionDeclare>(
-      node.loc, ir::Value(sourceName), node.type, argAllocs, std::move(body));
+      node.loc, ir::Value(sourceName), node.type, argAllocs, std::move(body),
+      node.resolved_symbol->is_public);
   auto instrPointer = instr.get();
 
   curInstructionList->push_back(std::move(instr));

@@ -1,4 +1,6 @@
 #include "llvm_codegen.hpp"
+#include "escape_analysis.hpp"
+#include "name_mangle.hpp"
 
 namespace ovid::ir {
 
@@ -89,7 +91,7 @@ LLVMCodegenPass::visitBoolLiteral(BoolLiteral &instruct,
 
 llvm::Function *
 LLVMCodegenPass::visitFunctionPrototype(ast::NamedFunctionType *proto,
-                                        const std::string &name,
+                                        const std::string &name, bool is_public,
                                         const LLVMCodegenPassState &state) {
   std::vector<llvm::Type *> argTypes;
   for (auto &type : proto->type->argTypes) {
@@ -99,8 +101,11 @@ LLVMCodegenPass::visitFunctionPrototype(ast::NamedFunctionType *proto,
   auto functionType = llvm::FunctionType::get(
       type_gen.visitType(*proto->type->retType), argTypes, false);
 
-  auto function = llvm::Function::Create(
-      functionType, llvm::Function::ExternalLinkage, name, llvm_module.get());
+  auto link_type = is_public ? llvm::Function::ExternalLinkage
+                             : llvm::Function::InternalLinkage;
+
+  auto function =
+      llvm::Function::Create(functionType, link_type, name, llvm_module.get());
 
   for (size_t i = 0; i < proto->argNames.size(); i++) {
     function->getArg(i)->setName(proto->argNames[i]);
@@ -116,7 +121,8 @@ LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
   /* TODO: if function prototype already exists, use that */
   function = visitFunctionPrototype(
       dynamic_cast<ast::NamedFunctionType *>(instruct.type.get()),
-      instruct.val.sourceName.back(), state);
+      name_mangling::mangle(instruct.val.sourceName), instruct.is_public,
+      state);
 
   /* mark argument allocations with the llvm arg value */
   for (size_t i = 0; i < instruct.argAllocs.size(); i++) {
@@ -129,13 +135,21 @@ LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
         llvm::BasicBlock::Create(llvm_context, string_format("bb%i", bb->id));
     bb->llvm_bb = llvmBB;
   }
+  /* visit all allocations in the function and put them in an entry block */
+  auto entryBlock = llvm::BasicBlock::Create(llvm_context, "allocs", function);
+  builder.SetInsertPoint(entryBlock);
+  visitAllocations(instruct.body, [this, &state](Allocation &alloc) {
+    visitAllocationEntry(alloc, state);
+  });
+  /* jump to first basic block */
+  builder.CreateBr(instruct.body[0]->llvm_bb);
+
   /* visit basic blocks */
   for (auto &bb : instruct.body) {
     visitInstruction(*bb, state.withFunc(function));
   }
 
   llvm::verifyFunction(*function);
-
   return instruct.val.llvm_value = function;
 }
 
@@ -206,8 +220,8 @@ LLVMCodegenPass::visitConditionalJump(ConditionalJump &instruct,
 }
 
 llvm::Value *
-LLVMCodegenPass::visitAllocation(Allocation &instruct,
-                                 const LLVMCodegenPassState &state) {
+LLVMCodegenPass::visitAllocationEntry(Allocation &instruct,
+                                      const LLVMCodegenPassState &state) {
   if (AllocationTypeIsArg(instruct.allocType)) {
     /* function should have set value */
     assert(instruct.val.llvm_value != nullptr);
@@ -223,9 +237,9 @@ LLVMCodegenPass::visitAllocation(Allocation &instruct,
   } else {
     assert(instruct.val.llvm_value == nullptr);
     if (instruct.allocType == AllocationType::STACK) {
-      /* TODO: preserve source name */
       auto alloca =
-          builder.CreateAlloca(type_gen.visitType(*instruct.type), nullptr);
+          builder.CreateAlloca(type_gen.visitType(*instruct.type), nullptr,
+                               name_mangling::mangle(instruct.val));
       return instruct.val.llvm_value = alloca;
     } else if (instruct.allocType == AllocationType::HEAP) {
       /* TODO */
@@ -239,6 +253,15 @@ LLVMCodegenPass::visitAllocation(Allocation &instruct,
   }
 
   return nullptr;
+}
+
+llvm::Value *
+LLVMCodegenPass::visitAllocation(Allocation &instruct,
+                                 const LLVMCodegenPassState &state) {
+  /* allocation should have already been visited by FunctionDeclare */
+  assert(instruct.val.llvm_value != nullptr);
+
+  return instruct.val.llvm_value;
 }
 
 llvm::Value *LLVMCodegenPass::visitStore(Store &instruct,
@@ -339,10 +362,17 @@ struct InstrIntFloatVariant {
   llvm::Instruction::BinaryOps float_variant;
 };
 
+/* trivial (not short circuting, etc) binary ops with int + float variant */
 static std::map<ast::OperatorType, InstrIntFloatVariant> trivialBinaryOps = {
     {ast::OperatorType::ADD, {llvm::Instruction::Add, llvm::Instruction::FAdd}},
     {ast::OperatorType::SUB, {llvm::Instruction::Sub, llvm::Instruction::FSub}},
     {ast::OperatorType::MUL, {llvm::Instruction::Mul, llvm::Instruction::FMul}},
+};
+
+/* trivial binary ops with only int variant */
+static std::map<ast::OperatorType, llvm::Instruction::BinaryOps>
+    trivialIntBinaryOps = {
+
 };
 
 llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,

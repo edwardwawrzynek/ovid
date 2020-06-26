@@ -1,5 +1,5 @@
 // __ovid_compiler_test
-//__mode: check_escape
+//__mode: compile
 //__end_header
 
 fn inc2(a i32) -> i32 {
