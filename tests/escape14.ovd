@@ -1,0 +1,14 @@
+// __ovid_compiler_test
+//__mode: check_escape
+//__end_header
+
+/* basic forward referenced functions test */
+
+fn test1() -> *i32 {
+    val a = 5
+    return test2(&a)
+}
+
+fn test2(a *i32) -> *i32 {
+    return a
+}

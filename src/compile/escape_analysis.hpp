@@ -84,6 +84,7 @@ class EscapeAnalysisPass : public BaseIRVisitor<int, EscapeAnalysisState> {
   int visitStore(Store &instruct, const EscapeAnalysisState &state) override;
   int visitBasicBlock(BasicBlock &instruct,
                       const EscapeAnalysisState &state) override;
+  int visitForwardIdentifier(ForwardIdentifier &instruct, const EscapeAnalysisState &state) override;
 
   static bool
   argsContain(const std::vector<std::reference_wrapper<Allocation>> &funcArgs,

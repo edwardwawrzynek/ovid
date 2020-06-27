@@ -196,6 +196,15 @@ BuiltinOperator::BuiltinOperator(const SourceLocation &loc, const Value &val,
                                  std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), opType(opType) {}
 
+bool BuiltinOperator::hasFlowMetadata() { return true; }
+
+void BuiltinOperator::addFlowMetadata(
+    FlowList &flows,
+    const std::vector<std::reference_wrapper<Expression>> &args,
+    Expression &returnExpr) {
+  /* The builtin operator's don't include any flow */
+}
+
 BuiltinCast::BuiltinCast(const SourceLocation &loc, const Value &val,
                          Expression &expr, std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), expr(expr) {}
@@ -228,8 +237,9 @@ Return::Return(const SourceLocation &loc, Expression *expression)
     : BasicBlockTerminator(loc), expr(expression) {}
 
 ForwardIdentifier::ForwardIdentifier(const SourceLocation &loc,
+                                     const Value &val,
                                      std::shared_ptr<Symbol> symbol_ref)
-    : Expression(loc, ir::Value(), symbol_ref->type),
+    : Expression(loc, val, symbol_ref->type),
       symbol_ref(std::move(symbol_ref)) {}
 
 bool ForwardIdentifier::isAddressable() const {

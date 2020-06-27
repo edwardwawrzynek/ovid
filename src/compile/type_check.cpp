@@ -198,14 +198,22 @@ TypeCheckResult TypeCheck::visitModuleDecl(ModuleDecl &node,
 TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
                                            const TypeCheckState &state) {
   assert(node.resolved_symbol != nullptr);
-  // TODO: allow use of global variables before they have been visited (esp
-  // those in another compilation unit)
-  assert(node.resolved_symbol->ir_decl_instruction != nullptr);
 
-  assert(node.resolved_symbol->type != nullptr);
-  // use of the identifier doesn't generate any ir -- it just selects the
-  // appropriate node
-  auto alloc_node = node.resolved_symbol->ir_decl_instruction;
+  ir::Expression *alloc_node;
+  // If a variable is forward referenced (or in another compilation unit),
+  // insert a ForwardIdentifier node
+  if (node.resolved_symbol->ir_decl_instruction == nullptr) {
+    auto forwardIdent = std::make_unique<ir::ForwardIdentifier>(
+        node.loc, ir::Value(node.resolved_symbol->getFullyScopedName()),
+        node.resolved_symbol);
+    alloc_node = forwardIdent.get();
+    curInstructionList->push_back(std::move(forwardIdent));
+  } else {
+    assert(node.resolved_symbol->type != nullptr);
+    // use of the identifier doesn't generate any ir -- it just selects the
+    // appropriate node
+    alloc_node = node.resolved_symbol->ir_decl_instruction;
+  }
 
   // do implicit conversion to type hint if needed
   return doImplicitConversion(

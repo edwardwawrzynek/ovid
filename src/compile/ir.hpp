@@ -252,7 +252,7 @@ public:
                   const std::vector<std::reference_wrapper<Expression>> &args,
                   Expression &returnExpr) override;
 
-  ForwardIdentifier(const SourceLocation &loc,
+  ForwardIdentifier(const SourceLocation &loc, const Value &val,
                     std::shared_ptr<Symbol> symbol_ref);
 };
 
@@ -392,6 +392,12 @@ public:
 class BuiltinOperator : public Expression {
 public:
   ast::OperatorType opType;
+
+  bool hasFlowMetadata() override;
+  void
+  addFlowMetadata(FlowList &flows,
+                  const std::vector<std::reference_wrapper<Expression>> &args,
+                  Expression &returnExpr) override;
 
   BuiltinOperator(const SourceLocation &loc, const Value &val,
                   ast::OperatorType opType, std::shared_ptr<ast::Type> type);

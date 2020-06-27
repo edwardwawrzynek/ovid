@@ -39,18 +39,27 @@ public:
   ir::Expression *ir_decl_instruction;
   /* if the symbol is in a global scope */
   bool is_global;
+  /* the symbol's name and containing table (used for generating fully scoped
+   * names backwards) */
+  std::string name;
+  ScopeTable<Symbol> *parent_table;
   /* TODO: escape analysis metadata and other information loaded from headers */
 
-  Symbol(SourceLocation decl_loc, bool is_public,
+  Symbol(const SourceLocation &decl_loc, bool is_public,
          bool resolve_pass_declared_yet, bool is_mut, bool is_global)
-      : decl_loc(std::move(decl_loc)), type(), is_public(is_public),
+      : decl_loc(decl_loc), type(), is_public(is_public),
         resolve_pass_declared_yet(resolve_pass_declared_yet), is_mut(is_mut),
-        ir_decl_instruction(nullptr), is_global(is_global){};
+        ir_decl_instruction(nullptr), is_global(is_global), name(),
+        parent_table(nullptr){};
 
-  explicit Symbol(SourceLocation decl_loc)
-      : decl_loc(std::move(decl_loc)), type(), is_public(false),
+  explicit Symbol(const SourceLocation &decl_loc)
+      : decl_loc(decl_loc), type(), is_public(false),
         resolve_pass_declared_yet(false), is_mut(false),
-        ir_decl_instruction(nullptr), is_global(false){};
+        ir_decl_instruction(nullptr), is_global(false), name(),
+        parent_table(nullptr){};
+
+  /* get this symbol's fully scoped name */
+  std::vector<std::string> getFullyScopedName();
 };
 /* a type alias and its metadata */
 struct TypeAlias {
@@ -61,12 +70,22 @@ public:
   // if the type is marked pub
   bool is_public;
 
-  explicit TypeAlias(SourceLocation decl_loc)
-      : decl_loc(std::move(decl_loc)), type(), is_public(false){};
+  /* the symbol's name and containing table (used for generating fully scoped
+   * names backwards) */
+  std::string name;
+  ScopeTable<TypeAlias> *parent_table;
 
-  TypeAlias(SourceLocation decl_loc, std::shared_ptr<ast::Type> type,
+  explicit TypeAlias(const SourceLocation &decl_loc)
+      : decl_loc(decl_loc), type(), is_public(false), name(),
+        parent_table(nullptr){};
+
+  TypeAlias(const SourceLocation &decl_loc, std::shared_ptr<ast::Type> type,
             bool is_public)
-      : decl_loc(decl_loc), type(std::move(type)), is_public(is_public){};
+      : decl_loc(decl_loc), type(std::move(type)), is_public(is_public), name(),
+        parent_table(nullptr){};
+
+  /* get this symbol's fully scoped name */
+  std::vector<std::string> getFullyScopedName();
 };
 
 // name and type symbol tables
@@ -81,7 +100,20 @@ public:
   // pop a scope that has been added and is somewhere in the root table
   void popComponentScopesByName(const std::vector<std::string> &module);
 
-  explicit ActiveScopes(const std::vector<std::string> &packageName);
+  ActiveScopes(const std::vector<std::string> &packageName,
+               ScopeTable<Symbol> *rootNameScope,
+               ScopeTable<TypeAlias> *rootTypeScope);
+};
+
+/* container for root name and type scopes */
+class ScopesRoot {
+public:
+  std::unique_ptr<ScopeTable<Symbol>> names;
+  std::unique_ptr<ScopeTable<TypeAlias>> types;
+
+  ScopesRoot()
+      : names(std::make_unique<ScopeTable<Symbol>>(true, nullptr, "")),
+        types(std::make_unique<ScopeTable<TypeAlias>>(true, nullptr, "")){};
 };
 } // namespace ovid
 
@@ -104,9 +136,9 @@ class ScopedBlock {
 public:
   StatementList statements;
   // type aliases can't be declared inside functions, so only name table needed
-  std::shared_ptr<ScopeTable<Symbol>> symbols;
+  std::unique_ptr<ScopeTable<Symbol>> symbols;
 
-  explicit ScopedBlock(std::shared_ptr<ScopeTable<Symbol>> symbols)
+  explicit ScopedBlock(std::unique_ptr<ScopeTable<Symbol>> symbols)
       : statements(), symbols(std::move(symbols)){};
 
   void addStatement(std::unique_ptr<Statement> statement);

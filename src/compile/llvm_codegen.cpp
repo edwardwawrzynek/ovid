@@ -93,6 +93,11 @@ llvm::Function *
 LLVMCodegenPass::visitFunctionPrototype(ast::NamedFunctionType *proto,
                                         const std::string &name, bool is_public,
                                         const LLVMCodegenPassState &state) {
+  /* check for existing prototype */
+  auto prevProto = llvm_module->getFunction(name);
+  if (prevProto != nullptr)
+    return prevProto;
+
   std::vector<llvm::Type *> argTypes;
   for (auto &type : proto->type->argTypes) {
     argTypes.push_back(type_gen.visitType(*type));
@@ -107,8 +112,9 @@ LLVMCodegenPass::visitFunctionPrototype(ast::NamedFunctionType *proto,
   auto function =
       llvm::Function::Create(functionType, link_type, name, llvm_module.get());
 
-  for (size_t i = 0; i < proto->argNames.size(); i++) {
-    function->getArg(i)->setName(proto->argNames[i]);
+  size_t i = 0;
+  for(auto &arg: function->args()) {
+    arg.setName(proto->argNames[i++]);
   }
 
   return function;
@@ -118,16 +124,20 @@ llvm::Value *
 LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                       const LLVMCodegenPassState &state) {
   llvm::Function *function;
-  /* TODO: if function prototype already exists, use that */
   function = visitFunctionPrototype(
       dynamic_cast<ast::NamedFunctionType *>(instruct.type.get()),
       name_mangling::mangle(instruct.val.sourceName), instruct.is_public,
       state);
 
+  /* shouldn't be redefining a function */
+  assert(function->empty());
+
   /* mark argument allocations with the llvm arg value */
-  for (size_t i = 0; i < instruct.argAllocs.size(); i++) {
-    instruct.argAllocs[i].get().val.llvm_value = function->getArg(i);
+  size_t i = 0;
+  for(auto& arg: function->args()) {
+    instruct.argAllocs[i++].get().val.llvm_value = &arg;
   }
+
   /* create basic blocks, but don't insert into function yet
    * basic blocks may be forward referenced */
   for (auto &bb : instruct.body) {
@@ -343,7 +353,7 @@ LLVMCodegenPass::visitFunctionCall(FunctionCall &instruct,
     return builtinCall(instruct, state);
   } else {
     /* TODO: support closure calls */
-    auto funcDecl = dynamic_cast<FunctionDeclare *>(&instruct.function);
+    auto funcDecl = useValue(instruct.function, state);
     assert(funcDecl != nullptr);
 
     std::vector<llvm::Value *> args;
@@ -351,7 +361,7 @@ LLVMCodegenPass::visitFunctionCall(FunctionCall &instruct,
       args.push_back(useValue(arg.get(), state));
     }
 
-    auto res = builder.CreateCall(useValue(*funcDecl, state), args);
+    auto res = builder.CreateCall(funcDecl, args);
 
     return instruct.val.llvm_value = res;
   }
@@ -362,7 +372,7 @@ struct InstrIntFloatVariant {
   llvm::Instruction::BinaryOps float_variant;
 };
 
-/* trivial (not short circuting, etc) binary ops with int + float variant */
+/* trivial (not short circuiting, etc) binary ops with int + float variant */
 static std::map<ast::OperatorType, InstrIntFloatVariant> trivialBinaryOps = {
     {ast::OperatorType::ADD, {llvm::Instruction::Add, llvm::Instruction::FAdd}},
     {ast::OperatorType::SUB, {llvm::Instruction::Sub, llvm::Instruction::FSub}},
@@ -465,6 +475,22 @@ LLVMCodegenPass::visitBuiltinCast(BuiltinCast &instruct,
   } else {
     assert(false);
   }
+}
+
+llvm::Value *
+LLVMCodegenPass::visitForwardIdentifier(ForwardIdentifier &instruct,
+                                        const LLVMCodegenPassState &state) {
+
+  /* TODO: support forward referenced globals */
+  auto funcType =
+      dynamic_cast<ast::NamedFunctionType *>(instruct.symbol_ref->type.get());
+  assert(funcType != nullptr);
+
+  auto function =
+      visitFunctionPrototype(funcType, name_mangling::mangle(instruct.val),
+                             instruct.symbol_ref->is_public, state);
+
+  return instruct.val.llvm_value = function;
 }
 
 } // namespace ovid::ir

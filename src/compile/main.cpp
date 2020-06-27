@@ -20,12 +20,16 @@ int main(int argc, char **argv) {
 
   auto errorMan = ovid::PrintingErrorManager();
   ovid::ir::reset_id();
+
+  auto root_scopes = ovid::ScopesRoot();
+
   auto lexer = ovid::Tokenizer(argv[1], &filein, errorMan);
 
   std::vector<std::string> package;
   package.emplace_back("std");
   package.emplace_back("scope");
-  auto scopes = ovid::ActiveScopes(package);
+  auto scopes = ovid::ActiveScopes(package, root_scopes.names.get(),
+                                   root_scopes.types.get());
 
   auto parser = ovid::Parser(lexer, errorMan, scopes, package);
 

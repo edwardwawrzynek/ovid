@@ -311,11 +311,12 @@ int TesterInstance::readToComment() {
   }
 }
 
-int TesterInstance::runParse(ErrorManager &errorMan,
-                             ast::StatementList &astRes) {
+int TesterInstance::runParse(ErrorManager &errorMan, ast::StatementList &astRes,
+                             const ScopesRoot &scopes_root) {
   // Parse
   auto lexer = Tokenizer(filename, &file, errorMan);
-  auto scopes = ActiveScopes(packageName);
+  auto scopes = ActiveScopes(packageName, scopes_root.names.get(),
+                             scopes_root.types.get());
   auto parser = Parser(lexer, errorMan, scopes, packageName);
   astRes = parser.parseProgram();
   parser.removePushedPackageScope();
@@ -432,9 +433,11 @@ int TesterInstance::run() {
   auto errorMan = ovid::TestErrorManager();
   ir::reset_id();
 
+  ScopesRoot root_scopes;
+
   if (modes.count(TestMode::Parse) > 0) {
     ast::StatementList ast;
-    auto parseDidError = runParse(errorMan, ast);
+    auto parseDidError = runParse(errorMan, ast, root_scopes);
 
     if (modes.count(TestMode::CheckAST) > 0) {
       if (parseDidError) {

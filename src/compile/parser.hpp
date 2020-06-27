@@ -15,19 +15,18 @@ struct ParserState {
   // if we are in a private module
   bool in_private_mod;
   // most recent scope containing block (what scope we are in)
-  std::shared_ptr<ScopeTable<Symbol>> current_scope;
-  std::shared_ptr<ScopeTable<TypeAlias>> current_type_scope;
+  ScopeTable<Symbol> *current_scope;
+  ScopeTable<TypeAlias> *current_type_scope;
   // what module we are in
   std::vector<std::string> current_module;
 
-  ParserState(bool is_global_level,
-              std::shared_ptr<ScopeTable<Symbol>> current_scope,
-              std::shared_ptr<ScopeTable<TypeAlias>> current_type_scope,
-              std::vector<std::string> current_module, bool in_private_mod)
+  ParserState(bool is_global_level, ScopeTable<Symbol> *current_scope,
+              ScopeTable<TypeAlias> *current_type_scope,
+              const std::vector<std::string> &current_module,
+              bool in_private_mod)
       : is_global_level(is_global_level), in_private_mod(in_private_mod),
-        current_scope(std::move(current_scope)),
-        current_type_scope(std::move(current_type_scope)),
-        current_module(std::move(current_module)){};
+        current_scope(current_scope), current_type_scope(current_type_scope),
+        current_module(current_module){};
 };
 
 class Parser {

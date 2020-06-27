@@ -24,7 +24,7 @@ int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
 int ResolvePass::visitFunctionDecl(FunctionDecl &node,
                                    const ResolvePassState &state) {
   // add this function's scope to the active scope stack
-  scopes.names.pushScope(node.body.symbols);
+  scopes.names.pushScope(node.body.symbols.get());
 
   auto pis_in_global = is_in_global;
   is_in_global = false;
@@ -92,7 +92,7 @@ int ResolvePass::visitIfStatement(IfStatement &node,
 
   for (auto &body : node.bodies) {
     // add this body's scope to the active scope stack
-    scopes.names.pushScope(body.symbols);
+    scopes.names.pushScope(body.symbols.get());
 
     auto pis_in_global = is_in_global;
     is_in_global = false;
@@ -123,7 +123,7 @@ int ResolvePass::visitIdentifier(Identifier &node,
                                  const ResolvePassState &state) {
   // find the symbol
   std::shared_ptr<Symbol> sym;
-  std::shared_ptr<ScopeTable<Symbol>> containingTable;
+  ScopeTable<Symbol> *containingTable;
   if (node.is_root_scope) {
     // only check root scope
     sym = scopes.names.getRootScope()->findSymbol(
@@ -298,7 +298,7 @@ TypeResolver::visitUnresolvedType(UnresolvedType &type,
                                   const TypeResolverState &state) {
   // lookup type in type tables
   std::shared_ptr<TypeAlias> sym;
-  std::shared_ptr<ScopeTable<TypeAlias>> containingTable;
+  ScopeTable<TypeAlias> *containingTable;
   if (type.is_root_scoped) {
     sym = scopes.types.getRootScope()->findSymbol(type.scopes, type.name);
     containingTable = scopes.types.getRootScope();

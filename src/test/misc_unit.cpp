@@ -128,28 +128,41 @@ TEST(SemicolonInsertion, Tokens) {
   EXPECT_FALSE(testError.criticalErrorOccurred());
 }
 
+struct MockSymbol {
+public:
+  int val;
+  std::string name;
+  ScopeTable<MockSymbol> *parent_table;
+
+  MockSymbol(int val) : val(val), name(), parent_table(nullptr){};
+};
+
+bool operator==(const MockSymbol &lhs, const MockSymbol &rhs) {
+  return lhs.val == rhs.val;
+}
+
 /* basic ScopeTable test (make sure namespace nesting works) */
 TEST(BasicScopeTable, Symbols) {
-  auto table = std::make_shared<ScopeTable<int>>(true, nullptr, "");
+  auto table = std::make_shared<ScopeTable<MockSymbol>>(true, nullptr, "");
   table->addSymbol(std::vector<std::string>(), "test",
-                   std::make_shared<int>(1));
+                   std::make_shared<MockSymbol>(1));
   EXPECT_EQ(*table->findSymbol(std::vector<std::string>(), "test"), 1);
 
-  auto sscope = table->addScopeTable("scope", true, table);
+  auto sscope = table->addScopeTable("scope", true);
   sscope->addSymbol(std::vector<std::string>(), "test",
-                    std::make_shared<int>(2));
+                    std::make_shared<MockSymbol>(2));
   EXPECT_EQ(*table->findSymbol(std::vector<std::string>(1, "scope"), "test"),
             2);
   EXPECT_EQ(*table->findSymbol(std::vector<std::string>(), "test"), 1);
 
   sscope->addSymbol(std::vector<std::string>(), "test2",
-                    std::make_shared<int>(3));
+                    std::make_shared<MockSymbol>(3));
   EXPECT_EQ(table->findSymbol(std::vector<std::string>(), "test2"), nullptr);
 
   table->addSymbol(std::vector<std::string>(), "test",
-                   std::make_shared<int>(10));
+                   std::make_shared<MockSymbol>(10));
   EXPECT_EQ(*table->findSymbol(std::vector<std::string>(), "test",
-                               [](int sym) { return sym == 10; }),
+                               [](MockSymbol sym) { return sym.val == 10; }),
             10);
 }
 
@@ -161,24 +174,21 @@ TEST(BasicActiveScopesTest, Symbols) {
 
   auto loc = SourceLocation("test", 0, 0, 0, 0, nullptr);
 
-  auto scopes = ActiveScopes(package);
+  auto root_scope = ScopesRoot();
+  auto scopes =
+      ActiveScopes(package, root_scope.names.get(), root_scope.types.get());
 
-  auto t1 = scopes.types.getRootScope()->addScopeTable(
-      "test1", true, scopes.types.getRootScope());
-  t1->addScopeTable("test2", true, t1);
+  auto t1 = scopes.types.getRootScope()->addScopeTable("test1", true);
+  t1->addScopeTable("test2", true);
 
-  auto table1 = scopes.names.getRootScope()->addScopeTable(
-      "test1", true, scopes.names.getRootScope());
-  table1->getDirectScopeTable().addSymbol("test",
-                                          std::make_shared<Symbol>(loc));
+  auto table1 = scopes.names.getRootScope()->addScopeTable("test1", true);
+  table1->addSymbol("test", std::make_shared<Symbol>(loc));
 
-  auto table2 = table1->addScopeTable("test2", true, table1);
-  table2->getDirectScopeTable().addSymbol("test1",
-                                          std::make_shared<Symbol>(loc));
+  auto table2 = table1->addScopeTable("test2", true);
+  table2->addSymbol("test1", std::make_shared<Symbol>(loc));
 
-  auto table3 = table1->addScopeTable("test3", true, table1);
-  table3->getDirectScopeTable().addSymbol("test3",
-                                          std::make_shared<Symbol>(loc));
+  auto table3 = table1->addScopeTable("test3", true);
+  table3->addSymbol("test3", std::make_shared<Symbol>(loc));
 
   std::vector<std::string> mods;
   mods.emplace_back("test1");
@@ -201,10 +211,11 @@ TEST(ActiveScopesDeathTest, Symbols) {
   package.emplace_back("s1");
   package.emplace_back("s2");
 
-  auto scopes = ActiveScopes(package);
-  auto t1 = scopes.types.getRootScope()->addScopeTable(
-      "test1", true, scopes.types.getRootScope());
-  t1->addScopeTable("test2", true, t1);
+  auto root_scope = ScopesRoot();
+  auto scopes =
+      ActiveScopes(package, root_scope.names.get(), root_scope.types.get());
+  auto t1 = scopes.types.getRootScope()->addScopeTable("test1", true);
+  t1->addScopeTable("test2", true);
   std::vector<std::string> mods;
   mods.emplace_back("test1");
   mods.emplace_back("test2");
@@ -213,23 +224,22 @@ TEST(ActiveScopesDeathTest, Symbols) {
   EXPECT_EXIT(scopes.pushComponentScopesByName(mods),
               ::testing::KilledBySignal(SIGABRT), "");
 
-  auto t2 = scopes.names.getRootScope()->addScopeTable(
-      "test1", true, scopes.names.getRootScope());
-  t2->addScopeTable("test2", true, t2);
+  auto t2 = scopes.names.getRootScope()->addScopeTable("test1", true);
+  t2->addScopeTable("test2", true);
   scopes.pushComponentScopesByName(mods);
 
-  scopes.names.pushScope(
-      std::make_shared<ScopeTable<Symbol>>(true, nullptr, ""));
-  scopes.types.pushScope(
-      std::make_shared<ScopeTable<TypeAlias>>(true, nullptr, ""));
+  auto st1 = ScopeTable<Symbol>(true, nullptr, "");
+  auto st2 = ScopeTable<TypeAlias>(true, nullptr, "");
+
+  scopes.names.pushScope(&st1);
+  scopes.types.pushScope(&st2);
 
   // blank tables were pushed and not popped
   EXPECT_EXIT(scopes.popComponentScopesByName(mods),
               ::testing::KilledBySignal(SIGABRT), "");
 
   // table already added
-  EXPECT_EXIT(scopes.names.getRootScope()->addScopeTable(
-                  "test1", true, scopes.names.getRootScope()),
+  EXPECT_EXIT(scopes.names.getRootScope()->addScopeTable("test1", true),
               ::testing::KilledBySignal(SIGABRT), "");
 }
 

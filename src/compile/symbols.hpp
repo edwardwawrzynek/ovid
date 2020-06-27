@@ -41,13 +41,16 @@ namespace ovid {
  * loaded into the root namespace symbol table.
  */
 
+template <class T> class ScopeTable;
+
 /* a hashtable of string -> symbols */
 template <class T> class SymbolTable {
   std::unordered_multimap<std::string, std::shared_ptr<T>> table;
 
 public:
   // add a symbol to the table
-  void addSymbol(const std::string &name, std::shared_ptr<T> symbol);
+  void addSymbol(const std::string &name, std::shared_ptr<T> symbol,
+                 ScopeTable<T> *parentTable);
 
   // find a symbol in the table. Expects only one symbol with the name exists
   std::shared_ptr<T> findSymbol(const std::string &name);
@@ -62,8 +65,11 @@ public:
 
 template <class T>
 void SymbolTable<T>::addSymbol(const std::string &name,
-                               std::shared_ptr<T> symbol) {
-  table.emplace(name, symbol);
+                               std::shared_ptr<T> symbol,
+                               ScopeTable<T> *parentTable) {
+  symbol->name = name;
+  symbol->parent_table = parentTable;
+  table.emplace(name, std::move(symbol));
 }
 
 template <class T>
@@ -105,31 +111,29 @@ SymbolTable<T>::findSymbol(const std::string &name,
 /* a scope with symbols and child scopes */
 template <class T> class ScopeTable {
   std::unique_ptr<SymbolTable<T>> symbols;
-  std::unordered_map<std::string, std::shared_ptr<ScopeTable<T>>> scopes;
+  std::unordered_map<std::string, std::unique_ptr<ScopeTable<T>>> scopes;
   bool is_public;
   bool is_func_scope;
   // parent scope table, or null if root
-  // must be weak to break cycle with parent's scope table
-  std::weak_ptr<ScopeTable<T>> parent;
+  ScopeTable<T> *parent;
+  // name of this part of the table
+  std::string name;
 
 public:
   // return the SymbolTable associated with this scope
   SymbolTable<T> &getDirectScopeTable();
 
   // get a child symbol table with name scopes
-  std::shared_ptr<ScopeTable<T>>
-  getScopeTable(const std::vector<std::string> &scopes);
+  ScopeTable<T> *getScopeTable(const std::vector<std::string> &scopes);
 
-  std::shared_ptr<ScopeTable<T>> getScopeTable(const std::string &scope);
+  ScopeTable<T> *getScopeTable(const std::string &scope);
 
   // add an empty scope with the given name
-  std::shared_ptr<ScopeTable<T>>
-  addScopeTable(const std::string &scope, bool is_public,
-                std::shared_ptr<ScopeTable<T>> parent);
+  ScopeTable<T> *addScopeTable(const std::string &scope, bool is_public);
 
   // add the given scope table with the given name
-  std::shared_ptr<ScopeTable<T>>
-  addScopeTable(const std::string &scope, std::shared_ptr<ScopeTable<T>> table);
+  ScopeTable<T> *addScopeTable(const std::string &scope,
+                               std::unique_ptr<ScopeTable<T>> table);
 
   // find a symbol with a scope and name. Expects only one symbol with the name
   // and scope exists
@@ -148,28 +152,32 @@ public:
   bool checkAccessible(const std::vector<std::string> &scope_name,
                        const std::string &identifier,
                        std::function<bool(const T &)> predicate,
-                       const std::shared_ptr<ScopeTable<T>> &curPackage,
-                       const std::shared_ptr<ScopeTable<T>> &curModule,
+                       ScopeTable<T> *curPackage, ScopeTable<T> *curModule,
                        bool is_symbol_pub);
 
   bool checkAccessible(const std::vector<std::string> &scope_name,
-                       const std::string &identifier,
-                       const std::shared_ptr<ScopeTable<T>> &curPackage,
-                       const std::shared_ptr<ScopeTable<T>> &curModule,
-                       bool is_symbol_pub);
+                       const std::string &identifier, ScopeTable<T> *curPackage,
+                       ScopeTable<T> *curModule, bool is_symbol_pub);
 
   // add a symbol, given scopes and a name
   void addSymbol(const std::vector<std::string> &scope_name,
                  const std::string &name, std::shared_ptr<T> symbol);
 
-  ScopeTable(bool is_public, std::shared_ptr<ScopeTable<T>> parent)
-      : symbols(std::make_unique<SymbolTable<T>>()), scopes(),
-        is_public(is_public), is_func_scope(false), parent(parent){};
+  void addSymbol(const std::string &name, std::shared_ptr<T> symbol);
 
-  ScopeTable(bool is_public, std::shared_ptr<ScopeTable<T>> parent,
-             bool is_func_scope)
+  std::string getName();
+  ScopeTable<T> *getParent();
+
+  ScopeTable(bool is_public, ScopeTable<T> *parent, const std::string &name)
       : symbols(std::make_unique<SymbolTable<T>>()), scopes(),
-        is_public(is_public), is_func_scope(is_func_scope), parent(parent){};
+        is_public(is_public), is_func_scope(false), parent(parent),
+        name(name){};
+
+  ScopeTable(bool is_public, ScopeTable<T> *parent, bool is_func_scope,
+             const std::string &name)
+      : symbols(std::make_unique<SymbolTable<T>>()), scopes(),
+        is_public(is_public), is_func_scope(is_func_scope), parent(parent),
+        name(name){};
 };
 
 template <class T> SymbolTable<T> &ScopeTable<T>::getDirectScopeTable() {
@@ -177,41 +185,36 @@ template <class T> SymbolTable<T> &ScopeTable<T>::getDirectScopeTable() {
 }
 
 template <class T>
-std::shared_ptr<ScopeTable<T>>
-ScopeTable<T>::getScopeTable(const std::string &scope) {
-  return this->scopes[scope];
+ScopeTable<T> *ScopeTable<T>::getScopeTable(const std::string &scope) {
+  return this->scopes[scope].get();
 }
 
 template <class T>
-std::shared_ptr<ScopeTable<T>>
+ScopeTable<T> *
 ScopeTable<T>::getScopeTable(const std::vector<std::string> &scopes) {
-  auto curTable = this->scopes;
-  std::shared_ptr<ScopeTable<T>> childScope = nullptr;
+  auto curTable = this;
   for (auto &scope : scopes) {
-    childScope = curTable[scope];
-    if (childScope == nullptr)
+    curTable = curTable->scopes[scope].get();
+    if (curTable == nullptr)
       return nullptr;
-    curTable = childScope->scopes;
   }
-  return childScope;
+  return curTable;
 }
 
 template <class T>
-std::shared_ptr<ScopeTable<T>>
+ScopeTable<T> *
 ScopeTable<T>::addScopeTable(const std::string &scope,
-                             std::shared_ptr<ScopeTable<T>> table) {
+                             std::unique_ptr<ScopeTable<T>> table) {
   assert(scopes[scope] == nullptr);
-  scopes[scope] = table;
-  return table;
+  scopes[scope] = std::move(table);
+  return scopes[scope].get();
 }
 
 template <class T>
-std::shared_ptr<ScopeTable<T>>
-ScopeTable<T>::addScopeTable(const std::string &scope, bool is_public,
-                             std::shared_ptr<ScopeTable<T>> parent) {
-  assert(parent.get() == this);
-  return addScopeTable(
-      scope, std::make_shared<ScopeTable<T>>(is_public, std::move(parent)));
+ScopeTable<T> *ScopeTable<T>::addScopeTable(const std::string &scope,
+                                            bool is_public) {
+  return addScopeTable(scope,
+                       std::make_unique<ScopeTable<T>>(is_public, this, scope));
 }
 
 template <class T>
@@ -233,6 +236,7 @@ ScopeTable<T>::findSymbol(const std::vector<std::string> &scope_name,
                           std::function<bool(const T &)> predicate) {
   if (scope_name.empty())
     return symbols->findSymbol(identifier, predicate);
+
   auto scope = getScopeTable(scope_name);
   if (scope == nullptr)
     return nullptr;
@@ -244,18 +248,27 @@ void ScopeTable<T>::addSymbol(const std::vector<std::string> &scope_name,
                               const std::string &name,
                               std::shared_ptr<T> symbol) {
   if (scope_name.empty()) {
-    getDirectScopeTable().addSymbol(name, symbol);
+    getDirectScopeTable().addSymbol(name, symbol, this);
   } else {
-    getScopeTable(scope_name)->getDirectScopeTable().addSymbol(name, symbol);
+    getScopeTable(scope_name)
+        ->getDirectScopeTable()
+        .addSymbol(name, symbol, this);
   }
 }
 
 template <class T>
-bool ScopeTable<T>::checkAccessible(
-    const std::vector<std::string> &scope_name, const std::string &identifier,
-    std::function<bool(const T &)> predicate,
-    const std::shared_ptr<ScopeTable<T>> &curPackage,
-    const std::shared_ptr<ScopeTable<T>> &curModule, bool is_symbol_pub) {
+void ScopeTable<T>::addSymbol(const std::string &name,
+                              std::shared_ptr<T> symbol) {
+  getDirectScopeTable().addSymbol(name, symbol, this);
+}
+
+template <class T>
+bool ScopeTable<T>::checkAccessible(const std::vector<std::string> &scope_name,
+                                    const std::string &identifier,
+                                    std::function<bool(const T &)> predicate,
+                                    ScopeTable<T> *curPackage,
+                                    ScopeTable<T> *curModule,
+                                    bool is_symbol_pub) {
   // make sure symbol exists
   auto sym = findSymbol(scope_name, identifier, predicate);
   if (sym == nullptr)
@@ -270,26 +283,26 @@ bool ScopeTable<T>::checkAccessible(
     containingTable = this;
   } else {
     // start searching from the containing table
-    containingTable = getScopeTable(scope_name).get();
+    containingTable = getScopeTable(scope_name);
   }
   ScopeTable<T> *tmp = containingTable;
   while (tmp != nullptr) {
-    if (tmp == curPackage.get()) {
+    if (tmp == curPackage) {
       is_in_package = true;
       break;
     }
-    tmp = tmp->parent.lock().get();
+    tmp = tmp->parent;
   }
 
   // check if current module is a descendant of containing table
   bool is_descendant = false;
-  tmp = curModule.get();
+  tmp = curModule;
   while (tmp != nullptr) {
     if (tmp == containingTable) {
       is_descendant = true;
       break;
     }
-    tmp = tmp->parent.lock().get();
+    tmp = tmp->parent;
   }
 
   // if the symbol is contained in a function scope, it is automatically
@@ -311,30 +324,35 @@ bool ScopeTable<T>::checkAccessible(
 }
 
 template <class T>
-bool ScopeTable<T>::checkAccessible(
-    const std::vector<std::string> &scope_name, const std::string &identifier,
-    const std::shared_ptr<ScopeTable<T>> &curPackage,
-    const std::shared_ptr<ScopeTable<T>> &curModule, bool is_symbol_pub) {
+bool ScopeTable<T>::checkAccessible(const std::vector<std::string> &scope_name,
+                                    const std::string &identifier,
+                                    ScopeTable<T> *curPackage,
+                                    ScopeTable<T> *curModule,
+                                    bool is_symbol_pub) {
   return checkAccessible(
       scope_name, identifier, [](const T &s) -> bool { return true; },
       curPackage, curModule, is_symbol_pub);
 }
 
+template <class T> std::string ScopeTable<T>::getName() { return name; }
+
+template <class T> ScopeTable<T> *ScopeTable<T>::getParent() { return parent; }
+
 /* the active scopes and symbol tables
  * maintained as a stack -- global namespaces at bottom, local scopes at top */
 template <class T> class ActiveScope {
-  std::vector<std::shared_ptr<ScopeTable<T>>> scopes;
+  std::vector<ScopeTable<T> *> scopes;
 
 public:
   // push a scope onto the stack
-  void pushScope(std::shared_ptr<ScopeTable<T>> scope);
+  void pushScope(ScopeTable<T> *scope);
 
   // remove the most recently push scope from the stack
-  std::shared_ptr<ScopeTable<T>> popScope();
+  ScopeTable<T> *popScope();
 
   // remove the most recently pushed scope from the stack, and assert it is the
   // expected scope
-  std::shared_ptr<ScopeTable<T>> popScope(const ScopeTable<T> *expected);
+  ScopeTable<T> *popScope(const ScopeTable<T> *expected);
 
   // search the scope top down for the first symbol with the given scope and
   // name. Returns nullptr if not found
@@ -349,30 +367,29 @@ public:
 
   // return a shared pointer to the ScopeTable in which the given symbol
   // (scope_name + identifier + predicate) was found, or nullptr if not found
-  std::shared_ptr<ScopeTable<T>>
+  ScopeTable<T> *
   findTableContainingSymbol(const std::vector<std::string> &scope_names,
                             const std::string &identifier,
                             std::function<bool(const T &)> predicate);
 
-  std::shared_ptr<ScopeTable<T>>
+  ScopeTable<T> *
   findTableContainingSymbol(const std::vector<std::string> &scope_names,
                             const std::string &identifier);
 
   // add a set of scope to the stack by a set of nested scope names based on a
   // root scope
-  std::shared_ptr<ScopeTable<T>>
+  ScopeTable<T> *
   pushComponentScopesByNameFromRoot(const std::vector<std::string> &scopes,
-                                    const std::shared_ptr<ScopeTable<T>> &root);
+                                    ScopeTable<T> *root);
 
-  void
-  popComponentScopesByNameFromRoot(const std::vector<std::string> &scopes,
-                                   const std::shared_ptr<ScopeTable<T>> &root);
+  void popComponentScopesByNameFromRoot(const std::vector<std::string> &scopes,
+                                        ScopeTable<T> *root);
 
   // get the root namespace scope (scope 0)
-  std::shared_ptr<ScopeTable<T>> getRootScope();
+  ScopeTable<T> *getRootScope();
 
   // get the most recently pushed scope
-  std::shared_ptr<ScopeTable<T>> getTopScope();
+  ScopeTable<T> *getTopScope();
 
   // get number of active scopes (for debugging)
   int getNumActiveScopes();
@@ -380,23 +397,21 @@ public:
   ActiveScope() : scopes(){};
 };
 
-template <class T>
-void ActiveScope<T>::pushScope(std::shared_ptr<ScopeTable<T>> scope) {
-  scopes.push_back(std::move(scope));
+template <class T> void ActiveScope<T>::pushScope(ScopeTable<T> *scope) {
+  scopes.push_back(scope);
 }
 
-template <class T> std::shared_ptr<ScopeTable<T>> ActiveScope<T>::popScope() {
+template <class T> ScopeTable<T> *ActiveScope<T>::popScope() {
   auto scope = scopes.back();
   scopes.pop_back();
   return scope;
 }
 
 template <class T>
-std::shared_ptr<ScopeTable<T>>
-ActiveScope<T>::popScope(const ScopeTable<T> *expected) {
+ScopeTable<T> *ActiveScope<T>::popScope(const ScopeTable<T> *expected) {
   auto scope = scopes.back();
 
-  assert(scope.get() == expected);
+  assert(scope == expected);
   scopes.pop_back();
 
   return scope;
@@ -433,8 +448,7 @@ ActiveScope<T>::findSymbol(const std::vector<std::string> &scope_names,
   return nullptr;
 }
 
-template <class T>
-std::shared_ptr<ScopeTable<T>> ActiveScope<T>::getRootScope() {
+template <class T> ScopeTable<T> *ActiveScope<T>::getRootScope() {
   assert(scopes.size() >= 1);
   return scopes[0];
 }
@@ -443,10 +457,8 @@ template <class T> int ActiveScope<T>::getNumActiveScopes() {
 }
 
 template <class T>
-std::shared_ptr<ScopeTable<T>>
-ActiveScope<T>::pushComponentScopesByNameFromRoot(
-    const std::vector<std::string> &scopes,
-    const std::shared_ptr<ScopeTable<T>> &root) {
+ScopeTable<T> *ActiveScope<T>::pushComponentScopesByNameFromRoot(
+    const std::vector<std::string> &scopes, ScopeTable<T> *root) {
   // iterate through scopes and push
   auto curTable = root;
 
@@ -463,19 +475,18 @@ ActiveScope<T>::pushComponentScopesByNameFromRoot(
 
 template <class T>
 void ActiveScope<T>::popComponentScopesByNameFromRoot(
-    const std::vector<std::string> &scopes,
-    const std::shared_ptr<ScopeTable<T>> &root) {
+    const std::vector<std::string> &scopes, ScopeTable<T> *root) {
 
   std::vector<std::string> mScopes(scopes);
   // iterate backwards through scopes and pop
   while (!mScopes.empty()) {
-    popScope(root->getScopeTable(mScopes).get());
+    popScope(root->getScopeTable(mScopes));
     mScopes.pop_back();
   }
 }
 
 template <class T>
-std::shared_ptr<ScopeTable<T>> ActiveScope<T>::findTableContainingSymbol(
+ScopeTable<T> *ActiveScope<T>::findTableContainingSymbol(
     const std::vector<std::string> &scope_names, const std::string &identifier,
     std::function<bool(const T &)> predicate) {
   // go through scopes, and return the scope containing the symbol
@@ -491,15 +502,14 @@ std::shared_ptr<ScopeTable<T>> ActiveScope<T>::findTableContainingSymbol(
 }
 
 template <class T>
-std::shared_ptr<ScopeTable<T>> ActiveScope<T>::findTableContainingSymbol(
+ScopeTable<T> *ActiveScope<T>::findTableContainingSymbol(
     const std::vector<std::string> &scope_names,
     const std::string &identifier) {
   return findTableContainingSymbol(scope_names, identifier,
                                    [](const T &s) -> bool { return true; });
 }
 
-template <class T>
-std::shared_ptr<ScopeTable<T>> ActiveScope<T>::getTopScope() {
+template <class T> ScopeTable<T> *ActiveScope<T>::getTopScope() {
   return scopes[scopes.size() - 1];
 }
 

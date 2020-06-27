@@ -10,8 +10,8 @@ bool Parser::isDoneParsing() const { return tokenizer.curToken.token == T_EOF; }
 
 ast::StatementList Parser::parseProgram() {
   // lookup active scope by package name
-  std::shared_ptr<ScopeTable<Symbol>> packageNameScope;
-  std::shared_ptr<ScopeTable<TypeAlias>> packageTypeScope;
+  ScopeTable<Symbol> *packageNameScope;
+  ScopeTable<TypeAlias> *packageTypeScope;
 
   if (package.empty()) {
     packageNameScope = scopes.names.getRootScope();
@@ -613,7 +613,7 @@ void Parser::addTypeAlias(const ParserState &state, std::string name,
                       scopedName.c_str()),
         existing->decl_loc, ErrorType::Note);
   } else {
-    state.current_type_scope->getDirectScopeTable().addSymbol(name, alias);
+    state.current_type_scope->addSymbol(name, alias);
   }
 }
 
@@ -711,11 +711,13 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   tokenizer.nextToken();
 
   // construct scope table for function (private, function scope)
-  auto symbolTable = std::make_shared<ScopeTable<Symbol>>(false, nullptr, true);
-  ast::ScopedBlock body(symbolTable);
+  auto symbolTable =
+      std::make_unique<ScopeTable<Symbol>>(false, nullptr, true, "");
+  auto symbolTablePointer = symbolTable.get();
+  ast::ScopedBlock body(std::move(symbolTable));
   // the current type scope is copied, as function's can't contain type alias
   // declarations inside them
-  ParserState bodyState(false, symbolTable, state.current_type_scope,
+  ParserState bodyState(false, symbolTablePointer, state.current_type_scope,
                         state.current_module, state.in_private_mod);
 
   // add entries in symbol table for arguments
@@ -725,7 +727,7 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
 
     auto sym = std::make_shared<Symbol>(loc, false, false, false, false);
     sym->type = proto->type->argTypes[i];
-    bodyState.current_scope->getDirectScopeTable().addSymbol(arg, sym);
+    bodyState.current_scope->addSymbol(arg, sym);
   }
 
   while (tokenizer.curToken.token != T_RBRK) {
@@ -752,7 +754,7 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   fun_sym->type = type;
   ast->resolved_symbol = fun_sym;
 
-  state.current_scope->getDirectScopeTable().addSymbol(proto->name, fun_sym);
+  state.current_scope->addSymbol(proto->name, fun_sym);
 
   if (did_error)
     return nullptr;
@@ -794,14 +796,14 @@ ParserState Parser::newStateForModule(const ParserState &state,
     assert((existingNamesTable == nullptr) == (existingTypesTable == nullptr));
 
     if (existingNamesTable == nullptr) {
-      newState.current_scope = newState.current_scope->addScopeTable(
-          name, is_mod_public, newState.current_scope);
+      newState.current_scope =
+          newState.current_scope->addScopeTable(name, is_mod_public);
     } else {
       newState.current_scope = existingNamesTable;
     }
     if (existingTypesTable == nullptr) {
-      newState.current_type_scope = newState.current_type_scope->addScopeTable(
-          name, is_mod_public, newState.current_type_scope);
+      newState.current_type_scope =
+          newState.current_type_scope->addScopeTable(name, is_mod_public);
     } else {
       newState.current_type_scope = existingTypesTable;
     }
@@ -927,7 +929,7 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
     auto sym = std::make_shared<Symbol>(pos.through(endNamePos), is_public,
                                         state.is_global_level, is_mut,
                                         state.is_global_level);
-    state.current_scope->getDirectScopeTable().addSymbol(name, sym);
+    state.current_scope->addSymbol(name, sym);
 
     ast->resolved_symbol = sym;
   } else {
@@ -991,10 +993,11 @@ Parser::parseIfStatement(const ParserState &state) {
 
     // setup body's scope
     auto symbolTable =
-        std::make_shared<ScopeTable<Symbol>>(false, nullptr, true);
-    ast::ScopedBlock body(symbolTable);
+        std::make_unique<ScopeTable<Symbol>>(false, nullptr, true, "");
+    auto symbolTablePointer = symbolTable.get();
+    ast::ScopedBlock body(std::move(symbolTable));
 
-    ParserState bodyState(false, symbolTable, state.current_type_scope,
+    ParserState bodyState(false, symbolTablePointer, state.current_type_scope,
                           state.current_module, state.in_private_mod);
 
     while (tokenizer.curToken.token != T_RBRK) {

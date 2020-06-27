@@ -258,4 +258,17 @@ int IRPrinter::visitFieldSelect(FieldSelect &instruct,
   return 0;
 }
 
+int IRPrinter::visitForwardIdentifier(ForwardIdentifier &instruct,
+                                      const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printValue(instruct.val);
+  output << " = FORWARDIDENTIFIER " << type_printer.getType(*instruct.type)
+         << "\n";
+
+  return 0;
+}
+
 } // namespace ovid::ir

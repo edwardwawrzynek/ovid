@@ -163,6 +163,7 @@ std::shared_ptr<Type> TupleType::getTypeOfField(int32_t field_index) const {
 size_t TupleType::getNumFields() const { return types.size(); }
 
 } // namespace ovid::ast
+// namespace ovid::ast
 
 namespace ovid {
 void ActiveScopes::pushComponentScopesByName(
@@ -181,21 +182,64 @@ void ActiveScopes::popComponentScopesByName(
   types.popComponentScopesByNameFromRoot(module, types.getRootScope());
 }
 
-ActiveScopes::ActiveScopes(const std::vector<std::string> &packageName)
+ActiveScopes::ActiveScopes(const std::vector<std::string> &packageName,
+                           ScopeTable<Symbol> *rootNameScope,
+                           ScopeTable<TypeAlias> *rootTypeScope)
     : names(), types() {
   // add root scopes
-  names.pushScope(
-      std::make_shared<ovid::ScopeTable<ovid::Symbol>>(true, nullptr, ""));
-  types.pushScope(
-      std::make_shared<ovid::ScopeTable<ovid::TypeAlias>>(true, nullptr, ""));
+  names.pushScope(rootNameScope);
+  types.pushScope(rootTypeScope);
 
   // add package scopes
   auto curNameScope = names.getRootScope();
   auto curTypeScope = types.getRootScope();
   for (auto &scope : packageName) {
     // packages are always public
-    curNameScope = curNameScope->addScopeTable(scope, true, curNameScope);
-    curTypeScope = curTypeScope->addScopeTable(scope, true, curTypeScope);
+    curNameScope = curNameScope->addScopeTable(scope, true);
+    curTypeScope = curTypeScope->addScopeTable(scope, true);
   }
 }
+
+std::vector<std::string> Symbol::getFullyScopedName() {
+  size_t scopes_size = 1;
+  auto tmp = parent_table;
+  while (tmp != nullptr && !tmp->getName().empty()) {
+    scopes_size++;
+    tmp = tmp->getParent();
+  }
+
+  std::vector<std::string> fullName(scopes_size, "");
+
+  fullName[scopes_size - 1] = name;
+  tmp = parent_table;
+  while (tmp != nullptr && !tmp->getName().empty()) {
+    scopes_size--;
+    fullName[scopes_size - 1] = tmp->getName();
+    tmp = tmp->getParent();
+  }
+
+  return fullName;
+}
+
+std::vector<std::string> TypeAlias::getFullyScopedName() {
+  size_t scopes_size = 1;
+  auto tmp = parent_table;
+  while (tmp != nullptr && !tmp->getName().empty()) {
+    scopes_size++;
+    tmp = tmp->getParent();
+  }
+
+  std::vector<std::string> fullName(scopes_size, "");
+
+  fullName[scopes_size - 1] = name;
+  tmp = parent_table;
+  while (tmp != nullptr && !tmp->getName().empty()) {
+    scopes_size--;
+    fullName[scopes_size - 1] = tmp->getName();
+    tmp = tmp->getParent();
+  }
+
+  return fullName;
+}
+
 } // namespace ovid

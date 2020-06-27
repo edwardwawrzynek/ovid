@@ -567,7 +567,7 @@ bool operator!=(const FlowValue &lhs, const FlowValue &rhs) {
 int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                              const EscapeAnalysisState &state) {
   // if the function has already been visited, skip it
-  if (instruct.flow_state == FunctionEscapeAnalysisState::VISITED) {
+  if (instruct.flow_state == FunctionEscapeAnalysisState::VISITED || instruct.flow_state == FunctionEscapeAnalysisState::CUR_VISITING) {
     return 0;
   }
 
@@ -770,8 +770,10 @@ int EscapeAnalysisPass::visitFunctionCall(FunctionCall &instruct,
       selects.emplace_back();
       auto from = FlowValue(arg.get(), 1, selects);
       auto into = FlowValue(arg.get(), 1, selects, EscapeType::OTHER);
+      auto flow = Flow(from, into);
 
-      state.curFlowList->emplace_back(Flow(from, into));
+      if (!flow.isEmpty())
+        state.curFlowList->emplace_back(flow);
     }
   }
   return 0;
@@ -869,6 +871,16 @@ int EscapeAnalysisPass::visitBuiltinCast(BuiltinCast &instruct,
   assert(!instruct.expr.type->containsPointer());
 
   return 0;
+}
+
+int EscapeAnalysisPass::visitForwardIdentifier(
+    ForwardIdentifier &instruct, const EscapeAnalysisState &state) {
+  /* if an ir declaration node isn't set, identifier is external (and should already have escape analysis metadata calculated) */
+  if(instruct.symbol_ref->ir_decl_instruction != nullptr) {
+    return visitInstruction(*instruct.symbol_ref->ir_decl_instruction, state);
+  } else {
+    return 0;
+  }
 }
 
 void runEscapeAnalysis(const ir::InstructionList &ir, bool print_flows,

@@ -1,0 +1,17 @@
+// __ovid_compiler_test
+//__mode: check_ir
+//__end_header
+
+module test
+
+fn test1() {
+    test2()
+}
+
+fn test2() {
+    test3()
+}
+
+fn test3() {
+    test2()
+}
