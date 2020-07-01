@@ -25,7 +25,7 @@ endif()
 include_directories( ${LLVM_INCLUDE_DIRS} ".")
 link_directories( ${LLVM_LIBRARY_DIRS} )
 
-llvm_map_components_to_libnames(REQ_LLVM_LIBRARIES  native)
+llvm_map_components_to_libnames(REQ_LLVM_LIBRARIES native passes)
 
 ##################################
 # Download and install GoogleTest

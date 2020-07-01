@@ -61,8 +61,10 @@ int main(int argc, char **argv) {
 
   // generate llvm
   std::cout << "\n---- LLVM OUT ----\n";
-  auto codegen = ovid::ir::LLVMCodegenPass(argv[1]);
+  auto codegen = ovid::ir::LLVMCodegenPass(argv[1], errorMan);
   codegen.visitInstructions(ir, ovid::ir::LLVMCodegenPassState());
+  codegen.llvm_module->print(llvm::outs(), nullptr);
+  codegen.emitObjectCode(ovid::string_format("%s.o", argv[1]));
   codegen.llvm_module->print(llvm::outs(), nullptr);
 
   if (errorMan.criticalErrorOccurred()) {

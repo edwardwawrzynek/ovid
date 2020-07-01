@@ -172,9 +172,26 @@ LLVMCodegenPass::visitBasicBlock(BasicBlock &instruct,
   builder.SetInsertPoint(instruct.llvm_bb);
   state.curFunc->getBasicBlockList().push_back(instruct.llvm_bb);
 
+  bool hitTerminator = false;
   for (auto &child : instruct.body) {
-    visitInstruction(*child, state);
+    /* check if instruction terminates basic block */
+    auto isTerminator =
+        dynamic_cast<BasicBlockTerminator *>(child.get()) != nullptr;
+    if (!hitTerminator) {
+      visitInstruction(*child, state);
+    } else {
+      /* if we've already seen a terminator, this instruction should be a
+       * redundant jump terminator */
+      assert(isTerminator);
+    }
+
+    if (isTerminator)
+      hitTerminator = true;
   }
+
+  /* basic blocks must end in a terminator instruction */
+  if (!instruct.body.empty())
+    assert(hitTerminator);
 
   return nullptr;
 }
@@ -537,6 +554,102 @@ LLVMCodegenPass::visitForwardIdentifier(ForwardIdentifier &instruct,
                              instruct.symbol_ref->is_public, state);
 
   return instruct.val.llvm_value = function;
+}
+
+void LLVMCodegenPass::emitObjectCode(const std::string &filename) {
+  llvm::InitializeNativeTarget();
+  llvm::InitializeNativeTargetAsmParser();
+  llvm::InitializeNativeTargetAsmPrinter();
+  /* get target triple */
+  auto targetTripleStr = llvm::sys::getDefaultTargetTriple();
+  llvm::Triple targetTriple(targetTripleStr);
+
+  std::string error;
+  auto target = llvm::TargetRegistry::lookupTarget(targetTripleStr, error);
+
+  if (target == nullptr) {
+    errorMan.logError(
+        string_format("error getting llvm target: %s", error.c_str()),
+        SourceLocation::nullLocation(), ErrorType::InternalError);
+    return;
+  }
+
+  auto cpu = "generic";
+  auto features = "";
+
+  llvm::TargetOptions opts;
+  auto relocModel = llvm::Optional<llvm::Reloc::Model>();
+  auto targetMachine = target->createTargetMachine(targetTripleStr, cpu,
+                                                   features, opts, relocModel);
+
+  /* set target + data layout */
+  llvm_module->setDataLayout(targetMachine->createDataLayout());
+  llvm_module->setTargetTriple(targetTripleStr);
+
+  /* open output file */
+  std::error_code ec;
+  llvm::raw_fd_ostream outFile(filename, ec, llvm::sys::fs::OF_None);
+
+  if (ec) {
+    errorMan.logError(string_format("error opening file %s: %s",
+                                    filename.c_str(), ec.message().c_str()),
+                      SourceLocation::nullLocation(), ErrorType::InternalError);
+    return;
+  }
+
+  /* create pass manager */
+  /* TODO: make all pass configs, etc options */
+  llvm::PipelineTuningOptions PTO;
+  PTO.LoopUnrolling = true;
+  PTO.LoopInterleaving = true;
+  PTO.LoopVectorization = true;
+  PTO.SLPVectorization = true;
+
+  llvm::PassInstrumentationCallbacks PIC;
+  llvm::StandardInstrumentations SI;
+  SI.registerCallbacks(PIC);
+
+  llvm::PassBuilder passBuilder(targetMachine, PTO, llvm::None, &PIC);
+
+  bool DebugPassManager = false;
+  llvm::LoopAnalysisManager LAM(DebugPassManager);
+  llvm::FunctionAnalysisManager FAM(DebugPassManager);
+  llvm::CGSCCAnalysisManager CGAM(DebugPassManager);
+  llvm::ModuleAnalysisManager MAM(DebugPassManager);
+
+  FAM.registerPass(
+      [&passBuilder] { return passBuilder.buildDefaultAAPipeline(); });
+
+  std::unique_ptr<llvm::TargetLibraryInfoImpl> TLII(
+      new llvm::TargetLibraryInfoImpl(targetTriple));
+
+  FAM.registerPass([&] { return llvm::TargetLibraryAnalysis(*TLII); });
+
+  passBuilder.registerModuleAnalyses(MAM);
+  passBuilder.registerCGSCCAnalyses(CGAM);
+  passBuilder.registerFunctionAnalyses(FAM);
+  passBuilder.registerLoopAnalyses(LAM);
+  passBuilder.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+  llvm::ModulePassManager MPM(DebugPassManager);
+  MPM = passBuilder.buildPerModuleDefaultPipeline(llvm::PassBuilder::O2,
+                                                  DebugPassManager);
+
+  MPM.run(*llvm_module, MAM);
+
+  /* emit object code */
+  llvm::legacy::PassManager pass;
+
+  if (targetMachine->addPassesToEmitFile(pass, outFile, nullptr,
+                                         llvm::CGFT_ObjectFile)) {
+    errorMan.logError("llvm can't emit an object file of this type",
+                      SourceLocation::nullLocation(), ErrorType::InternalError);
+
+    return;
+  }
+
+  pass.run(*llvm_module);
+  outFile.flush();
 }
 
 } // namespace ovid::ir

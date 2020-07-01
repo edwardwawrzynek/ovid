@@ -217,4 +217,8 @@ SourceLocation SourceLocation::until(const SourceLocation &endLoc) {
   return SourceLocation(filename, row, col, endLoc.row, endLoc.col, file);
 }
 
+SourceLocation SourceLocation::nullLocation() {
+  return SourceLocation("", 0, 0, 0, 0, nullptr);
+}
+
 } // namespace ovid

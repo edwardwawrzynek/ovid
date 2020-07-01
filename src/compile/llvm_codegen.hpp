@@ -17,6 +17,8 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/StandardInstrumentations.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -86,6 +88,7 @@ public:
   llvm::IRBuilder<> builder;
   std::unique_ptr<llvm::Module> llvm_module;
   LLVMTypeGen type_gen;
+  ErrorManager &errorMan;
 
 private:
   llvm::Value *visitFunctionDeclare(FunctionDeclare &instruct,
@@ -148,10 +151,14 @@ private:
                                     const LLVMCodegenPassState &state);
 
 public:
-  explicit LLVMCodegenPass(const std::string &module_name)
+  LLVMCodegenPass(const std::string &module_name, ErrorManager &errorMan)
       : BaseIRVisitor(nullptr), llvm_context(), builder(llvm_context),
         llvm_module(std::make_unique<llvm::Module>(module_name, llvm_context)),
-        type_gen(llvm_context){};
+        type_gen(llvm_context), errorMan(errorMan){};
+
+  void runLLVMPasses();
+
+  void emitObjectCode(const std::string &filename);
 };
 
 } // namespace ovid::ir

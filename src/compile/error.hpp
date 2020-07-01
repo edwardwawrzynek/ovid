@@ -39,6 +39,8 @@ struct SourceLocation {
   SourceLocation until(const SourceLocation &endLoc);
   // construct a source location beginning here, lasting through endLoc
   SourceLocation through(const SourceLocation &endLoc);
+
+  static SourceLocation nullLocation();
 };
 /**
  * Types of errors and warnings
@@ -65,7 +67,8 @@ enum class ErrorType {
   UseOfPrivateType,
   ModDeclInFunction,
   TypeError,
-  NarrowingConversion
+  NarrowingConversion,
+  InternalError
 };
 
 enum class ErrorPrintLevel { Error, Warning, Note };
