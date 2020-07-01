@@ -45,20 +45,16 @@
       function:
         (7:5) OperatorSymbol: &
       args:
-        (7:6) FunctionCall
+        (7:7) FunctionCall
           function:
-            (7:6) OperatorSymbol: &
+            (7:10) OperatorSymbol: +
           args:
-            (7:8) FunctionCall
+            (7:7) FunctionCall
               function:
-                (7:11) OperatorSymbol: +
+                (7:7) OperatorSymbol: &
               args:
-                (7:8) FunctionCall
-                  function:
-                    (7:8) OperatorSymbol: &
-                  args:
-                    (7:9) Identifier: a
-                (7:13) IntLiteral: 5
+                (7:8) Identifier: a
+            (7:12) IntLiteral: 5
     (8:5) Assignment
       lvalue:
         (8:5) Identifier: a

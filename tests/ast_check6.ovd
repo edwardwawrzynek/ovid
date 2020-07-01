@@ -1,0 +1,7 @@
+// __ovid_compiler_test
+//__mode: check_ast
+//__end_header
+
+fn test(a bool, b bool, c bool, d bool) {
+    if a || b && c || d {}
+}

@@ -1,0 +1,64 @@
+(5:1) FunctionDecl: test
+  retType:
+    VoidType
+  argNames:
+  argTypes:
+  body:
+    (6:5) VarDecl: a
+        (6:13) IntLiteral: 1
+    (7:5) VarDecl: b
+        (7:13) IntLiteral: 2
+    (8:5) VarDecl: c
+        (8:13) IntLiteral: 3
+    (9:5) VarDecl: d
+        (9:13) IntLiteral: 4
+    (10:5) VarDecl: e
+        (10:13) IntLiteral: 5
+    (11:5) VarDecl: f
+        (11:13) IntLiteral: 6
+    (12:5) VarDecl: g
+        (12:13) IntLiteral: 7
+    (14:5) FunctionCall
+      function:
+        (14:17) OperatorSymbol: ||
+      args:
+        (14:5) FunctionCall
+          function:
+            (14:15) OperatorSymbol: &
+          args:
+            (14:5) FunctionCall
+              function:
+                (14:7) OperatorSymbol: >=
+              args:
+                (14:5) Identifier: a
+                (14:10) FunctionCall
+                  function:
+                    (14:13) OperatorSymbol: +
+                  args:
+                    (14:10) FunctionCall
+                      function:
+                        (14:10) OperatorSymbol: !
+                      args:
+                        (14:11) FunctionCall
+                          function:
+                            (14:11) OperatorSymbol: ~
+                          args:
+                            (14:12) Identifier: a
+                    (14:14) Identifier: b
+            (14:16) Identifier: c
+        (14:19) FunctionCall
+          function:
+            (14:26) OperatorSymbol: &
+          args:
+            (14:19) FunctionCall
+              function:
+                (14:23) OperatorSymbol: <<
+              args:
+                (14:19) FunctionCall
+                  function:
+                    (14:20) OperatorSymbol: >>
+                  args:
+                    (14:19) Identifier: d
+                    (14:22) Identifier: e
+                (14:25) Identifier: f
+            (14:27) Identifier: g

@@ -113,7 +113,7 @@ LLVMCodegenPass::visitFunctionPrototype(ast::NamedFunctionType *proto,
       llvm::Function::Create(functionType, link_type, name, llvm_module.get());
 
   size_t i = 0;
-  for(auto &arg: function->args()) {
+  for (auto &arg : function->args()) {
     arg.setName(proto->argNames[i++]);
   }
 
@@ -134,7 +134,7 @@ LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
 
   /* mark argument allocations with the llvm arg value */
   size_t i = 0;
-  for(auto& arg: function->args()) {
+  for (auto &arg : function->args()) {
     instruct.argAllocs[i++].get().val.llvm_value = &arg;
   }
 
@@ -385,15 +385,33 @@ static std::map<ast::OperatorType, llvm::Instruction::BinaryOps>
 
 };
 
+/* comparison operation predicates */
+struct PredIntFloatVariant {
+  llvm::CmpInst::Predicate int_variant;
+  llvm::CmpInst::Predicate float_variant;
+};
+
+static std::map<ast::OperatorType, PredIntFloatVariant> comparisonPreds = {
+    {ast::OperatorType::EQUAL,
+     {llvm::CmpInst::Predicate::ICMP_EQ, llvm::CmpInst::Predicate::FCMP_OEQ}},
+    {ast::OperatorType::NEQUAL,
+     {llvm::CmpInst::Predicate::ICMP_NE, llvm::CmpInst::Predicate::FCMP_ONE}},
+    {ast::OperatorType::GREATER,
+     {llvm::CmpInst::Predicate::ICMP_UGT, llvm::CmpInst::Predicate::FCMP_OGT}},
+    {ast::OperatorType::GREATER_EQUAL,
+     {llvm::CmpInst::Predicate::ICMP_UGE, llvm::CmpInst::Predicate::FCMP_OGE}},
+    {ast::OperatorType::LESS,
+     {llvm::CmpInst::Predicate::ICMP_ULT, llvm::CmpInst::Predicate::FCMP_OLT}},
+    {ast::OperatorType::LESS_EQUAL,
+     {llvm::CmpInst::Predicate::ICMP_ULE, llvm::CmpInst::Predicate::FCMP_OLE}},
+};
+
 llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
                                           const LLVMCodegenPassState &state) {
   auto builtinOp = dynamic_cast<BuiltinOperator *>(&instruct.function);
-  auto intArg =
-      dynamic_cast<const ast::IntType *>(
-          instruct.arguments[0].get().type->withoutMutability()) != nullptr;
-  auto floatArg =
-      dynamic_cast<const ast::FloatType *>(
-          instruct.arguments[0].get().type->withoutMutability()) != nullptr;
+  auto intArg0 = dynamic_cast<const ast::IntType *>(
+      instruct.arguments[0].get().type->withoutMutability());
+  auto isIntArg0 = intArg0 != nullptr;
 
   switch (builtinOp->opType) {
   case ast::OperatorType::ADD:
@@ -401,11 +419,39 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
   case ast::OperatorType::MUL: {
     /* look up operation and pick int or float op */
     auto opVariants = trivialBinaryOps[builtinOp->opType];
-    auto op = intArg ? opVariants.int_variant : opVariants.float_variant;
+    auto op = isIntArg0 ? opVariants.int_variant : opVariants.float_variant;
 
     auto value =
         builder.CreateBinOp(op, useValue(instruct.arguments[0].get(), state),
                             useValue(instruct.arguments[1].get(), state));
+    return instruct.val.llvm_value = value;
+  }
+  case ast::OperatorType::EQUAL:
+  case ast::OperatorType::NEQUAL:
+  case ast::OperatorType::GREATER_EQUAL:
+  case ast::OperatorType::GREATER:
+  case ast::OperatorType::LESS_EQUAL:
+  case ast::OperatorType::LESS: {
+    auto opVariants = comparisonPreds[builtinOp->opType];
+    auto op = isIntArg0 ? opVariants.int_variant : opVariants.float_variant;
+    /* if args are ints and either are signed, use signed predicate */
+    if (isIntArg0) {
+      auto intArg1 = dynamic_cast<const ast::IntType *>(
+          instruct.arguments[1].get().type->withoutMutability());
+      assert(intArg1 != nullptr);
+      if (!intArg0->isUnsigned || !intArg1->isUnsigned) {
+        op = llvm::CmpInst::getSignedPredicate(op);
+      }
+    }
+
+    auto value =
+        isIntArg0
+            ? builder.CreateICmp(op,
+                                 useValue(instruct.arguments[0].get(), state),
+                                 useValue(instruct.arguments[1].get(), state))
+            : builder.CreateFCmp(op,
+                                 useValue(instruct.arguments[0].get(), state),
+                                 useValue(instruct.arguments[1].get(), state));
     return instruct.val.llvm_value = value;
   }
   default:

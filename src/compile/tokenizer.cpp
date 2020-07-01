@@ -256,6 +256,11 @@ void Tokenizer::nextToken() {
     break;
   case '&':
     curToken.token = T_ADDR;
+    if ((c = next()) == '&') {
+      curToken.token = T_AND;
+    } else {
+      putback(c);
+    }
     break;
   case '=':
     if ((c = next()) == '=') {
@@ -298,6 +303,48 @@ void Tokenizer::nextToken() {
     break;
   case '.':
     curToken.token = T_DOT;
+    break;
+  case '>':
+    curToken.token = T_GREATER;
+    if ((c = next()) == '=') {
+      curToken.token = T_GREATER_EQUAL;
+    } else if (c == '>') {
+      curToken.token = T_RSHF;
+    } else {
+      putback(c);
+    }
+    break;
+  case '<':
+    curToken.token = T_LESS;
+    if ((c = next()) == '=') {
+      curToken.token = T_LESS_EQUAL;
+    } else if (c == '<') {
+      curToken.token = T_LSHF;
+    } else {
+      putback(c);
+    }
+    break;
+  case '!':
+    curToken.token = T_NOT;
+    if ((c = next()) == '=') {
+      curToken.token = T_NEQ;
+    } else {
+      putback(c);
+    }
+    break;
+  case '~':
+    curToken.token = T_BIN_NOT;
+    break;
+  case '^':
+    curToken.token = T_BIN_XOR;
+    break;
+  case '|':
+    curToken.token = T_BIN_OR;
+    if ((c = next()) == '|') {
+      curToken.token = T_OR;
+    } else {
+      putback(c);
+    }
     break;
   case '\'':
     curToken.token = T_CHARLITERAL;

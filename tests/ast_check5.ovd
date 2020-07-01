@@ -1,0 +1,15 @@
+// __ovid_compiler_test
+//__mode: check_ast
+//__end_header
+
+fn test() {
+    val a = 1
+    val b = 2
+    val c = 3
+    val d = 4
+    val e = 5
+    val f = 6
+    val g = 7
+
+    a >= !~a+b&c||d>>e<<f&g
+}

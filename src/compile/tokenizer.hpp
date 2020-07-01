@@ -8,58 +8,57 @@
 
 namespace ovid {
 enum TokenType {
-  T_EOF = -1,
-  /* if unknown, int_literal holds char value */
-  T_UNKNOWN = 0,
+  T_EOF,
+  T_UNKNOWN,
 
-  T_ADD = 1,
-  T_SUB = 2,
-  T_STAR = 3, /* also used for pointers */
-  T_DIV = 4,
-
-  T_ADDR = 5,
-
-  T_ASSIGN = 6,
-  T_EQ = 7,
-  T_FN = 8,
-
-  T_LBRK = 9,
-  T_RBRK = 10,
-  T_LPAREN = 11,
-  T_RPAREN = 12,
-
-  T_VAL = 14,
-  T_MUT = 15,
-  T_COMMA = 16,
-
-  T_MODULE = 17,
-  T_IMPORT = 18,
-
-  T_RETURN = 19,
-
-  T_SEMICOLON = 20,
-  T_COLON = 21,
-
-  T_RIGHT_ARROW = 22, /* ->, not => */
-  T_PUB = 23,
-  T_DOUBLE_COLON = 24,
-
-  T_TYPE = 25,
-
-  T_IF = 26,
-  T_ELSIF = 27,
-  T_ELSE = 28,
-
-  T_DOT = 29,
-
-  T_INC = 30, //++
-  T_DEC = 31, //--
-
-  T_IDENT = -2,
-  T_INTLITERAL = -3,
-  T_FLOATLITERAL = -4,
-  T_BOOLLITERAL = -5,
-  T_CHARLITERAL = -6,
+  T_IDENT,         // identifier
+  T_INTLITERAL,    // integer literal
+  T_FLOATLITERAL,  // floating point literal
+  T_BOOLLITERAL,   // boolean literal
+  T_CHARLITERAL,   // character literal
+  T_ADD,           // +
+  T_SUB,           // -
+  T_STAR,          // *
+  T_DIV,           // /
+  T_ADDR,          // &
+  T_NOT,           // !
+  T_BIN_NOT,       // ~
+  T_BIN_OR,        // |
+  T_BIN_XOR,       // ^
+  T_OR,            // ||
+  T_AND,           // &&
+  T_LSHF,          // <<
+  T_RSHF,          // >>
+  T_EQ,            // ==
+  T_NEQ,           // !=
+  T_GREATER,       // >
+  T_GREATER_EQUAL, // >=
+  T_LESS,          // <
+  T_LESS_EQUAL,    // <=
+  T_INC,           //++
+  T_DEC,           //--
+  T_COMMA,         // ,
+  T_SEMICOLON,     // ;
+  T_COLON,         // :
+  T_DOUBLE_COLON,  // ::
+  T_DOT,           // .
+  T_RIGHT_ARROW,   // ->
+  T_ASSIGN,        // =
+  T_LBRK,          // {
+  T_RBRK,          // }
+  T_LPAREN,        // (
+  T_RPAREN,        // )
+  T_FN,            // fn
+  T_VAL,           // val
+  T_MUT,           // mut
+  T_MODULE,        // module
+  T_IMPORT,        // import
+  T_RETURN,        // return
+  T_PUB,           // pub
+  T_TYPE,          // type
+  T_IF,            // if
+  T_ELSIF,         // elsif
+  T_ELSE,          // else
 };
 
 struct Token {

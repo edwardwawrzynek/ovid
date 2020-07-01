@@ -1,0 +1,29 @@
+(5:1) FunctionDecl: test
+  retType:
+    VoidType
+  argNames: a b c d
+  argTypes:
+    BoolType
+    BoolType
+    BoolType
+    BoolType
+  body:
+    (6:5) IfStatement
+      condition:
+        (6:8) FunctionCall
+          function:
+            (6:20) OperatorSymbol: ||
+          args:
+            (6:8) FunctionCall
+              function:
+                (6:10) OperatorSymbol: ||
+              args:
+                (6:8) Identifier: a
+                (6:13) FunctionCall
+                  function:
+                    (6:15) OperatorSymbol: &&
+                  args:
+                    (6:13) Identifier: b
+                    (6:18) Identifier: c
+            (6:23) Identifier: d
+      body:

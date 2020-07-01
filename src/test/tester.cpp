@@ -4,6 +4,7 @@
 #include "error.hpp"
 #include "escape_analysis.hpp"
 #include "ir_printer.hpp"
+#include "llvm_codegen.hpp"
 #include "parser.hpp"
 #include "resolve_pass.hpp"
 #include "tokenizer.hpp"
