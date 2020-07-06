@@ -2,6 +2,9 @@
 #include "escape_analysis.hpp"
 #include "name_mangle.hpp"
 
+/* needs LLVM 10.0.0 or higher */
+static_assert(LLVM_VERSION_MAJOR >= 10);
+
 namespace ovid::ir {
 
 LLVMCodegenPassState
@@ -69,6 +72,30 @@ llvm::Type *LLVMTypeGen::visitType(ast::Type &type) {
   return visitType(type, LLVMTypeGenState());
 }
 
+LLVMCodegenPass::LLVMCodegenPass(const std::string &module_name,
+                                 ErrorManager &errorMan)
+    : BaseIRVisitor(nullptr), llvm_context(), builder(llvm_context),
+      llvm_module(std::make_unique<llvm::Module>(module_name, llvm_context)),
+      type_gen(llvm_context), errorMan(errorMan), native_fns() {
+  initNativeFns();
+}
+
+void LLVMCodegenPass::initNativeFns() {
+  /* GC_malloc and GC_malloc_atomic are noalias *i8(size_t) */
+  std::vector<llvm::Type *> malloc_args;
+  malloc_args.push_back(llvm::Type::getInt64Ty(llvm_context));
+  auto malloc_type = llvm::FunctionType::get(
+      llvm::PointerType::get(llvm::Type::getInt32Ty(llvm_context), 0),
+      malloc_args, false);
+
+  native_fns.GC_malloc =
+      llvm::Function::Create(malloc_type, llvm::GlobalValue::ExternalLinkage,
+                             "GC_malloc", llvm_module.get());
+  native_fns.GC_malloc_atomic =
+      llvm::Function::Create(malloc_type, llvm::GlobalValue::ExternalLinkage,
+                             "GC_malloc_atomic", llvm_module.get());
+}
+
 llvm::Value *
 LLVMCodegenPass::visitIntLiteral(IntLiteral &instruct,
                                  const LLVMCodegenPassState &state) {
@@ -124,10 +151,12 @@ llvm::Value *
 LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                       const LLVMCodegenPassState &state) {
   llvm::Function *function;
+  auto funcType = dynamic_cast<ast::NamedFunctionType *>(instruct.type.get());
+  assert(funcType != nullptr);
+
   function = visitFunctionPrototype(
-      dynamic_cast<ast::NamedFunctionType *>(instruct.type.get()),
-      name_mangling::mangle(instruct.val.sourceName), instruct.is_public,
-      state);
+      funcType, name_mangling::mangle(instruct.val.sourceName),
+      instruct.is_public, state);
 
   /* shouldn't be redefining a function */
   assert(function->empty());
@@ -155,11 +184,24 @@ LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
   builder.CreateBr(instruct.body[0]->llvm_bb);
 
   /* visit basic blocks */
+  i = 0;
   for (auto &bb : instruct.body) {
     visitInstruction(*bb, state.withFunc(function));
+
+    /* if last block isn't terminated, add undef return */
+    if (i++ == instruct.body.size() - 1) {
+      if (bb->body.empty() || dynamic_cast<BasicBlockTerminator *>(
+                                  &*bb->body.back().get()) == nullptr) {
+        builder.CreateRet(llvm::UndefValue::get(
+            type_gen.visitType(*funcType->type->retType)));
+      }
+    }
   }
 
-  llvm::verifyFunction(*function);
+  if (llvm::verifyFunction(*function, &llvm::outs())) {
+    errorMan.logError("llvm function verification failed", instruct.loc,
+                      ErrorType::InternalError);
+  }
   return instruct.val.llvm_value = function;
 }
 
@@ -239,11 +281,17 @@ llvm::Value *LLVMCodegenPass::visitJump(Jump &instruct,
 llvm::Value *
 LLVMCodegenPass::visitConditionalJump(ConditionalJump &instruct,
                                       const LLVMCodegenPassState &state) {
-  auto cond = useValue(instruct.condition, state);
-  builder.CreateCondBr(cond, instruct.true_label.llvm_bb,
-                       instruct.false_label.llvm_bb);
-
-  return nullptr;
+  /* if condition is bool literal true, emit a non conditional jump */
+  auto boolLit = dynamic_cast<BoolLiteral *>(&instruct.condition);
+  if (boolLit != nullptr && boolLit->value) {
+    builder.CreateBr(instruct.true_label.llvm_bb);
+    return nullptr;
+  } else {
+    auto cond = useValue(instruct.condition, state);
+    builder.CreateCondBr(cond, instruct.true_label.llvm_bb,
+                         instruct.false_label.llvm_bb);
+    return nullptr;
+  }
 }
 
 llvm::Value *
@@ -255,11 +303,16 @@ LLVMCodegenPass::visitAllocationEntry(Allocation &instruct,
     if (instruct.allocType == AllocationType::ARG) {
       return instruct.val.llvm_value;
     } else if (instruct.allocType == AllocationType::ARG_COPY_TO_STACK) {
-      /* TODO */
-      assert(false);
+      /* create alloca on stack */
+      auto alloca =
+          builder.CreateAlloca(type_gen.visitType(*instruct.type), nullptr,
+                               name_mangling::mangle(instruct.val));
+      /* copy from arg */
+      builder.CreateStore(instruct.val.llvm_value, alloca);
+      return instruct.val.llvm_value = alloca;
     } else if (instruct.allocType == AllocationType::ARG_HEAP) {
-      /* TODO */
-      assert(false);
+      /* heap isn't an alloca, so it doesn't need to be in the entry block.
+       * handled in visitAllocation */
     }
   } else {
     assert(instruct.val.llvm_value == nullptr);
@@ -269,8 +322,8 @@ LLVMCodegenPass::visitAllocationEntry(Allocation &instruct,
                                name_mangling::mangle(instruct.val));
       return instruct.val.llvm_value = alloca;
     } else if (instruct.allocType == AllocationType::HEAP) {
-      /* TODO */
-      assert(false);
+      /* heap isn't an alloca, so it doesn't need to be in the entry block.
+       * handled in visitAllocation */
     } else if (instruct.allocType == AllocationType::STATIC) {
       /* TODO */
       assert(false);
@@ -285,6 +338,34 @@ LLVMCodegenPass::visitAllocationEntry(Allocation &instruct,
 llvm::Value *
 LLVMCodegenPass::visitAllocation(Allocation &instruct,
                                  const LLVMCodegenPassState &state) {
+  if (instruct.allocType == AllocationType::HEAP ||
+      instruct.allocType == AllocationType::ARG_HEAP) {
+    /* in order to get the size of the type T, use
+     * getelementptr *T (T, *T null, 1) and then ptrtoint */
+    auto gep_index =
+        llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(llvm_context), 1);
+    auto size_ptr =
+        builder.CreateGEP(llvm::ConstantPointerNull::get(llvm::PointerType::get(
+                              type_gen.visitType(*instruct.type), 0)),
+                          gep_index);
+    auto size = builder.CreatePtrToInt(
+        size_ptr, llvm::IntegerType::getInt64Ty(llvm_context));
+    /* call the gc allocation function. if the type contains pointers, use
+     * GC_malloc, otherwise GC_malloc_atomic */
+    std::vector<llvm::Value *> malloc_args;
+    malloc_args.push_back(size);
+
+    auto func = instruct.type->containsPointer() ? native_fns.GC_malloc
+                                                 : native_fns.GC_malloc_atomic;
+    auto alloc = builder.CreateCall(func, malloc_args);
+
+    if (instruct.allocType == AllocationType::ARG_HEAP) {
+      /* store arg into alloc */
+      builder.CreateStore(instruct.val.llvm_value, alloc);
+    }
+
+    return instruct.val.llvm_value = alloc;
+  }
   /* allocation should have already been visited by FunctionDeclare */
   assert(instruct.val.llvm_value != nullptr);
 
@@ -304,6 +385,7 @@ llvm::Value *LLVMCodegenPass::visitStore(Store &instruct,
 llvm::Value *LLVMCodegenPass::visitAddress(Address &instruct,
                                            const LLVMCodegenPassState &state) {
   /* addressable values are already just addresses, so nothing to do */
+  assert(instruct.expr.isAddressable());
   return instruct.val.llvm_value = useAddr(instruct.expr, state);
 }
 
@@ -312,7 +394,7 @@ LLVMCodegenPass::visitDereference(Dereference &instruct,
                                   const LLVMCodegenPassState &state) {
   /* don't perform the load here -- it is deferred until the value is actually
    * used (useValue) */
-  return instruct.val.llvm_value = instruct.expr.val.llvm_value;
+  return instruct.val.llvm_value = useValue(instruct.expr, state);
 }
 
 llvm::Value *
@@ -399,8 +481,10 @@ static std::map<ast::OperatorType, InstrIntFloatVariant> trivialBinaryOps = {
 /* trivial binary ops with only int variant */
 static std::map<ast::OperatorType, llvm::Instruction::BinaryOps>
     trivialIntBinaryOps = {
-
-};
+        {ast::OperatorType::BIN_AND, llvm::Instruction::BinaryOps::And},
+        {ast::OperatorType::BIN_OR, llvm::Instruction::BinaryOps::Or},
+        {ast::OperatorType::BIN_XOR, llvm::Instruction::BinaryOps::Xor},
+        {ast::OperatorType::LEFT_SHIFT, llvm::Instruction::LShr}};
 
 /* comparison operation predicates */
 struct PredIntFloatVariant {
@@ -427,6 +511,8 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
                                           const LLVMCodegenPassState &state) {
   auto builtinOp = dynamic_cast<BuiltinOperator *>(&instruct.function);
   auto intArg0 = dynamic_cast<const ast::IntType *>(
+      instruct.arguments[0].get().type->withoutMutability());
+  auto floatArg0 = dynamic_cast<const ast::FloatType *>(
       instruct.arguments[0].get().type->withoutMutability());
   auto isIntArg0 = intArg0 != nullptr;
 
@@ -469,6 +555,38 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
             : builder.CreateFCmp(op,
                                  useValue(instruct.arguments[0].get(), state),
                                  useValue(instruct.arguments[1].get(), state));
+    return instruct.val.llvm_value = value;
+  }
+  case ast::OperatorType::NEGATIVE:
+    if (isIntArg0) {
+      // -a = 0-a
+      auto value = builder.CreateSub(
+          llvm::ConstantInt::get(llvm_context, llvm::APInt(intArg0->size, 0)),
+          useValue(instruct.arguments[0].get(), state));
+
+      return instruct.val.llvm_value = value;
+    } else {
+      auto value =
+          builder.CreateFNeg(useValue(instruct.arguments[0].get(), state));
+      return instruct.val.llvm_value = value;
+    }
+  case ast::OperatorType::BIN_AND:
+  case ast::OperatorType::BIN_OR:
+  case ast::OperatorType::BIN_XOR:
+  case ast::OperatorType::LEFT_SHIFT: {
+    auto op = trivialIntBinaryOps[builtinOp->opType];
+    auto value =
+        builder.CreateBinOp(op, useValue(instruct.arguments[0].get(), state),
+                            useValue(instruct.arguments[1].get(), state));
+    return instruct.val.llvm_value = value;
+  }
+  case ast::OperatorType::RIGHT_SHIFT: {
+    /* select logical or arithmetic shift based on signedness */
+    auto op = intArg0->isUnsigned ? llvm::BinaryOperator::LShr
+                                  : llvm::BinaryOperator::AShr;
+    auto value =
+        builder.CreateBinOp(op, useValue(instruct.arguments[0].get(), state),
+                            useValue(instruct.arguments[1].get(), state));
     return instruct.val.llvm_value = value;
   }
   default:
@@ -515,8 +633,11 @@ LLVMCodegenPass::visitBuiltinCast(BuiltinCast &instruct,
       auto value = builder.CreateZExt(useValue(instruct.expr, state),
                                       type_gen.visitType(*intDstType));
       return instruct.val.llvm_value = value;
-    } else {
-      assert(false);
+    }
+    /* signed <-> unsigned conversion, nop */
+    else {
+      auto value = useValue(instruct.expr, state);
+      return instruct.val.llvm_value = value;
     }
   } else if (floatSrcType != nullptr) {
     assert(floatDstType != nullptr);
@@ -556,7 +677,36 @@ LLVMCodegenPass::visitForwardIdentifier(ForwardIdentifier &instruct,
   return instruct.val.llvm_value = function;
 }
 
-void LLVMCodegenPass::emitObjectCode(const std::string &filename) {
+void LLVMCodegenPass::addMain(const std::vector<std::string> &main_func_name) {
+  auto funcType =
+      llvm::FunctionType::get(llvm::Type::getInt32Ty(llvm_context), false);
+  auto function = llvm::Function::Create(
+      funcType, llvm::GlobalValue::ExternalLinkage, "main", llvm_module.get());
+
+  auto block = llvm::BasicBlock::Create(llvm_context, "bb0", function);
+  builder.SetInsertPoint(block);
+
+  auto main_func =
+      llvm_module->getFunction(name_mangling::mangle(main_func_name));
+  if (main_func == nullptr) {
+    errorMan.logError("no main function declared",
+                      SourceLocation::nullLocation(), ErrorType::InternalError);
+    return;
+  }
+
+  auto res = builder.CreateCall(main_func);
+  builder.CreateRet(res);
+}
+
+void LLVMCodegenPass::optAndEmit(llvm::PassBuilder::OptimizationLevel optLevel,
+                                 const std::string &filename,
+                                 CodegenOutputType outType, bool genMainFunc,
+                                 const std::vector<std::string> *mainFuncName) {
+  if (genMainFunc) {
+    assert(mainFuncName != nullptr);
+    addMain(*mainFuncName);
+  }
+
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmParser();
   llvm::InitializeNativeTargetAsmPrinter();
@@ -598,10 +748,11 @@ void LLVMCodegenPass::emitObjectCode(const std::string &filename) {
   }
 
   /* create pass manager */
-  /* TODO: make all pass configs, etc options */
   llvm::PipelineTuningOptions PTO;
-  PTO.LoopUnrolling = true;
-  PTO.LoopInterleaving = true;
+  PTO.LoopUnrolling =
+      optLevel != llvm::PassBuilder::Oz && optLevel != llvm::PassBuilder::Os;
+  PTO.LoopInterleaving =
+      optLevel != llvm::PassBuilder::Oz && optLevel != llvm::PassBuilder::Os;
   PTO.LoopVectorization = true;
   PTO.SLPVectorization = true;
 
@@ -632,24 +783,29 @@ void LLVMCodegenPass::emitObjectCode(const std::string &filename) {
   passBuilder.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
   llvm::ModulePassManager MPM(DebugPassManager);
-  MPM = passBuilder.buildPerModuleDefaultPipeline(llvm::PassBuilder::O2,
-                                                  DebugPassManager);
+  MPM = passBuilder.buildPerModuleDefaultPipeline(optLevel, DebugPassManager);
 
   MPM.run(*llvm_module, MAM);
 
-  /* emit object code */
-  llvm::legacy::PassManager pass;
+  if (outType == CodegenOutputType::LLVM_IR) {
+    llvm_module->print(outFile, nullptr);
+  } else {
+    /* emit object/assembly code */
+    auto fileType = outType == CodegenOutputType::ASM ? llvm::CGFT_AssemblyFile
+                                                      : llvm::CGFT_ObjectFile;
 
-  if (targetMachine->addPassesToEmitFile(pass, outFile, nullptr,
-                                         llvm::CGFT_ObjectFile)) {
-    errorMan.logError("llvm can't emit an object file of this type",
-                      SourceLocation::nullLocation(), ErrorType::InternalError);
+    llvm::legacy::PassManager pass;
+    if (targetMachine->addPassesToEmitFile(pass, outFile, nullptr, fileType)) {
+      errorMan.logError("llvm can't emit an object file of this type",
+                        SourceLocation::nullLocation(),
+                        ErrorType::InternalError);
 
-    return;
+      return;
+    }
+
+    pass.run(*llvm_module);
+    outFile.flush();
   }
-
-  pass.run(*llvm_module);
-  outFile.flush();
 }
 
 } // namespace ovid::ir

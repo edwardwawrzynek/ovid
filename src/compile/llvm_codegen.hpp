@@ -68,6 +68,13 @@ public:
       : BaseTypeVisitor(nullptr), llvm_context(llvm_context){};
 };
 
+/* native methods that the codegen pass uses */
+struct LLVMCodegenNativeMethods {
+public:
+  llvm::Value *GC_malloc;
+  llvm::Value *GC_malloc_atomic;
+};
+
 /* the llvm codegen pass over the ir.
  * the pass visits each ir instruction and emits the appropriate llvm ir
  */
@@ -81,6 +88,8 @@ public:
   LLVMCodegenPassState withFunc(llvm::Function *func) const;
 };
 
+enum class CodegenOutputType { LLVM_IR, ASM, OBJ };
+
 class LLVMCodegenPass
     : public BaseIRVisitor<llvm::Value *, LLVMCodegenPassState> {
 public:
@@ -89,6 +98,8 @@ public:
   std::unique_ptr<llvm::Module> llvm_module;
   LLVMTypeGen type_gen;
   ErrorManager &errorMan;
+
+  LLVMCodegenNativeMethods native_fns;
 
 private:
   llvm::Value *visitFunctionDeclare(FunctionDeclare &instruct,
@@ -150,15 +161,19 @@ private:
   llvm::Value *visitAllocationEntry(Allocation &instruct,
                                     const LLVMCodegenPassState &state);
 
+  /* add a main function that calls the given main function */
+  void addMain(const std::vector<std::string> &main_func_name);
+
+  /* init llvm decl's for native methods */
+  void initNativeFns();
+
 public:
-  LLVMCodegenPass(const std::string &module_name, ErrorManager &errorMan)
-      : BaseIRVisitor(nullptr), llvm_context(), builder(llvm_context),
-        llvm_module(std::make_unique<llvm::Module>(module_name, llvm_context)),
-        type_gen(llvm_context), errorMan(errorMan){};
+  LLVMCodegenPass(const std::string &module_name, ErrorManager &errorMan);
 
-  void runLLVMPasses();
-
-  void emitObjectCode(const std::string &filename);
+  void optAndEmit(llvm::PassBuilder::OptimizationLevel optLevel,
+                  const std::string &filename, CodegenOutputType outType,
+                  bool genMainFunc = false,
+                  const std::vector<std::string> *mainFuncName = nullptr);
 };
 
 } // namespace ovid::ir

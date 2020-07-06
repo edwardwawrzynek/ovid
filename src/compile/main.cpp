@@ -64,8 +64,14 @@ int main(int argc, char **argv) {
   auto codegen = ovid::ir::LLVMCodegenPass(argv[1], errorMan);
   codegen.visitInstructions(ir, ovid::ir::LLVMCodegenPassState());
   codegen.llvm_module->print(llvm::outs(), nullptr);
-  codegen.emitObjectCode(ovid::string_format("%s.o", argv[1]));
-  codegen.llvm_module->print(llvm::outs(), nullptr);
+
+  /* construct main function name */
+  auto main_func = package;
+  main_func.emplace_back("main");
+  /* emit */
+  codegen.optAndEmit(llvm::PassBuilder::O2,
+                     ovid::string_format("%s.o", argv[1]),
+                     ovid::ir::CodegenOutputType::OBJ, true, &main_func);
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";
