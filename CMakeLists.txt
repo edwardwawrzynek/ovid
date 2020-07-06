@@ -16,7 +16,8 @@ set(CCFLAGS -Wall -Wextra -pedantic -Wno-unused-parameter -g)
 
 ##################################
 # LLVM stuff
-find_package(LLVM)
+find_package(LLVM 10.0.0 REQUIRED)
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 if( NOT LLVM_FOUND )
     message(FATAL_ERROR "LLVM package can't be found. Set CMAKE_PREFIX_PATH variable to LLVM's installation prefix.")
