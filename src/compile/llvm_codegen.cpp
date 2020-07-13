@@ -85,7 +85,7 @@ void LLVMCodegenPass::initNativeFns() {
   std::vector<llvm::Type *> malloc_args;
   malloc_args.push_back(llvm::Type::getInt64Ty(llvm_context));
   auto malloc_type = llvm::FunctionType::get(
-      llvm::PointerType::get(llvm::Type::getInt32Ty(llvm_context), 0),
+      llvm::PointerType::get(llvm::Type::getInt8Ty(llvm_context), 0),
       malloc_args, false);
 
   native_fns.GC_malloc =
@@ -188,12 +188,17 @@ LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
   for (auto &bb : instruct.body) {
     visitInstruction(*bb, state.withFunc(function));
 
-    /* if last block isn't terminated, add undef return */
+    /* if last block isn't terminated, add undef/void return */
     if (i++ == instruct.body.size() - 1) {
       if (bb->body.empty() || dynamic_cast<BasicBlockTerminator *>(
                                   &*bb->body.back().get()) == nullptr) {
-        builder.CreateRet(llvm::UndefValue::get(
-            type_gen.visitType(*funcType->type->retType)));
+        if (dynamic_cast<ast::VoidType *>(
+                funcType->type->retType->withoutMutability()) != nullptr) {
+          builder.CreateRetVoid();
+        } else {
+          builder.CreateRet(llvm::UndefValue::get(
+              type_gen.visitType(*funcType->type->retType)));
+        }
       }
     }
   }
@@ -230,10 +235,6 @@ LLVMCodegenPass::visitBasicBlock(BasicBlock &instruct,
     if (isTerminator)
       hitTerminator = true;
   }
-
-  /* basic blocks must end in a terminator instruction */
-  if (!instruct.body.empty())
-    assert(hitTerminator);
 
   return nullptr;
 }
@@ -297,6 +298,7 @@ LLVMCodegenPass::visitConditionalJump(ConditionalJump &instruct,
 llvm::Value *
 LLVMCodegenPass::visitAllocationEntry(Allocation &instruct,
                                       const LLVMCodegenPassState &state) {
+  /* visit allocations that need alloca's setup in the function entry block */
   if (AllocationTypeIsArg(instruct.allocType)) {
     /* function should have set value */
     assert(instruct.val.llvm_value != nullptr);
@@ -324,9 +326,6 @@ LLVMCodegenPass::visitAllocationEntry(Allocation &instruct,
     } else if (instruct.allocType == AllocationType::HEAP) {
       /* heap isn't an alloca, so it doesn't need to be in the entry block.
        * handled in visitAllocation */
-    } else if (instruct.allocType == AllocationType::STATIC) {
-      /* TODO */
-      assert(false);
     } else {
       assert(false);
     }
@@ -338,26 +337,29 @@ LLVMCodegenPass::visitAllocationEntry(Allocation &instruct,
 llvm::Value *
 LLVMCodegenPass::visitAllocation(Allocation &instruct,
                                  const LLVMCodegenPassState &state) {
+  auto type = type_gen.visitType(*instruct.type);
   if (instruct.allocType == AllocationType::HEAP ||
       instruct.allocType == AllocationType::ARG_HEAP) {
     /* in order to get the size of the type T, use
      * getelementptr *T (T, *T null, 1) and then ptrtoint */
     auto gep_index =
         llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(llvm_context), 1);
-    auto size_ptr =
-        builder.CreateGEP(llvm::ConstantPointerNull::get(llvm::PointerType::get(
-                              type_gen.visitType(*instruct.type), 0)),
-                          gep_index);
+    auto size_ptr = builder.CreateGEP(
+        llvm::ConstantPointerNull::get(llvm::PointerType::get(type, 0)),
+        gep_index);
     auto size = builder.CreatePtrToInt(
         size_ptr, llvm::IntegerType::getInt64Ty(llvm_context));
     /* call the gc allocation function. if the type contains pointers, use
-     * GC_malloc, otherwise GC_malloc_atomic */
+     * GC_malloc, otherwise GC_malloc_atomic.
+     * bitcast the resulting *i8 to appropriate pointer type */
     std::vector<llvm::Value *> malloc_args;
     malloc_args.push_back(size);
 
     auto func = instruct.type->containsPointer() ? native_fns.GC_malloc
                                                  : native_fns.GC_malloc_atomic;
-    auto alloc = builder.CreateCall(func, malloc_args);
+    auto i8_alloc = builder.CreateCall(func, malloc_args);
+    auto alloc =
+        builder.CreateBitCast(i8_alloc, llvm::PointerType::get(type, 0));
 
     if (instruct.allocType == AllocationType::ARG_HEAP) {
       /* store arg into alloc */
@@ -370,6 +372,28 @@ LLVMCodegenPass::visitAllocation(Allocation &instruct,
   assert(instruct.val.llvm_value != nullptr);
 
   return instruct.val.llvm_value;
+}
+
+llvm::Value *
+LLVMCodegenPass::visitGlobalAllocation(GlobalAllocation &instruct,
+                                       const LLVMCodegenPassState &state) {
+  auto initVal = instruct.initial_val.val.llvm_value;
+
+  if (!llvm::isa<llvm::Constant>(initVal)) {
+    errorMan.logError("global variable initializer isn't a constant",
+                      instruct.initial_val.loc, ErrorType::TypeError);
+    return nullptr;
+  }
+
+  auto global = new llvm::GlobalVariable(
+      *llvm_module, type_gen.visitType(*instruct.type),
+      !instruct.symbol->is_mut,
+      instruct.symbol->is_public ? llvm::GlobalValue::ExternalLinkage
+                                 : llvm::GlobalValue::InternalLinkage,
+      llvm::dyn_cast<llvm::Constant>(initVal),
+      name_mangling::mangle(instruct.val));
+
+  return instruct.val.llvm_value = global;
 }
 
 llvm::Value *LLVMCodegenPass::visitStore(Store &instruct,

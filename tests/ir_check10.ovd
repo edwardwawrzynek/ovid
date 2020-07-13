@@ -1,0 +1,8 @@
+// __ovid_compiler_test
+//__mode: check_ir compile
+//__end_header
+/* globals */
+val a i32 = 5
+val b i32 = 6 + 7 * 2
+mut c *i32 = &b
+pub val d (*mut *i32, i32) = (&c, 7)

@@ -150,18 +150,30 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
                                        : std::vector<std::string>());
   sourceName.push_back(node.name);
 
-  // create the allocation instruction and add to initial.instruction
-  auto alloc = std::make_unique<ir::Allocation>(
-      node.loc, ir::Value(sourceName), initialType,
-      (node.resolved_symbol->is_global ? ir::AllocationType::UNRESOLVED_GLOBAL
-                                       : ir::AllocationType::UNRESOLVED_LOCAL));
-  auto allocPointer = alloc.get();
-  auto &allocRef = *alloc;
-  curInstructionList->push_back(std::move(alloc));
-  // create the store instruction
-  auto store = std::make_unique<ir::Store>(node.loc, allocRef,
-                                           *initial.resultInstruction);
-  curInstructionList->push_back(std::move(store));
+  /* reuslting allocation ir node */
+  ir::Expression *allocPointer;
+
+  if (node.resolved_symbol->is_global) {
+    // create GlobalAllocation instruction
+    auto global = std::make_unique<ir::GlobalAllocation>(
+        node.loc, ir::Value(sourceName), initialType,
+        *initial.resultInstruction, node.resolved_symbol);
+    allocPointer = global.get();
+
+    curInstructionList->push_back(std::move(global));
+  } else {
+    // create the allocation instruction and add to initial.instruction
+    auto alloc = std::make_unique<ir::Allocation>(
+        node.loc, ir::Value(sourceName), initialType,
+        ir::AllocationType::UNRESOLVED_LOCAL);
+    allocPointer = alloc.get();
+    auto &allocRef = *alloc;
+    curInstructionList->push_back(std::move(alloc));
+    // create the store instruction
+    auto store = std::make_unique<ir::Store>(node.loc, allocRef,
+                                             *initial.resultInstruction);
+    curInstructionList->push_back(std::move(store));
+  }
 
   // set symbol table entry for variable to refer to ir alloc
   node.resolved_symbol->ir_decl_instruction = allocPointer;

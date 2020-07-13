@@ -18,11 +18,8 @@ FlowValue::FlowValue(Expression &expr, int32_t indirect_level,
     : FlowValue(expr, indirect_level, field_selects, isGlobalEscape(expr)) {}
 
 EscapeType FlowValue::isGlobalEscape(Expression &expr) {
-
-  /* globals will be allocations with allocType set to global */
-  auto globalAlloc = dynamic_cast<const Allocation *>(&expr);
-  if (globalAlloc != nullptr &&
-      (AllocationTypeIsGlobal(globalAlloc->allocType))) {
+  /* GlobalAllocation nodes are global escapes */
+  if (dynamic_cast<const GlobalAllocation *>(&expr) != nullptr) {
     return EscapeType::OTHER;
   }
 
@@ -733,14 +730,9 @@ int EscapeAnalysisPass::visitBasicBlock(BasicBlock &instruct,
 
 int EscapeAnalysisPass::visitAllocation(Allocation &instruct,
                                         const EscapeAnalysisState &state) {
-  // if global, mark allocation appropriately
-  if (!state.in_func) {
-    assert(instruct.allocType == AllocationType::UNRESOLVED_GLOBAL);
-    instruct.allocType = AllocationType::STATIC;
-  }
   // if local var, mark as stack variable
   // if it escapes, it will be marked as heap later
-  else if (instruct.allocType == AllocationType::UNRESOLVED_LOCAL) {
+  if (instruct.allocType == AllocationType::UNRESOLVED_LOCAL) {
     instruct.allocType = AllocationType::STACK;
   }
   // if argument, mark as normal llvm arg

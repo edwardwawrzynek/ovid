@@ -146,12 +146,10 @@ void TesterInstance::readHeader() {
     } else if (arg == "check_ir") {
       modes.insert(TestMode::Parse);
       modes.insert(TestMode::TypeCheck);
-      modes.insert(TestMode::Compile);
       modes.insert(TestMode::CheckIR);
     } else if (arg == "check_escape") {
       modes.insert(TestMode::Parse);
       modes.insert(TestMode::TypeCheck);
-      modes.insert(TestMode::Compile);
       modes.insert(TestMode::CheckEscape);
     } else {
       doError("invalid test mode (expected parse, compile, run, "
@@ -443,14 +441,8 @@ int TesterInstance::run() {
     auto parseDidError = runParse(errorMan, ast, root_scopes);
 
     if (modes.count(TestMode::CheckAST) > 0) {
-      if (parseDidError) {
-        std::cout << "\x1b[1;31mparse pass raised errors, cannot run "
-                     "check_ast\x1b[m\n";
+      if (parseDidError || runCheckAST(errorMan, ast))
         failed = 1;
-      } else {
-        if (runCheckAST(errorMan, ast))
-          failed = 1;
-      }
     }
 
     if (modes.count(TestMode::TypeCheck) > 0) {
@@ -461,12 +453,15 @@ int TesterInstance::run() {
       } else {
         // generate ir
         auto ir = ast::typeCheckProduceIR(errorMan, packageName, ast);
-        if (modes.count(TestMode::Compile) > 0) {
-          if (errorMan.criticalErrorOccurred()) {
-            std::cout << "\x1b[1;31mtype_check pass raised errors, cannot run "
-                         "compile\x1b[m\n";
+
+        // run check_ir
+        if (modes.count(TestMode::CheckIR) > 0) {
+          if (errorMan.criticalErrorOccurred() || runCheckIR(errorMan, ir))
             failed = 1;
-          }
+        }
+
+        if (modes.count(TestMode::Compile) > 0 ||
+            modes.count(TestMode::CheckEscape) > 0) {
           // run escape analysis
           if (modes.count(TestMode::CheckEscape) > 0) {
             if (runCheckEscape(errorMan, ir))
@@ -475,15 +470,17 @@ int TesterInstance::run() {
             ir::runEscapeAnalysis(ir, false, false, false, std::cout);
           }
 
-          if (modes.count(TestMode::CheckIR) > 0) {
-            if (errorMan.criticalErrorOccurred()) {
-              std::cout << "\x1b[1;31mcompile pass raised errors, cannot run "
-                           "check_ir\x1b[m\n";
-              failed = 1;
-            } else {
-              if (runCheckIR(errorMan, ir))
-                failed = 1;
-            }
+          if (modes.count(TestMode::Compile) > 0) {
+            /* run codegen pass */
+            auto codegen = ir::LLVMCodegenPass(filename, errorMan);
+            codegen.visitInstructions(ir, ir::LLVMCodegenPassState());
+
+            /* if run mode is included, require main function */
+            bool req_main = modes.count(TestMode::Run) > 0;
+            packageName.emplace_back("main");
+            codegen.optAndEmit(llvm::PassBuilder::O2, "ovidc_test_out_tmp.o",
+                               ir::CodegenOutputType::OBJ, req_main,
+                               &packageName);
           }
         }
       }

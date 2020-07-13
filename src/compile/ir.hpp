@@ -265,11 +265,9 @@ public:
 enum class AllocationType {
   /* unresolved allocation types (type before escape analysis) */
   UNRESOLVED_FUNC_ARG, // a function argument
-  UNRESOLVED_GLOBAL,   // global var declare
   UNRESOLVED_LOCAL,    // local variable declare
 
   /* resolved allocation types */
-  STATIC,            /* static memory (global) */
   STACK,             /* allocated on stack */
   HEAP,              /* allocated on heap */
   ARG,               /* llvm function argument */
@@ -280,7 +278,6 @@ enum class AllocationType {
 };
 
 bool AllocationTypeIsArg(AllocationType type);
-bool AllocationTypeIsGlobal(AllocationType type);
 
 class Allocation : public Expression {
 public:
@@ -291,6 +288,19 @@ public:
   // type should be a UNRESOLVED_* type
   Allocation(const SourceLocation &loc, const Value &val,
              std::shared_ptr<ast::Type> type, AllocationType allocType);
+};
+
+/* a global variable with an initial value */
+class GlobalAllocation : public Expression {
+public:
+  std::shared_ptr<Symbol> symbol;
+  Expression &initial_val;
+
+  bool isAddressable() const override;
+
+  GlobalAllocation(const SourceLocation &loc, const Value &val,
+                   std::shared_ptr<ast::Type> type, Expression &initial_val,
+                   std::shared_ptr<Symbol> symbol);
 };
 
 /* A labelled block of code, which can be jumped to */

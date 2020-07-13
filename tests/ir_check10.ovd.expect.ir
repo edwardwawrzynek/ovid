@@ -1,0 +1,16 @@
+(5:13)	%0 = INTLITERAL i32 5
+(5:1)	%ovidc_test:a = GLOBALALLOCATION i32 %0
+(6:13)	%2 = INTLITERAL i32 6
+(6:17)	%3 = INTLITERAL i32 7
+(6:21)	%4 = INTLITERAL i32 2
+(6:19)	%5 = BUILTINOPERATOR (i32, i32) -> i32 *
+(6:17)	%6 = FUNCTIONCALL i32 %5(%3, %4)
+(6:15)	%7 = BUILTINOPERATOR (i32, i32) -> i32 +
+(6:13)	%8 = FUNCTIONCALL i32 %7(%2, %6)
+(6:1)	%ovidc_test:b = GLOBALALLOCATION i32 %8
+(7:14)	%10 = ADDRESS *i32 %ovidc_test:b
+(7:1)	%ovidc_test:c = GLOBALALLOCATION *i32 %10
+(8:31)	%12 = ADDRESS *mut *i32 %ovidc_test:c
+(8:35)	%13 = INTLITERAL i32 7
+(8:30)	%14 = TUPLELITERAL (*mut *i32, i32) %12 %13
+(8:5)	%ovidc_test:d = GLOBALALLOCATION (*mut *i32, i32) %14

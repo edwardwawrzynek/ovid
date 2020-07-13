@@ -1,5 +1,5 @@
 // __ovid_compiler_test
-//__mode: check_escape
+//__mode: check_escape compile
 //__end_header
 
 /* basic recursive functions test */

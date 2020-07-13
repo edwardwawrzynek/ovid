@@ -1,6 +1,5 @@
 (6:19)	%0 = INTLITERAL i32 34
-(6:5)	%ovidc_test:var = ALLOCATION i32
-(6:5)	STORE %ovidc_test:var <- %0
+(6:5)	%ovidc_test:var = GLOBALALLOCATION i32 %0
 (8:1)	%ovidc_test:sum = FUNCTIONDECLARE (a *i32, b *mut i32) -> *i32 {
     (8:1)	BASICBLOCK @2 {
         (8:10)	%a = ALLOCATION *i32

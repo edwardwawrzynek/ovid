@@ -271,4 +271,20 @@ int IRPrinter::visitForwardIdentifier(ForwardIdentifier &instruct,
   return 0;
 }
 
+int IRPrinter::visitGlobalAllocation(GlobalAllocation &instruct,
+                                     const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printValue(instruct.val);
+
+  output << " = GLOBALALLOCATION " << type_printer.getType(*instruct.type)
+         << " ";
+  printValue(instruct.initial_val.val);
+  output << "\n";
+
+  return 0;
+}
+
 } // namespace ovid::ir

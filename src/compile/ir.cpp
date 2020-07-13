@@ -17,11 +17,6 @@ bool AllocationTypeIsArg(AllocationType type) {
          type == AllocationType::ARG_HEAP;
 }
 
-bool AllocationTypeIsGlobal(AllocationType type) {
-  return type == AllocationType::UNRESOLVED_GLOBAL ||
-         type == AllocationType::STATIC;
-}
-
 bool Expression::isAddressable() const { return false; }
 
 bool Allocation::isAddressable() const {
@@ -72,7 +67,6 @@ Allocation::Allocation(const SourceLocation &loc, const Value &val,
                        AllocationType allocType)
     : Expression(loc, val, std::move(type)), allocType(allocType) {
   assert(allocType == AllocationType::UNRESOLVED_LOCAL ||
-         allocType == AllocationType::UNRESOLVED_GLOBAL ||
          allocType == AllocationType::UNRESOLVED_FUNC_ARG);
 }
 
@@ -265,4 +259,14 @@ void ForwardIdentifier::addFlowMetadata(
 
   symbol_ref->ir_decl_instruction->addFlowMetadata(flows, args, returnExpr);
 }
+
+bool GlobalAllocation::isAddressable() const { return true; }
+
+GlobalAllocation::GlobalAllocation(const SourceLocation &loc, const Value &val,
+                                   std::shared_ptr<ast::Type> type,
+                                   Expression &initial_val,
+                                   std::shared_ptr<Symbol> symbol)
+    : Expression(loc, val, std::move(type)), symbol(std::move(symbol)),
+      initial_val(initial_val) {}
+
 } // namespace ovid::ir

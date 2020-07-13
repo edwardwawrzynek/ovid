@@ -114,6 +114,9 @@ private:
                                  const LLVMCodegenPassState &state) override;
   llvm::Value *visitAllocation(Allocation &instruct,
                                const LLVMCodegenPassState &state) override;
+  llvm::Value *
+  visitGlobalAllocation(GlobalAllocation &instruct,
+                        const LLVMCodegenPassState &state) override;
   llvm::Value *visitAddress(Address &instruct,
                             const LLVMCodegenPassState &state) override;
   llvm::Value *visitDereference(Dereference &instruct,

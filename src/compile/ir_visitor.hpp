@@ -18,6 +18,7 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitTupleLiteral(TupleLiteral &instruct, const S &state);
   virtual T visitFunctionCall(FunctionCall &instruct, const S &state);
   virtual T visitAllocation(Allocation &instruct, const S &state);
+  virtual T visitGlobalAllocation(GlobalAllocation &instruct, const S &state);
   virtual T visitAddress(Address &instruct, const S &state);
   virtual T visitDereference(Dereference &instruct, const S &state);
   virtual T visitBuiltinOperator(BuiltinOperator &instruct, const S &state);
@@ -87,6 +88,9 @@ T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
   } else if (dynamic_cast<ForwardIdentifier *>(&instruct) != nullptr) {
     return visitForwardIdentifier(dynamic_cast<ForwardIdentifier &>(instruct),
                                   state);
+  } else if (dynamic_cast<GlobalAllocation *>(&instruct) != nullptr) {
+    return visitGlobalAllocation(dynamic_cast<GlobalAllocation &>(instruct),
+                                 state);
   }
 
   assert(false);
@@ -195,6 +199,12 @@ T BaseIRVisitor<T, S>::visitFieldSelect(FieldSelect &instruct, const S &state) {
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitForwardIdentifier(ForwardIdentifier &instruct,
                                               const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitGlobalAllocation(GlobalAllocation &instruct,
+                                             const S &state) {
   return std::move(defaultValue);
 }
 

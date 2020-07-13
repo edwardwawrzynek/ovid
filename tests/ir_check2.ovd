@@ -1,5 +1,5 @@
 // __ovid_compiler_test
-//__mode: check_ir
+//__mode: check_ir compile
 //__end_header
 
 
