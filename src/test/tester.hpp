@@ -4,6 +4,7 @@
 #include "ast.hpp"
 #include "error.hpp"
 #include "ir.hpp"
+#include "llvm_codegen.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -109,6 +110,9 @@ class TesterInstance {
   // check ir against expected
   int runCheckIR(ErrorManager &errorMan, const ir::InstructionList &ir);
   int runCheckEscape(ErrorManager &errorMan, const ir::InstructionList &ir);
+
+  // run code emission and run and run_check_output modes
+  int runLLVMCodegen(ErrorManager &errorMan, ir::LLVMCodegenPass &codegen_pass);
 
 public:
   explicit TesterInstance(const std::string &filename);

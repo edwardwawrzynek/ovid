@@ -48,10 +48,9 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
 
   std::cout << "\x1b[m" << msg << "\n";
 
-  location.file->clear();
-
   // print source location
   if (location.file) {
+    location.file->clear();
     // save old location
     auto oldLoc = location.file->tellg();
     // seek to proper line

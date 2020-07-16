@@ -3,14 +3,11 @@
 //__end_header
 
 pub fn main() -> i32 {
-    val sv i32 = -16
-    val uv u32 = 16
+    val a = 5 + 1
 
-
-    if uv << 3 != 128 {
+    if a + 3 == 7 {
         return 255
+    } else {
+        return 0
     }
-
-    return 0
 }
-

@@ -29,6 +29,9 @@ jobs:
     # Install LLVM
     - name: Install LLVM
       run: sudo apt install llvm-10 llvm-10-dev
+
+    - name: Install libgc
+      run: sudo apt install libgc-dev
       
     # Build and test cmake project
     - name: Build CMake

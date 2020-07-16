@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
   /* emit */
   codegen.optAndEmit(llvm::PassBuilder::O2,
                      ovid::string_format("%s.o", argv[1]),
-                     ovid::ir::CodegenOutputType::LLVM_IR, true, &main_func);
+                     ovid::ir::CodegenOutputType::OBJ, true, &main_func);
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";

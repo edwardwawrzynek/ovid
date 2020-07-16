@@ -1,0 +1,15 @@
+// __ovid_compiler_test
+//__mode: type_check
+//__end_header
+
+fn test1() -> i32 {
+    return 0
+}
+
+fn test(a i32) {
+    val b = &a
+    val c = &(a + 1) //__error: "cannot take address of expression"
+    val d = &(a, 3)  //__error: "cannot take address of expression"
+
+    val e = &test1() //__error: "cannot take address of expression"
+}

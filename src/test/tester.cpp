@@ -424,6 +424,37 @@ int TesterInstance::runCheckEscape(ErrorManager &errorMan,
   return 0;
 }
 
+int TesterInstance::runLLVMCodegen(ErrorManager &errorMan, ir::LLVMCodegenPass &codegen_pass) {
+  /* if run mode is included, require main function */
+  bool run_mode = modes.count(TestMode::Run) > 0;
+
+  std::vector<llvm::PassBuilder::OptimizationLevel> optsToRun = {llvm::PassBuilder::Oz,llvm::PassBuilder::Os, llvm::PassBuilder::O0, llvm::PassBuilder::O1, llvm::PassBuilder::O2, llvm::PassBuilder::O3};
+
+  packageName.emplace_back("main");
+
+  for(auto optLevel : optsToRun) {
+    codegen_pass.optAndEmit(optLevel, "ovidc_test_out_tmp.o",
+                            ir::CodegenOutputType::OBJ, run_mode, &packageName);
+
+    if(run_mode) {
+      /* link object code */
+      int ld_res = system("cc -o ovidc_test_out_tmp ovidc_test_out_tmp.o -lgc");
+      if(ld_res != 0) {
+        std::cout << "\x1b[1;31mlinking llvm output failed\x1b[m\n";
+        return 1;
+      }
+      /* execute code */
+      int run_res = system("./ovidc_test_out_tmp");
+      if(run_res != 0) {
+        std::cout << "\x1b[1;31mrunning output returned non 0 result code " << run_res << "\x1b[m\n";
+        return 1;
+      }
+    }
+  }
+
+  return 0;
+}
+
 int TesterInstance::run() {
   readHeader();
 
@@ -475,12 +506,7 @@ int TesterInstance::run() {
             auto codegen = ir::LLVMCodegenPass(filename, errorMan);
             codegen.visitInstructions(ir, ir::LLVMCodegenPassState());
 
-            /* if run mode is included, require main function */
-            bool req_main = modes.count(TestMode::Run) > 0;
-            packageName.emplace_back("main");
-            codegen.optAndEmit(llvm::PassBuilder::O2, "ovidc_test_out_tmp.o",
-                               ir::CodegenOutputType::OBJ, req_main,
-                               &packageName);
+            if(runLLVMCodegen(errorMan, codegen)) failed = 1;
           }
         }
       }

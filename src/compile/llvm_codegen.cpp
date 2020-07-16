@@ -508,7 +508,7 @@ static std::map<ast::OperatorType, llvm::Instruction::BinaryOps>
         {ast::OperatorType::BIN_AND, llvm::Instruction::BinaryOps::And},
         {ast::OperatorType::BIN_OR, llvm::Instruction::BinaryOps::Or},
         {ast::OperatorType::BIN_XOR, llvm::Instruction::BinaryOps::Xor},
-        {ast::OperatorType::LEFT_SHIFT, llvm::Instruction::LShr}};
+        {ast::OperatorType::LEFT_SHIFT, llvm::Instruction::Shl}};
 
 /* comparison operation predicates */
 struct PredIntFloatVariant {
@@ -531,12 +531,22 @@ static std::map<ast::OperatorType, PredIntFloatVariant> comparisonPreds = {
      {llvm::CmpInst::Predicate::ICMP_ULE, llvm::CmpInst::Predicate::FCMP_OLE}},
 };
 
+/* int/float ops with signed/unsigned int variant */
+struct InstrSignedIntFloatVariant {
+  llvm::Instruction::BinaryOps uint_variant;
+  llvm::Instruction::BinaryOps sint_variant;
+  llvm::Instruction::BinaryOps float_variant;
+};
+
+static std::map<ast::OperatorType, InstrSignedIntFloatVariant> signedIntFloatOps = {
+    {ast::OperatorType::DIV, {llvm::BinaryOperator::UDiv, llvm::BinaryOperator::SDiv, llvm::BinaryOperator::FDiv}},
+    {ast::OperatorType::MOD, {llvm::BinaryOperator::URem, llvm::BinaryOperator::SRem, llvm::BinaryOperator::FRem}}
+};
+
 llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
                                           const LLVMCodegenPassState &state) {
   auto builtinOp = dynamic_cast<BuiltinOperator *>(&instruct.function);
   auto intArg0 = dynamic_cast<const ast::IntType *>(
-      instruct.arguments[0].get().type->withoutMutability());
-  auto floatArg0 = dynamic_cast<const ast::FloatType *>(
       instruct.arguments[0].get().type->withoutMutability());
   auto isIntArg0 = intArg0 != nullptr;
 
@@ -566,7 +576,7 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
       auto intArg1 = dynamic_cast<const ast::IntType *>(
           instruct.arguments[1].get().type->withoutMutability());
       assert(intArg1 != nullptr);
-      if (!intArg0->isUnsigned || !intArg1->isUnsigned) {
+      if ((!intArg0->isUnsigned || !intArg1->isUnsigned) && builtinOp->opType != ast::OperatorType::EQUAL && builtinOp->opType != ast::OperatorType::NEQUAL) {
         op = llvm::CmpInst::getSignedPredicate(op);
       }
     }
@@ -613,8 +623,39 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
                             useValue(instruct.arguments[1].get(), state));
     return instruct.val.llvm_value = value;
   }
-  default:
-    /* TODO */
+  case ast::OperatorType::DIV:
+  case ast::OperatorType::MOD: {
+    /* select op based on int/float and signed/unsigned for int */
+    auto opVariants = signedIntFloatOps[builtinOp->opType];
+    auto op = isIntArg0 ? (intArg0->isUnsigned ? opVariants.uint_variant : opVariants.sint_variant) : opVariants.float_variant;
+
+    auto value = builder.CreateBinOp(op, useValue(instruct.arguments[0].get(), state), useValue(instruct.arguments[1].get(), state));
+    return instruct.val.llvm_value = value;
+  }
+    break;
+  case ast::OperatorType::PREFIX_INC:
+    break;
+  case ast::OperatorType::PREFIX_DEC:
+    break;
+  case ast::OperatorType::POSTFIX_INC:
+    break;
+  case ast::OperatorType::POSTFIX_DEC:
+    break;
+  case ast::OperatorType::BIN_NOT:
+    break;
+  case ast::OperatorType::LOG_AND:
+    break;
+  case ast::OperatorType::LOG_OR:
+    break;
+  case ast::OperatorType::LOG_NOT: {
+    /* use icmp eq 0 */
+    auto value = builder.CreateICmpEQ(useValue(instruct.arguments[0].get(), state), llvm::ConstantInt::get(llvm_context, llvm::APInt(1, 0)));
+
+    return instruct.val.llvm_value = value;
+  }
+  case ast::OperatorType::DEREF:
+  case ast::OperatorType::ADDR:
+    /* should have been handled specially */
     assert(false);
   }
 }
@@ -808,6 +849,7 @@ void LLVMCodegenPass::optAndEmit(llvm::PassBuilder::OptimizationLevel optLevel,
 
   llvm::ModulePassManager MPM(DebugPassManager);
   MPM = passBuilder.buildPerModuleDefaultPipeline(optLevel, DebugPassManager);
+  MPM.addPass(llvm::VerifierPass());
 
   MPM.run(*llvm_module, MAM);
 

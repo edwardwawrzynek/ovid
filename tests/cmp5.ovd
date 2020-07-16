@@ -6,7 +6,15 @@ pub fn main() -> i32 {
     val sv i32 = -16
     val uv u32 = 16
 
-
+    if sv >> 1 != -8 {
+        return 255
+    }
+    if uv >> 1 != 8 {
+        return 255
+    }
+    if sv << 2 != -64 {
+        return 255
+    }
     if uv << 3 != 128 {
         return 255
     }
