@@ -1,0 +1,11 @@
+// __ovid_compiler_test
+//__mode: type_check
+//__end_header
+
+fn test() {
+    1 && true //__error: "type of left hand side of boolean expression i32 doesn't match expected type bool"
+    false && (5 + 6) //__error: "type of right hand side of boolean expression i32 doesn't match expected type bool"
+    1 || true //__error: "type of left hand side of boolean expression i32 doesn't match expected type bool"
+    false || (5 + 6) //__error: "type of right hand side of boolean expression i32 doesn't match expected type bool"
+}
+

@@ -45,7 +45,7 @@ Value::Value(const std::vector<std::string> &sourceName)
     : sourceName(sourceName), id(next_id()), hasSourceName(true),
       llvm_value(nullptr) {}
 
-Value::Value() : id(next_id()), hasSourceName(false) {}
+Value::Value() : id(next_id()), hasSourceName(false), llvm_value(nullptr) {}
 
 Instruction::Instruction(const SourceLocation &loc) : loc(loc) {}
 
@@ -73,6 +73,10 @@ Allocation::Allocation(const SourceLocation &loc, const Value &val,
 BasicBlock::BasicBlock(const SourceLocation &loc, InstructionList body)
     : Instruction(loc), id(next_id()), body(std::move(body)), llvm_bb(nullptr) {
 }
+
+BasicBlock::BasicBlock(const SourceLocation &loc)
+    : Instruction(loc), id(next_id()), body(ir::InstructionList()),
+      llvm_bb(nullptr) {}
 
 TupleLiteral::TupleLiteral(
     const SourceLocation &loc, const Value &val,

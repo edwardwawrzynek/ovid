@@ -26,12 +26,9 @@ jobs:
     - name: get-cmake
       uses: lukka/get-cmake@v3.17.1
 
-    # Install LLVM
-    - name: Install LLVM
-      run: sudo apt install llvm-10 llvm-10-dev
-
-    - name: Install libgc
-      run: sudo apt install libgc-dev
+    # Install LLVM + boehm gc
+    - name: Install LLVM, libgc
+      run: sudo apt install llvm-10 llvm-10-dev libgc-dev
       
     # Build and test cmake project
     - name: Build CMake

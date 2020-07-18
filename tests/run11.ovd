@@ -1,0 +1,16 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+/* basic global test */
+mut global (i32, i32) = (10 - 2, 2+2)
+
+fn test1() -> bool {
+    global.0 = -global.0
+    global.1 = global.1 * 2
+}
+
+pub fn main() -> i32 {
+    test1()
+    return global.0 + global.1
+}

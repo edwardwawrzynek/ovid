@@ -3,7 +3,7 @@
 //__end_header
 
 fn test1() -> bool {
-    return true
+    return false
 }
 
 fn test2() -> bool {
@@ -11,10 +11,12 @@ fn test2() -> bool {
 }
 
 pub fn main() -> i32 {
-    if test1() && !test2() {
-        return 0
-    } else {
+    if test1() || test2() {
         return 255
     }
-}
+    if test1() && !test2() {
+        return 255
+    }
 
+    return 0
+}

@@ -1,0 +1,15 @@
+// __ovid_compiler_test
+//__mode: check_ir compile
+//__end_header
+
+fn test1() -> bool {
+    return false
+}
+
+fn test2() -> bool {
+    return true
+}
+
+fn test() -> bool {
+    return test1() || test2()
+}

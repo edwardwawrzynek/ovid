@@ -59,6 +59,9 @@ public:
                   ir::Expression *resultInstruction)
       : resultType(std::move(resultType)),
         resultInstruction(resultInstruction){};
+
+  bool isNull() const;
+  static TypeCheckResult nullResult();
 };
 
 class TypeCheckState {
@@ -149,6 +152,8 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   TypeCheckResult visitFunctionCallDeref(const FunctionCall &node,
                                          const TypeCheckState &state);
   TypeCheckResult visitFunctionCallAddress(const FunctionCall &node,
+                                           const TypeCheckState &state);
+  TypeCheckResult visitShortCircuitingCall(const FunctionCall &node,
                                            const TypeCheckState &state);
 
   TypeCheckResult doImplicitConversion(const TypeCheckResult &expression,

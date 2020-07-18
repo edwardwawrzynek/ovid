@@ -313,6 +313,8 @@ public:
   llvm::BasicBlock *llvm_bb;
 
   BasicBlock(const SourceLocation &loc, InstructionList body);
+
+  BasicBlock(const SourceLocation &loc);
 };
 
 typedef std::vector<std::unique_ptr<BasicBlock>> BasicBlockList;

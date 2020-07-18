@@ -538,10 +538,14 @@ struct InstrSignedIntFloatVariant {
   llvm::Instruction::BinaryOps float_variant;
 };
 
-static std::map<ast::OperatorType, InstrSignedIntFloatVariant> signedIntFloatOps = {
-    {ast::OperatorType::DIV, {llvm::BinaryOperator::UDiv, llvm::BinaryOperator::SDiv, llvm::BinaryOperator::FDiv}},
-    {ast::OperatorType::MOD, {llvm::BinaryOperator::URem, llvm::BinaryOperator::SRem, llvm::BinaryOperator::FRem}}
-};
+static std::map<ast::OperatorType, InstrSignedIntFloatVariant>
+    signedIntFloatOps = {
+        {ast::OperatorType::DIV,
+         {llvm::BinaryOperator::UDiv, llvm::BinaryOperator::SDiv,
+          llvm::BinaryOperator::FDiv}},
+        {ast::OperatorType::MOD,
+         {llvm::BinaryOperator::URem, llvm::BinaryOperator::SRem,
+          llvm::BinaryOperator::FRem}}};
 
 llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
                                           const LLVMCodegenPassState &state) {
@@ -576,7 +580,9 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
       auto intArg1 = dynamic_cast<const ast::IntType *>(
           instruct.arguments[1].get().type->withoutMutability());
       assert(intArg1 != nullptr);
-      if ((!intArg0->isUnsigned || !intArg1->isUnsigned) && builtinOp->opType != ast::OperatorType::EQUAL && builtinOp->opType != ast::OperatorType::NEQUAL) {
+      if ((!intArg0->isUnsigned || !intArg1->isUnsigned) &&
+          builtinOp->opType != ast::OperatorType::EQUAL &&
+          builtinOp->opType != ast::OperatorType::NEQUAL) {
         op = llvm::CmpInst::getSignedPredicate(op);
       }
     }
@@ -627,12 +633,15 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
   case ast::OperatorType::MOD: {
     /* select op based on int/float and signed/unsigned for int */
     auto opVariants = signedIntFloatOps[builtinOp->opType];
-    auto op = isIntArg0 ? (intArg0->isUnsigned ? opVariants.uint_variant : opVariants.sint_variant) : opVariants.float_variant;
+    auto op = isIntArg0 ? (intArg0->isUnsigned ? opVariants.uint_variant
+                                               : opVariants.sint_variant)
+                        : opVariants.float_variant;
 
-    auto value = builder.CreateBinOp(op, useValue(instruct.arguments[0].get(), state), useValue(instruct.arguments[1].get(), state));
+    auto value =
+        builder.CreateBinOp(op, useValue(instruct.arguments[0].get(), state),
+                            useValue(instruct.arguments[1].get(), state));
     return instruct.val.llvm_value = value;
-  }
-    break;
+  } break;
   case ast::OperatorType::PREFIX_INC:
     break;
   case ast::OperatorType::PREFIX_DEC:
@@ -641,21 +650,30 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
     break;
   case ast::OperatorType::POSTFIX_DEC:
     break;
-  case ast::OperatorType::BIN_NOT:
-    break;
-  case ast::OperatorType::LOG_AND:
-    break;
-  case ast::OperatorType::LOG_OR:
-    break;
+  case ast::OperatorType::BIN_NOT: {
+    // use xor against -1 (~0)
+    auto neg_one = llvm::ConstantInt::get(llvm_context,
+                                          llvm::APInt(intArg0->size, -1, true));
+
+    auto value =
+        builder.CreateXor(useValue(instruct.arguments[0], state), neg_one);
+    return instruct.val.llvm_value = value;
+  }
   case ast::OperatorType::LOG_NOT: {
     /* use icmp eq 0 */
-    auto value = builder.CreateICmpEQ(useValue(instruct.arguments[0].get(), state), llvm::ConstantInt::get(llvm_context, llvm::APInt(1, 0)));
+    auto value = builder.CreateICmpEQ(
+        useValue(instruct.arguments[0].get(), state),
+        llvm::ConstantInt::get(llvm_context, llvm::APInt(1, 0)));
 
     return instruct.val.llvm_value = value;
   }
+  /* && and || are short circuiting, and should have been handled by type check
+   */
+  case ast::OperatorType::LOG_AND:
+  case ast::OperatorType::LOG_OR:
+  /* deref and address should have been handled by type check */
   case ast::OperatorType::DEREF:
   case ast::OperatorType::ADDR:
-    /* should have been handled specially */
     assert(false);
   }
 }

@@ -1,0 +1,31 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+fn test(a i64) -> bool {
+    if a >= 10000 {
+        return true
+    }
+
+    if ~(~a + 1) != a - 1 {
+        return false
+    }
+
+    return test(a + 1)
+}
+
+pub fn main() -> i32 {
+        val a u8 = 15
+
+        if ~a != 240 {
+            return 255
+        }
+        if ~(-2) != 1 {
+            return 255
+        }
+        if !test(-10000) {
+            return 255
+        }
+
+        return 0
+}

@@ -1,0 +1,28 @@
+(5:1)	%ovidc_test:test1 = FUNCTIONDECLARE () -> bool {
+    (5:1)	BASICBLOCK @0 {
+        (6:12)	%1 = BOOLLITERAL bool false
+        (6:5)	RETURN %1
+    }
+}
+(9:1)	%ovidc_test:test2 = FUNCTIONDECLARE () -> bool {
+    (9:1)	BASICBLOCK @3 {
+        (10:12)	%4 = BOOLLITERAL bool true
+        (10:5)	RETURN %4
+    }
+}
+(13:1)	%ovidc_test:test = FUNCTIONDECLARE () -> bool {
+    (13:1)	BASICBLOCK @6 {
+        (14:12)	%7 = FUNCTIONCALL bool %ovidc_test:test1()
+        (14:12)	%8 = ALLOCATION bool
+        (14:12)	STORE %8 <- %7
+        (14:12)	CONDITIONALJUMP %7 @10(true) @9(false)
+    }
+    (14:23)	BASICBLOCK @9 {
+        (14:23)	%11 = FUNCTIONCALL bool %ovidc_test:test2()
+        (14:12)	STORE %8 <- %11
+        (14:12)	JUMP @10
+    }
+    (14:23)	BASICBLOCK @10 {
+        (14:5)	RETURN %8
+    }
+}

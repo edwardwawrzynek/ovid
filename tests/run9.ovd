@@ -2,19 +2,19 @@
 //__mode: run
 //__end_header
 
-fn test1() -> bool {
-    return true
-}
+mut a i32 = 0
 
-fn test2() -> bool {
+fn test1() -> bool {
+    a = 0
     return false
 }
 
-pub fn main() -> i32 {
-    if test1() && !test2() {
-        return 0
-    } else {
-        return 255
-    }
+fn test2() -> bool {
+    a = 255
+    return true
 }
 
+pub fn main() -> i32 {
+    test1() && test2()
+    return a
+}
