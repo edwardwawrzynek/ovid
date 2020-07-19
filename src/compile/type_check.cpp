@@ -1030,49 +1030,31 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
   if (lvalueRes.isNull())
     return TypeCheckResult::nullResult();
 
-  // tuple
-  auto tupleType = std::dynamic_pointer_cast<TupleType>(
-      withoutMutType(lvalueRes.resultType));
-  if (tupleType != nullptr) {
-    // make sure field isn't a string
-    if (!node.has_field_num) {
-      errorMan.logError(
-          string_format(
-              "type \x1b[1m%s\x1b[m does not have field \x1b[1m%s\x1b[m",
-              type_printer.getType(*tupleType).c_str(), node.field.c_str()),
-          node.loc, ErrorType::TypeError);
+  auto lvalueInstr = lvalueRes.resultInstruction;
+  // emit field access
+  auto recordType =
+      dynamic_cast<ProductType *>(lvalueRes.resultType->withoutMutability());
+  // check for pointer to a RecordType, and, if so, perform implicit dereference
+  if (recordType == nullptr) {
+    auto pointerType =
+        dynamic_cast<PointerType *>(lvalueRes.resultType->withoutMutability());
+    if (pointerType != nullptr) {
+      auto pointToType =
+          std::dynamic_pointer_cast<ProductType>(pointerType->type);
+      // if type is pointer to record, add dereference instruction
+      if (pointToType != nullptr) {
+        auto deref = std::make_unique<ir::Dereference>(
+            node.loc, ir::Value(), *lvalueInstr, pointToType);
+        lvalueInstr = deref.get();
+        curInstructionList->push_back(std::move(deref));
 
-      return TypeCheckResult::nullResult();
+        recordType = pointToType.get();
+      }
     }
-    // make sure field is in right range
-    if (node.field_num >= (int32_t)(tupleType->types.size())) {
-      errorMan.logError(
-          string_format(
-              "type \x1b[1m%s\x1b[m does not have field \x1b[1m%lu\x1b[m",
-              type_printer.getType(*tupleType).c_str(), node.field_num),
-          node.loc, ErrorType::TypeError);
+  }
 
-      return TypeCheckResult::nullResult();
-    }
-
-    auto resType = tupleType->types[node.field_num];
-    // if tuple was mutable, add mutability back to field
-    if (std::dynamic_pointer_cast<MutType>(lvalueRes.resultType) != nullptr) {
-      resType = addMutType(resType, true);
-    }
-    // emit ir instruction
-    auto instruct = std::make_unique<ir::FieldSelect>(
-        node.loc, ir::Value(), *lvalueRes.resultInstruction, node.field_num,
-        resType);
-    auto instructPointer = instruct.get();
-
-    curInstructionList->push_back(std::move(instruct));
-
-    // do implicit conversion
-    return doImplicitConversion(TypeCheckResult(resType, instructPointer),
-                                state, node.loc);
-
-  } else {
+  // if expression type isn't a product type, error
+  if (recordType == nullptr) {
     errorMan.logError(
         string_format("cannot take a field on type \x1b[1m%s\x1b[m",
                       type_printer.getType(*lvalueRes.resultType).c_str()),
@@ -1080,6 +1062,42 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
 
     return TypeCheckResult::nullResult();
   }
+  // make sure field isn't a string
+  if (!node.has_field_num) {
+    errorMan.logError(
+        string_format(
+            "type \x1b[1m%s\x1b[m does not have field \x1b[1m%s\x1b[m",
+            type_printer.getType(*recordType).c_str(), node.field.c_str()),
+        node.loc, ErrorType::TypeError);
+
+    return TypeCheckResult::nullResult();
+  }
+  // make sure field is in right range
+  if (node.field_num >= (int32_t)(recordType->getNumFields())) {
+    errorMan.logError(
+        string_format(
+            "type \x1b[1m%s\x1b[m does not have field \x1b[1m%lu\x1b[m",
+            type_printer.getType(*recordType).c_str(), node.field_num),
+        node.loc, ErrorType::TypeError);
+
+    return TypeCheckResult::nullResult();
+  }
+
+  auto resType = recordType->getTypeOfField(node.field_num);
+  // if tuple was mutable, add mutability back to field
+  if (dynamic_cast<MutType *>(lvalueRes.resultType.get()) != nullptr) {
+    resType = addMutType(resType, true);
+  }
+  // emit ir instruction
+  auto instruct = std::make_unique<ir::FieldSelect>(
+      node.loc, ir::Value(), *lvalueInstr, node.field_num, resType);
+  auto instructPointer = instruct.get();
+
+  curInstructionList->push_back(std::move(instruct));
+
+  // do implicit conversion
+  return doImplicitConversion(TypeCheckResult(resType, instructPointer), state,
+                              node.loc);
 }
 
 /* do an implicit conversion of expression to type state.typeHint, if such a

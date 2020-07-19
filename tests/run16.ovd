@@ -1,0 +1,23 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+type tuple = (*mut i32, *(i32, *i32))
+
+fn test(arg *tuple) -> i32 {
+    val a = arg.0
+    mut b = *arg.0
+
+    val c = (arg.1).0
+    val d = *(arg.1).1
+
+    return  b + c + d
+}
+
+pub fn main() -> i32 {
+    mut a = 10
+    val b = -5
+    val t1 = (b, &b)
+    val t2 = (&a, &t1)
+    return test(&t2)
+}

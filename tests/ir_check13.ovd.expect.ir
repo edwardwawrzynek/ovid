@@ -1,0 +1,12 @@
+(5:1)	%ovidc_test:test = FUNCTIONDECLARE (a *(i32, i32)) -> i32 {
+    (5:1)	BASICBLOCK @0 {
+        (5:11)	%a = ALLOCATION *(i32, i32)
+        (6:12)	%2 = DEREFERENCE (i32, i32) %a
+        (6:12)	%3 = FIELDSELECT i32 0 %2
+        (6:18)	%4 = DEREFERENCE (i32, i32) %a
+        (6:18)	%5 = FIELDSELECT i32 1 %4
+        (6:16)	%6 = BUILTINOPERATOR (i32, i32) -> i32 +
+        (6:12)	%7 = FUNCTIONCALL i32 %6(%3, %5)
+        (6:5)	RETURN %7
+    }
+}

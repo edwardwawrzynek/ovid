@@ -1,0 +1,22 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+/* very basic test using heap */
+val tmp i32 = 0
+mut sink (*i32, i32) = (&tmp, 0)
+
+fn foo(arg *i32) {
+    sink = (arg, - *arg)
+}
+
+fn test() {
+    val a = 5
+    foo(&a)
+}
+
+pub fn main() -> i32 {
+    test()
+
+    return *sink.0 + sink.1
+}
