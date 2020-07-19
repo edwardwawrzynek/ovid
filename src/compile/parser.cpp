@@ -186,24 +186,25 @@ Parser::parseParenExpr(const ParserState &state) {
  *
  * higher number = lower precedence */
 static std::map<TokenType, int> infixOpPrecedence = {
-    {T_ASSIGN, 20},  {T_OR, 30},
-    {T_AND, 40},     {T_BIN_OR, 50},
-    {T_BIN_XOR, 50}, {T_ADDR, 60},
-    {T_EQ, 70},      {T_NEQ, 70},
-    {T_GREATER, 80}, {T_GREATER_EQUAL, 80},
-    {T_LESS, 80},    {T_LESS_EQUAL, 80},
-    {T_LSHF, 90},    {T_RSHF, 90},
-    {T_ADD, 100},    {T_SUB, 100},
+    {T_ASSIGN, 20},  {T_ADD_ASSIGN, 20}, {T_SUB_ASSIGN, 20},
+    {T_OR, 30},      {T_AND, 40},        {T_BIN_OR, 50},
+    {T_BIN_XOR, 50}, {T_ADDR, 60},       {T_EQ, 70},
+    {T_NEQ, 70},     {T_GREATER, 80},    {T_GREATER_EQUAL, 80},
+    {T_LESS, 80},    {T_LESS_EQUAL, 80}, {T_LSHF, 90},
+    {T_RSHF, 90},    {T_ADD, 100},       {T_SUB, 100},
     {T_STAR, 110},   {T_DIV, 110},
 };
 
 static std::map<TokenType, bool> isRightAssoc = {
-    {T_ASSIGN, true}, {T_DOT, false},  {T_ADD, false},
-    {T_SUB, false},   {T_STAR, false}, {T_DIV, false}};
+    {T_ASSIGN, true}, {T_ADD_ASSIGN, true}, {T_SUB_ASSIGN, true},
+    {T_DOT, false},   {T_ADD, false},       {T_SUB, false},
+    {T_STAR, false},  {T_DIV, false}};
 
 static std::map<TokenType, ast::OperatorType> infixOperatorMap = {
     {T_ADD, ast::OperatorType::ADD},
+    {T_ADD_ASSIGN, ast::OperatorType::ADD_ASSIGN},
     {T_SUB, ast::OperatorType::SUB},
+    {T_SUB_ASSIGN, ast::OperatorType::SUB_ASSIGN},
     {T_STAR, ast::OperatorType::MUL},
     {T_DIV, ast::OperatorType::DIV},
     {T_EQ, ast::OperatorType::EQUAL},
@@ -224,14 +225,10 @@ static std::map<TokenType, ast::OperatorType> prefixOperatorMap = {
     {T_SUB, ast::OperatorType::NEGATIVE},
     {T_STAR, ast::OperatorType::DEREF},
     {T_ADDR, ast::OperatorType::ADDR},
-    {T_INC, ast::OperatorType::PREFIX_INC},
-    {T_DEC, ast::OperatorType::PREFIX_DEC},
     {T_NOT, ast::OperatorType::LOG_NOT},
     {T_BIN_NOT, ast::OperatorType::BIN_NOT}};
 
-static std::map<TokenType, ast::OperatorType> postfixOperatorMap = {
-    {T_INC, ast::OperatorType::POSTFIX_INC},
-    {T_DEC, ast::OperatorType::POSTFIX_DEC}};
+static std::map<TokenType, ast::OperatorType> postfixOperatorMap = {};
 
 ast::OperatorType Parser::infixTokenToOperatorType(TokenType token) {
   if (infixOperatorMap.count(token) > 0) {

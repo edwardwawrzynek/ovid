@@ -1,0 +1,18 @@
+// __ovid_compiler_test
+//__mode: type_check
+//__end_header
+
+fn test(arg0 *i32, arg1 (*mut i32, *mut (i32, bool))) {
+    mut a = 7
+
+    a += 5
+    a -= *arg0
+    a += *arg1.0
+
+    *arg0 += 1 //__error: "left side of compound assignment operator is not mutable"
+    *arg1.0 -= *arg0
+    (*arg1.1).0 += a * 2
+
+    (a + *arg0) -= *arg0 //__error: "left side of compound assignment operator is not assignable"
+    (1, 2).0 += 1 //__error: "left side of compound assignment operator is not assignable"
+}

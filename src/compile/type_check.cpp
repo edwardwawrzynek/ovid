@@ -469,23 +469,6 @@ static std::multimap<OperatorType, BuiltinOperatorVariant>
         {OperatorType::MOD,
          {{BuiltinTypeArg::FLOAT, BuiltinTypeArg::FLOAT},
           BuiltinTypeArg::FLOAT}},
-        // prefix and postfix
-        {OperatorType::PREFIX_INC,
-         {{BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
-        {OperatorType::PREFIX_INC,
-         {{BuiltinTypeArg::FLOAT}, BuiltinTypeArg::FLOAT}},
-        {OperatorType::PREFIX_DEC,
-         {{BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
-        {OperatorType::PREFIX_DEC,
-         {{BuiltinTypeArg::FLOAT}, BuiltinTypeArg::FLOAT}},
-        {OperatorType::POSTFIX_INC,
-         {{BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
-        {OperatorType::POSTFIX_INC,
-         {{BuiltinTypeArg::FLOAT}, BuiltinTypeArg::FLOAT}},
-        {OperatorType::POSTFIX_DEC,
-         {{BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
-        {OperatorType::POSTFIX_DEC,
-         {{BuiltinTypeArg::FLOAT}, BuiltinTypeArg::FLOAT}},
         // -, >>, <<
         {OperatorType::NEGATIVE, {{BuiltinTypeArg::INT}, BuiltinTypeArg::INT}},
         {OperatorType::NEGATIVE,
@@ -545,7 +528,7 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
                                              const TypeCheckState &state) {
   /* special handling for address of and dereference operators */
   if (dynamic_cast<OperatorSymbol *>(node.funcExpr.get()) != nullptr) {
-    auto opNode = dynamic_cast<OperatorSymbol &>(*node.funcExpr);
+    auto &opNode = dynamic_cast<OperatorSymbol &>(*node.funcExpr);
     if (opNode.op == OperatorType::DEREF) {
       return visitFunctionCallDeref(node, state);
     } else if (opNode.op == OperatorType::ADDR) {
@@ -553,6 +536,9 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
     } else if (opNode.op == OperatorType::LOG_AND ||
                opNode.op == OperatorType::LOG_OR) {
       return visitShortCircuitingCall(node, state);
+    } else if (opNode.op == OperatorType::ADD_ASSIGN ||
+               opNode.op == OperatorType::SUB_ASSIGN) {
+      return visitCompoundAssignmentCall(node, state);
     } else {
       return visitFunctionCallOperator(node, state);
     }
@@ -625,7 +611,7 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
 TypeCheckResult
 TypeCheck::visitShortCircuitingCall(const FunctionCall &node,
                                     const TypeCheckState &state) {
-  auto opNode = dynamic_cast<OperatorSymbol &>(*node.funcExpr);
+  auto &opNode = dynamic_cast<OperatorSymbol &>(*node.funcExpr);
   auto boolType = std::make_shared<BoolType>(SourceLocation::nullLocation());
   assert(opNode.op == OperatorType::LOG_AND ||
          opNode.op == OperatorType::LOG_OR);
@@ -765,13 +751,18 @@ TypeCheckResult TypeCheck::visitFunctionCallDeref(const FunctionCall &node,
                               state, node.loc);
 }
 
+/* if leftRes is not null, place the result of visiting the left side of the
+ * expression into it */
 TypeCheckResult
 TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
-                                     const TypeCheckState &state) {
+                                     const TypeCheckState &state,
+                                     TypeCheckResult *leftRes) {
   auto opNode = dynamic_cast<OperatorSymbol &>(*node.funcExpr);
   // visit args, and convert arg types to BuiltinTypeArgs
   std::vector<BuiltinTypeArg> builtinArgTypes;
   std::vector<TypeCheckResult> args;
+
+  bool is_first_arg = true;
   for (auto &arg : node.args) {
     // f opNode expects a boolean, give a type hint
     auto typeHint =
@@ -782,6 +773,12 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
     auto argRes = visitNode(*arg, state.withTypeHint(typeHint));
     if (argRes.isNull())
       return TypeCheckResult::nullResult();
+
+    /* if left side of expression, copy arg to leftRes */
+    if (is_first_arg && leftRes != nullptr) {
+      *leftRes = argRes;
+    }
+    is_first_arg = false;
 
     auto argType = withoutMutType(argRes.resultType);
 
@@ -922,6 +919,49 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
   // do implicit convert if needed
   return doImplicitConversion(TypeCheckResult(opRetType, instrPointer), state,
                               node.loc);
+}
+
+TypeCheckResult
+TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
+                                     const TypeCheckState &state) {
+  return visitFunctionCallOperator(node, state, nullptr);
+}
+
+static std::map<OperatorType, OperatorType> compoundOpsMap = {
+    {OperatorType::ADD_ASSIGN, OperatorType::ADD},
+    {OperatorType::SUB_ASSIGN, OperatorType::SUB}};
+
+TypeCheckResult
+TypeCheck::visitCompoundAssignmentCall(const FunctionCall &node,
+                                       const TypeCheckState &state) {
+  auto &opNode = dynamic_cast<OperatorSymbol &>(*node.funcExpr);
+  /* set op on node to non-compound op, and emit code to calculate expression
+   * without store */
+  TypeCheckResult left(nullptr, nullptr);
+  opNode.op = compoundOpsMap[opNode.op];
+  auto res = visitFunctionCallOperator(node, state, &left);
+  if (res.isNull())
+    return TypeCheckResult::nullResult();
+
+  /* make sure left side of expression has an address and is mutable */
+  if (!left.resultInstruction->isAddressable()) {
+    errorMan.logError(
+        "left side of compound assignment operator is not assignable",
+        node.args[0]->loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+  if (dynamic_cast<MutType *>(left.resultType.get()) == nullptr) {
+    errorMan.logError(
+        "left side of compound assignment operator is not mutable",
+        node.args[0]->loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+
+  /* generate store from result into left side */
+  curInstructionList->push_back(std::make_unique<ir::Store>(
+      node.loc, *left.resultInstruction, *res.resultInstruction));
+
+  return left;
 }
 
 TypeCheckResult TypeCheck::visitReturnStatement(ReturnStatement &node,

@@ -202,8 +202,7 @@ void Tokenizer::nextToken() {
     if ((curToken.token == T_IDENT || curToken.token == T_INTLITERAL ||
          curToken.token == T_FLOATLITERAL || curToken.token == T_CHARLITERAL ||
          curToken.token == T_BOOLLITERAL || curToken.token == T_RETURN ||
-         curToken.token == T_RPAREN || curToken.token == T_RBRK ||
-         curToken.token == T_INC || curToken.token == T_DEC) &&
+         curToken.token == T_RPAREN || curToken.token == T_RBRK) &&
         parenLevel <= 0) {
       curToken.token = T_SEMICOLON;
       return;
@@ -219,8 +218,8 @@ void Tokenizer::nextToken() {
     curToken.token = T_EOF;
     break;
   case '+':
-    if ((c = next()) == '+') {
-      curToken.token = T_INC;
+    if ((c = next()) == '=') {
+      curToken.token = T_ADD_ASSIGN;
     } else {
       putback(c);
       curToken.token = T_ADD;
@@ -240,8 +239,8 @@ void Tokenizer::nextToken() {
         curToken.token = T_RIGHT_ARROW;
       } else {
         putback(c);
-        if ((c = next()) == '-') {
-          curToken.token = T_DEC;
+        if ((c = next()) == '=') {
+          curToken.token = T_SUB_ASSIGN;
         } else {
           putback(c);
         }

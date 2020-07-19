@@ -1,60 +1,36 @@
 (5:1) FunctionDecl: test
   retType:
     VoidType
-  argNames: a b
+  argNames:
   argTypes:
-    IntType: i32
-    IntType: i32
   body:
-    (6:5) FunctionCall
-      function:
-        (6:6) OperatorSymbol: ++
-      args:
-        (6:5) Identifier: a
-    (7:5) FunctionCall
-      function:
-        (7:8) OperatorSymbol: +
-      args:
-        (7:5) FunctionCall
-          function:
-            (7:6) OperatorSymbol: ++
-          args:
-            (7:5) Identifier: b
-        (7:9) Identifier: a
-    (8:5) FunctionCall
-      function:
-        (8:10) OperatorSymbol: +
-      args:
-        (8:5) FunctionCall
-          function:
-            (8:8) OperatorSymbol: ++
-          args:
-            (8:5) FunctionCall
-              function:
-                (8:6) OperatorSymbol: ++
-              args:
-                (8:5) Identifier: b
-        (8:11) Identifier: a
+    (6:5) VarDecl: a
+        (6:13) IntLiteral: 5
+    (7:5) VarDecl: b
+        (7:13) IntLiteral: 6
     (9:5) FunctionCall
       function:
-        (9:5) OperatorSymbol: ++
+        (9:7) OperatorSymbol: +=
       args:
-        (9:7) Identifier: a
+        (9:5) Identifier: a
+        (9:10) Identifier: b
     (10:5) FunctionCall
       function:
-        (10:5) OperatorSymbol: ++
+        (10:7) OperatorSymbol: +=
       args:
-        (10:7) FunctionCall
+        (10:5) Identifier: a
+        (10:10) Assignment
+          lvalue:
+            (10:10) Identifier: b
+          rvalue:
+            (10:14) Identifier: a
+    (11:5) Assignment
+      lvalue:
+        (11:5) Identifier: a
+      rvalue:
+        (11:9) FunctionCall
           function:
-            (10:7) OperatorSymbol: ++
+            (11:11) OperatorSymbol: -=
           args:
-            (10:9) Identifier: a
-    (11:5) FunctionCall
-      function:
-        (11:5) OperatorSymbol: ++
-      args:
-        (11:7) FunctionCall
-          function:
-            (11:8) OperatorSymbol: ++
-          args:
-            (11:7) Identifier: a
+            (11:9) Identifier: b
+            (11:14) Identifier: a

@@ -149,12 +149,17 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
 
   TypeCheckResult visitFunctionCallOperator(const FunctionCall &node,
                                             const TypeCheckState &state);
+  TypeCheckResult visitFunctionCallOperator(const FunctionCall &node,
+                                            const TypeCheckState &state,
+                                            TypeCheckResult *leftRes);
   TypeCheckResult visitFunctionCallDeref(const FunctionCall &node,
                                          const TypeCheckState &state);
   TypeCheckResult visitFunctionCallAddress(const FunctionCall &node,
                                            const TypeCheckState &state);
   TypeCheckResult visitShortCircuitingCall(const FunctionCall &node,
                                            const TypeCheckState &state);
+  TypeCheckResult visitCompoundAssignmentCall(const FunctionCall &node,
+                                              const TypeCheckState &state);
 
   TypeCheckResult doImplicitConversion(const TypeCheckResult &expression,
                                        const TypeCheckState &state,

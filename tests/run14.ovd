@@ -1,0 +1,18 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+/* very basic test using heap */
+fn alloc() -> *(i32, i32, bool) {
+    val a = (34, -17, false)
+    return &a
+}
+
+pub fn main() -> i32 {
+    val res = alloc()
+    if (*res).2 {
+        return (*res).0 + (*res).1
+    } else {
+        return (*res).0 + (*res).1 * 2
+    }
+}

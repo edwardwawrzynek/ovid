@@ -1,0 +1,18 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+fn test(arg *(*mut (*mut i32, bool), *i32)) {
+    *(*(*arg).0).0 -= *(*arg).1 * 5
+}
+
+pub fn main() -> i32 {
+    mut a = 100
+    mut t1 = (&a, false)
+    val t2 = (&t1, &a)
+
+    test(&t2)
+    a += 400
+
+    return a
+}

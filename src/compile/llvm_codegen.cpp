@@ -641,15 +641,7 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
         builder.CreateBinOp(op, useValue(instruct.arguments[0].get(), state),
                             useValue(instruct.arguments[1].get(), state));
     return instruct.val.llvm_value = value;
-  } break;
-  case ast::OperatorType::PREFIX_INC:
-    break;
-  case ast::OperatorType::PREFIX_DEC:
-    break;
-  case ast::OperatorType::POSTFIX_INC:
-    break;
-  case ast::OperatorType::POSTFIX_DEC:
-    break;
+  }
   case ast::OperatorType::BIN_NOT: {
     // use xor against -1 (~0)
     auto neg_one = llvm::ConstantInt::get(llvm_context,
@@ -667,6 +659,9 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
 
     return instruct.val.llvm_value = value;
   }
+  /* compound assignment operators are handled by type check */
+  case ast::OperatorType::ADD_ASSIGN:
+  case ast::OperatorType::SUB_ASSIGN:
   /* && and || are short circuiting, and should have been handled by type check
    */
   case ast::OperatorType::LOG_AND:
@@ -675,6 +670,7 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
   case ast::OperatorType::DEREF:
   case ast::OperatorType::ADDR:
     assert(false);
+    return nullptr;
   }
 }
 

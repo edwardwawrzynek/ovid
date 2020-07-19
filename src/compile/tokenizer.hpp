@@ -17,7 +17,9 @@ enum TokenType {
   T_BOOLLITERAL,   // boolean literal
   T_CHARLITERAL,   // character literal
   T_ADD,           // +
+  T_ADD_ASSIGN,    // +=
   T_SUB,           // -
+  T_SUB_ASSIGN,    // -=
   T_STAR,          // *
   T_DIV,           // /
   T_ADDR,          // &
@@ -35,8 +37,6 @@ enum TokenType {
   T_GREATER_EQUAL, // >=
   T_LESS,          // <
   T_LESS_EQUAL,    // <=
-  T_INC,           //++
-  T_DEC,           //--
   T_COMMA,         // ,
   T_SEMICOLON,     // ;
   T_COLON,         // :

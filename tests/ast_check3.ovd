@@ -2,11 +2,11 @@
 //__mode: check_ast
 //__end_header
 
-fn test(a i32, b i32) {
-    a++
-    b+++a /* should parse as (b++) + a */
-    b+++++a /* should parse as ((b++)++) + a */
-    ++a
-    ++++a /* should parse ass ++(++a) */
-    ++a++ /* should parse as ++(a++) */
+fn test() {
+    mut a = 5
+    mut b = 6
+
+    a += b
+    a += b = a
+    a = b -= a
 }
