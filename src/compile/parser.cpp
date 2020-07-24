@@ -36,8 +36,11 @@ ast::StatementList Parser::parseProgram() {
       is_public = true;
       tokenizer.nextToken();
     }
+    // consume 'module'
+    tokenizer.nextToken();
+
     // read in name
-    auto names = readModuleName(state);
+    auto names = readScopedName(state);
     if (names.empty())
       return parseProgramWithoutRootModuleDecl(state);
 
@@ -639,23 +642,16 @@ void Parser::addTypeAlias(const ParserState &state, std::string name,
   }
 }
 
-// functionproto ::= ident '(' (arg typeExpr ',')* arg typeExpr ')' ('->'
-// typeExpr)?
-//
+// namedFunctionType ::= '(' (arg typeExpr ',')* arg typeExpr ')' ('->'
+//// typeExpr)?
 // argLocs is an empty vector to put the location of each arg declare
 // in. If null, ignored
-std::unique_ptr<ast::FunctionPrototype>
-Parser::parseFunctionProto(const ParserState &state,
-                           std::vector<SourceLocation> *argLocs) {
-  if (tokenizer.curToken.token != T_IDENT)
-    return errorMan.logError("Expected function name", tokenizer.curTokenLoc,
-                             ErrorType::ParseError);
-  std::string name = tokenizer.curToken.ident;
-
+std::shared_ptr<ast::NamedFunctionType>
+Parser::parseNamedFunctionType(const ParserState &state,
+                               std::vector<SourceLocation> *argLocs) {
   auto startPos = tokenizer.curTokenLoc;
 
   // left paren
-  tokenizer.nextToken();
   if (tokenizer.curToken.token != T_LPAREN)
     return errorMan.logError("Expected '('", tokenizer.curTokenLoc,
                              ErrorType::ParseError);
@@ -698,11 +694,31 @@ Parser::parseFunctionProto(const ParserState &state,
     retType = parseType(state);
   }
 
-  return std::make_unique<ast::FunctionPrototype>(
-      std::make_shared<ast::FunctionType>(startPos.through(retType->loc),
-                                          std::move(argTypes),
+  auto loc = startPos.through(retType->loc);
+
+  return std::make_shared<ast::NamedFunctionType>(
+      loc,
+      std::make_shared<ast::FunctionType>(loc, std::move(argTypes),
                                           std::move(retType)),
-      std::move(argNames), name);
+      std::move(argNames));
+}
+
+// functionproto ::= ident namedFunctionType
+//
+// argLocs is an empty vector to put the location of each arg declare
+// in. If null, ignored
+std::unique_ptr<ast::FunctionPrototype>
+Parser::parseFunctionProto(const ParserState &state,
+                           std::vector<SourceLocation> *argLocs) {
+  if (tokenizer.curToken.token != T_IDENT)
+    return errorMan.logError("Expected function name", tokenizer.curTokenLoc,
+                             ErrorType::ParseError);
+  std::string name = tokenizer.curToken.ident;
+  tokenizer.nextToken();
+
+  auto type = parseNamedFunctionType(state, argLocs);
+
+  return std::make_unique<ast::FunctionPrototype>(std::move(type), name);
 }
 
 std::unique_ptr<ast::Statement>
@@ -743,12 +759,12 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
                         state.current_module, state.in_private_mod);
 
   // add entries in symbol table for arguments
-  for (size_t i = 0; i < proto->argNames.size(); i++) {
-    auto &arg = proto->argNames[i];
+  for (size_t i = 0; i < proto->type->argNames.size(); i++) {
+    auto &arg = proto->type->argNames[i];
     auto &loc = argLocs[i];
 
     auto sym = std::make_shared<Symbol>(loc, false, false, false, false);
-    sym->type = proto->type->argTypes[i];
+    sym->type = proto->type->type->argTypes[i];
     bodyState.current_scope->addSymbol(arg, sym);
   }
 
@@ -765,15 +781,12 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   if (checkRedeclaration(pos, proto->name, state))
     return nullptr;
 
-  auto type = std::make_shared<ast::NamedFunctionType>(
-      pos.through(proto->type->loc), std::move(proto->type),
-      std::move(proto->argNames));
-  auto ast = std::make_unique<ast::FunctionDecl>(pos, type, proto->name,
+  auto ast = std::make_unique<ast::FunctionDecl>(pos, proto->type, proto->name,
                                                  std::move(body));
 
   auto fun_sym = std::make_shared<Symbol>(pos, is_public, true, false,
                                           state.is_global_level);
-  fun_sym->type = type;
+  fun_sym->type = proto->type;
   ast->resolved_symbol = fun_sym;
 
   state.current_scope->addSymbol(proto->name, fun_sym);
@@ -784,12 +797,13 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
   return ast;
 }
 
-// modulename ::= 'module' identifier (':' identifier)*
-std::vector<std::string> Parser::readModuleName(const ParserState &state) {
+// scopedname ::= identifier (':' identifier)*
+std::vector<std::string> Parser::readScopedName(const ParserState &state) {
   std::vector<std::string> names;
+  bool first_iter = true;
   do {
-    // on first iteration, consume 'module'
-    tokenizer.nextToken();
+    if (!first_iter)
+      tokenizer.nextToken();
     if (tokenizer.curToken.token != T_IDENT) {
       errorMan.logError("expected module name (identifier expected)",
                         tokenizer.curTokenLoc, ErrorType::ParseError);
@@ -797,6 +811,7 @@ std::vector<std::string> Parser::readModuleName(const ParserState &state) {
     }
     names.push_back(tokenizer.curToken.ident);
     tokenizer.nextToken();
+    first_iter = false;
   } while (tokenizer.curToken.token == T_COLON);
 
   return names;
@@ -886,7 +901,10 @@ Parser::parseModuleDecl(const ParserState &state, bool is_public) {
     do_bail_after_name = true;
   }
 
-  names = readModuleName(state);
+  // consume 'module'
+  tokenizer.nextToken();
+
+  names = readScopedName(state);
   if (names.empty() || do_bail_after_name)
     return nullptr;
 
@@ -1061,6 +1079,42 @@ Parser::parseReturnStatement(const ParserState &state) {
   return std::make_unique<ast::ReturnStatement>(pos, std::move(retExpr));
 }
 
+void Parser::parseNativeStatement(const ParserState &state) {
+  auto pos = tokenizer.curTokenLoc;
+  // consume 'native'
+  tokenizer.nextToken();
+
+  if (tokenizer.curToken.token != T_FN) {
+    errorMan.logError(
+        "expected 'native' to be followed by a function prototype",
+        tokenizer.curTokenLoc, ErrorType::ParseError);
+    return;
+  }
+  // consume 'fn'
+  tokenizer.nextToken();
+  // consume name
+  auto fn_scopes = readScopedName(state);
+  auto name = fn_scopes.back();
+  fn_scopes.pop_back();
+
+  auto type = parseNamedFunctionType(state, nullptr);
+  // setup symbol table entry (native fn's are always public)
+  auto fun_sym = std::make_shared<Symbol>(pos, true, true, false, true);
+  fun_sym->type = type;
+
+  // create proper scope tables (if they don't exist), and add symbol
+  auto root = scopes.names.getRootScope();
+  for (auto &scope : fn_scopes) {
+    auto subscope = root->getScopeTable(scope);
+    if (subscope != nullptr) {
+      root = subscope;
+    } else {
+      root = root->addScopeTable(scope, true);
+    }
+  }
+  root->addSymbol(name, fun_sym);
+}
+
 // check if parser is currently at an end of statement
 bool Parser::isEndStatement() {
   return tokenizer.curToken.token == T_SEMICOLON ||
@@ -1106,6 +1160,15 @@ Parser::parsePossiblePubStatement(const ParserState &state, bool is_public) {
     expectEndStatement();
     return res;
   }
+  case T_PUB: {
+    if (is_public)
+      return errorMan.logError("expected 'pub' to be followed by variable, "
+                               "function, type, or module declaration",
+                               tokenizer.curTokenLoc, ErrorType::ParseError);
+
+    tokenizer.nextToken();
+    return parsePossiblePubStatement(state, true);
+  }
   default: {
     errorMan.logError(
         "expected 'pub' to be followed by variable, function, type, or "
@@ -1124,10 +1187,13 @@ Parser::parseStatement(const ParserState &state) {
   case T_MUT:
   case T_VAL:
   case T_TYPE:
-    return parsePossiblePubStatement(state, false);
   case T_PUB:
-    tokenizer.nextToken();
-    return parsePossiblePubStatement(state, true);
+    return parsePossiblePubStatement(state, false);
+  case T_NATIVE: {
+    parseNativeStatement(state);
+    expectEndStatement();
+    return parseStatement(state);
+  }
   case T_SEMICOLON:
     tokenizer.nextToken();
     return parseStatement(state);

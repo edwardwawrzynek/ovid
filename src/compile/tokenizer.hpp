@@ -59,6 +59,7 @@ enum TokenType {
   T_IF,            // if
   T_ELSIF,         // elsif
   T_ELSE,          // else
+  T_NATIVE,        // native
 };
 
 struct Token {

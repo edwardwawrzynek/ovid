@@ -309,13 +309,12 @@ public:
 
 class FunctionPrototype {
 public:
-  std::shared_ptr<FunctionType> type;
-  std::vector<std::string> argNames;
+  std::shared_ptr<NamedFunctionType> type;
   std::string name;
 
-  FunctionPrototype(std::shared_ptr<FunctionType> type,
-                    std::vector<std::string> argNames, const std::string &name)
-      : type(std::move(type)), argNames(std::move(argNames)), name(name){};
+  FunctionPrototype(std::shared_ptr<NamedFunctionType> type,
+                    const std::string &name)
+      : type(std::move(type)), name(name){};
 };
 
 /* base ast node */

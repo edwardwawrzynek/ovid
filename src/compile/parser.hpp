@@ -83,6 +83,10 @@ class Parser {
   std::unique_ptr<ast::Statement> parseFunctionDecl(const ParserState &state,
                                                     bool is_public);
 
+  std::shared_ptr<ast::NamedFunctionType>
+  parseNamedFunctionType(const ParserState &state,
+                         std::vector<SourceLocation> *argLocs);
+
   std::unique_ptr<ast::FunctionPrototype>
   parseFunctionProto(const ParserState &state,
                      std::vector<SourceLocation> *argLocs);
@@ -103,7 +107,7 @@ class Parser {
   std::unique_ptr<ast::ModuleDecl> parseModuleDecl(const ParserState &state,
                                                    bool is_public);
 
-  std::vector<std::string> readModuleName(const ParserState &state);
+  std::vector<std::string> readScopedName(const ParserState &state);
 
   static ParserState newStateForModule(const ParserState &state,
                                        const std::vector<std::string> &names,
@@ -121,6 +125,8 @@ class Parser {
   parseTypeAliasDecl(const ParserState &state, bool is_public);
 
   std::unique_ptr<ast::IfStatement> parseIfStatement(const ParserState &state);
+
+  void parseNativeStatement(const ParserState &state);
 
   void addTypeAlias(const ParserState &state, std::string name,
                     std::shared_ptr<TypeAlias> alias);

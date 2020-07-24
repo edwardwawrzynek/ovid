@@ -669,6 +669,7 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
   /* deref and address should have been handled by type check */
   case ast::OperatorType::DEREF:
   case ast::OperatorType::ADDR:
+  default:
     assert(false);
     return nullptr;
   }

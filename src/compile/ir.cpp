@@ -241,16 +241,27 @@ ForwardIdentifier::ForwardIdentifier(const SourceLocation &loc,
       symbol_ref(std::move(symbol_ref)) {}
 
 bool ForwardIdentifier::isAddressable() const {
-  /* TODO: allow for external identifiers */
-  assert(symbol_ref->ir_decl_instruction != nullptr);
+  if (symbol_ref->ir_decl_instruction != nullptr) {
+    return symbol_ref->ir_decl_instruction->isAddressable();
+  } else {
+    /* function's aren't addressable, globals are */
+    if (dynamic_cast<ast::FunctionType *>(symbol_ref->type.get()) != nullptr ||
+        dynamic_cast<ast::NamedFunctionType *>(symbol_ref->type.get()) !=
+            nullptr) {
+      return false;
+    } else {
+      assert(symbol_ref->is_global);
 
-  return symbol_ref->ir_decl_instruction->isAddressable();
+      return true;
+    }
+  }
 }
 
 bool ForwardIdentifier::hasFlowMetadata() {
-  /* TODO: allow for external identifiers */
-  assert(symbol_ref->ir_decl_instruction != nullptr);
-
+  /* TODO: load external identifier flow info from symbol tables */
+  if (symbol_ref->ir_decl_instruction == nullptr) {
+    return false;
+  }
   return symbol_ref->ir_decl_instruction->hasFlowMetadata();
 }
 
