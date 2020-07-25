@@ -6,10 +6,10 @@ module test
 
 /* the escape analysis pass performs checks to make flows are of the same type. test those */
 
-type t1 = (i32, *mut u8)
-type t2 = (*mut *t1, *t1, t1, (t1, i32))
+type T1 = (i32, *mut u8)
+type T2 = (*mut *T1, *T1, T1, (T1, i32))
 
-fn test(arg t1) -> t2 {
+fn test(arg T1) -> T2 {
     val a = 5
     mut tmp u8 = 7
     val b = &tmp
@@ -17,7 +17,7 @@ fn test(arg t1) -> t2 {
     val c = (a, b)
     val d = (arg.0, arg.1)
     val e = &d
-    /*val f = *e
+    val f = *e
     mut g = &*&f
 
     val h = arg
@@ -28,5 +28,5 @@ fn test(arg t1) -> t2 {
     val k = &res
     val l = **(*k).0
 
-    return res*/
+    return res
 }

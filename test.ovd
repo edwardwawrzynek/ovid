@@ -1,4 +1,12 @@
+module Std:ScopeTest
+
 native fn std:bootstrap:print_num(num i64) -> void
+
+module test {
+    module test:CoreName:test_scope {}
+}
+
+type test_type = (i8, i8)
 
 fn fact(n i64) -> i64 {
     if n <= 1 {
@@ -17,4 +25,5 @@ fn run(n i32) {
 
 pub fn main() -> i32 {
     run(0)
+    return 0
 }

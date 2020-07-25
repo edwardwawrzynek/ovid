@@ -4,8 +4,8 @@
 
 module mod:sub
 
-pub type tuple = (i64, u8, (i8, (i32, u8)), i8)
+pub type Tuple = (i64, u8, (i8, (i32, u8)), i8)
 
-fn test(a tuple) -> (i64, u8, (i8, (i32, u8)), i8) {
+fn test(a Tuple) -> (i64, u8, (i8, (i32, u8)), i8) {
     return (5, 6, (7, (3, 4)), 7)
 }

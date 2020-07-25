@@ -1,0 +1,12 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+/* basic native fn test from c standard library */
+native fn exit(cond i32) -> void
+
+pub fn main() -> i32 {
+    exit(0)
+
+    return 255
+}

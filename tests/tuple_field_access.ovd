@@ -4,9 +4,9 @@
 
 module test
 
-type t1 = (i32, *i32)
+type T1 = (i32, *i32)
 
-fn test(a t1, b *t1) -> t1 {
+fn test(a T1, b *T1) -> T1 {
     val c i32 = a.0
     val d *i32 = a.1
 
@@ -23,7 +23,7 @@ fn test(a t1, b *t1) -> t1 {
     return (c, f)
 }
 
-fn test2(a *mut t1, b *t1) {
+fn test2(a *mut T1, b *T1) {
     (*a).0 = 6
     (*a).1 = &(*b).0
 

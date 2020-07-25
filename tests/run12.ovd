@@ -2,13 +2,13 @@
 //__mode: run
 //__end_header
 
-fn incArg(arg *mut i32) {
+fn inc_arg(arg *mut i32) {
     *arg += 1
 }
 
 pub fn main() -> i32 {
     mut a = -1
-    incArg(&a)
+    inc_arg(&a)
 
     return a
 }

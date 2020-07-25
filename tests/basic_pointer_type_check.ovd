@@ -5,7 +5,7 @@
 module mod
 
 pub mut value i32 = 10
-pub val valueImut i32 = 9
+pub val value_imut i32 = 9
 
 fn test1(a *i64, b *mut i64) -> void {
     *a = 1 // __error: "left side of assignment is non mutable"
@@ -27,12 +27,12 @@ fn test2() -> void {
     val addr1 = &value
     val addr2 = &value
 
-    val addr1Imut = &valueImut
+    val addr1_imut = &value_imut
 
     mut addr3 = &addr1
     addr3 = &addr2
 
-    addr3 = &addr1Imut // __error: "type of expression **i32 does not match expected type **mut i32"
+    addr3 = &addr1_imut // __error: "type of expression **i32 does not match expected type **mut i32"
 
     addr3 = &value // __error: "type of expression *mut i32 does not match expected type **mut i32"
 

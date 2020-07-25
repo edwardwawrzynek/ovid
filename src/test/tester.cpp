@@ -44,7 +44,8 @@ TesterInstance::errorStringSpecifierToErrorType(const std::string &str) {
       {":UseOfPrivateType", ErrorType::UseOfPrivateType},
       {":TypeError", ErrorType::TypeError},
       {":NarrowingConversion", ErrorType::NarrowingConversion},
-      {":InternalError", ErrorType::InternalError}};
+      {":InternalError", ErrorType::InternalError},
+      {":NameConvention", ErrorType::NameConvention}};
   if (types.count(str) == 0) {
     doError(string_format("invalid error type %s", str.c_str()));
   }
@@ -70,7 +71,8 @@ std::string TesterInstance::errorTypeToString(ErrorType type) {
       {ErrorType::UseOfPrivateType, ":UseOfPrivateType"},
       {ErrorType::TypeError, ":TypeError"},
       {ErrorType::NarrowingConversion, ":NarrowingConversion"},
-      {ErrorType::InternalError, ":InternalError"}};
+      {ErrorType::InternalError, ":InternalError"},
+      {ErrorType::NameConvention, ":NameConvention"}};
 
   return types[type];
 }

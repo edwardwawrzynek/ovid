@@ -68,7 +68,8 @@ enum class ErrorType {
   ModDeclInFunction,
   TypeError,
   NarrowingConversion,
-  InternalError
+  InternalError,
+  NameConvention
 };
 
 enum class ErrorPrintLevel { Error, Warning, Note };

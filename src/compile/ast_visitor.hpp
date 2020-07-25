@@ -219,11 +219,11 @@ T BaseTypeVisitor<T, S>::visitType(Type &type, const S &state) {
     return visitMutType(dynamic_cast<MutType &>(type), state);
   } else if (dynamic_cast<PointerType *>(&type) != nullptr) {
     return visitPointerType(dynamic_cast<PointerType &>(type), state);
-  } else if (dynamic_cast<FunctionType *>(&type) != nullptr) {
-    return visitFunctionType(dynamic_cast<FunctionType &>(type), state);
   } else if (dynamic_cast<NamedFunctionType *>(&type) != nullptr) {
     return visitNamedFunctionType(dynamic_cast<NamedFunctionType &>(type),
                                   state);
+  } else if (dynamic_cast<FunctionType *>(&type) != nullptr) {
+    return visitFunctionType(dynamic_cast<FunctionType &>(type), state);
   } else if (dynamic_cast<ResolvedAlias *>(&type) != nullptr) {
     return visitResolvedAlias(dynamic_cast<ResolvedAlias &>(type), state);
   } else if (dynamic_cast<ProductType *>(&type) != nullptr) {

@@ -1,0 +1,21 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+module std:scopeName:Scope //__error: "identifier scopeName should be a snake case identifier: scope_name" "identifier Scope should be a snake case identifier: scope"
+
+val globalVar i32 = 5 //__error: "identifier globalVar should be a snake case identifier: global_var"
+
+module Test:ScopeName { //__error: "identifier Test should be a snake case identifier: test" "identifier ScopeName should be a snake case identifier: scope_name"
+    fn someFunc() { //__error: "identifier someFunc should be a snake case identifier: some_func"
+        val LocalVar = 5 //__error: "identifier LocalVar should be a snake case identifier: local_var"
+    }
+}
+
+module std:scope_name:scope {
+    val global_var_2 i32 = 5
+
+    fn some_func_2() {
+        val local_var = 5
+    }
+}

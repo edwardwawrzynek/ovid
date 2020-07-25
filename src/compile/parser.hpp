@@ -108,6 +108,8 @@ class Parser {
                                                    bool is_public);
 
   std::vector<std::string> readScopedName(const ParserState &state);
+  std::vector<std::string> readScopedName(const ParserState &state,
+                                          std::vector<SourceLocation> *locs);
 
   static ParserState newStateForModule(const ParserState &state,
                                        const std::vector<std::string> &names,
@@ -130,6 +132,9 @@ class Parser {
 
   void addTypeAlias(const ParserState &state, std::string name,
                     std::shared_ptr<TypeAlias> alias);
+
+  void expectSnakeCase(const std::string &name, SourceLocation &pos);
+  void expectUpperCamelCase(const std::string &name, SourceLocation &pos);
 
 public:
   Parser(Tokenizer &tokenizer, ErrorManager &errorMan, ActiveScopes &scopes,

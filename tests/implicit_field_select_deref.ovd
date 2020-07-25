@@ -2,9 +2,9 @@
 //__mode: type_check
 //__end_header
 
-type tuple = (*mut i32, *(i32, *i32))
+type Tuple = (*mut i32, *(i32, *i32))
 
-fn test(arg *tuple) {
+fn test(arg *Tuple) {
     val a *mut i32 = arg.0
     mut b i32 = *arg.0
 

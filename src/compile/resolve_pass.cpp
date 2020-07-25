@@ -29,12 +29,15 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
   auto pis_in_global = is_in_global;
   is_in_global = false;
 
+  assert(node.type->resolvedArgs.empty());
   auto typeResolveState = TypeResolverState(package, current_module);
-  node.type->type = type_resolver.visitFunctionTypeNonOverload(
-      *node.type->type, typeResolveState);
+  node.type = type_resolver.visitNamedFunctionTypeNonOverload(*node.type,
+                                                              typeResolveState);
+
+  node.resolved_symbol->type = node.type;
 
   // mark arguments as declared
-  assert(node.type->argNames.size() == node.type->type->argTypes.size());
+  assert(node.type->argNames.size() == node.type->argTypes.size());
   for (size_t i = 0; i < node.type->argNames.size(); i++) {
     auto &name = node.type->argNames[i];
     // check for shadowing
@@ -44,7 +47,7 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
     assert(sym != nullptr);
     sym->resolve_pass_declared_yet = true;
     // set arg type appropriately
-    sym->type = node.type->type->argTypes[i];
+    sym->type = node.type->argTypes[i];
     // make function type refer to resolved symbols
     node.type->resolvedArgs.push_back(sym);
   }
@@ -376,6 +379,18 @@ TypeResolver::visitFunctionTypeNonOverload(FunctionType &type,
                                         std::move(retType));
 }
 
+std::shared_ptr<NamedFunctionType>
+TypeResolver::visitNamedFunctionTypeNonOverload(
+    NamedFunctionType &type, const TypeResolverState &state) {
+  TypeList argTypes;
+  for (auto &arg : type.argTypes) {
+    argTypes.push_back(visitType(*arg, state));
+  }
+  auto retType = visitType(*type.retType, state);
+  return std::make_shared<NamedFunctionType>(type.loc, std::move(argTypes),
+                                             std::move(retType), type.argNames);
+}
+
 std::shared_ptr<Type>
 TypeResolver::visitFunctionType(FunctionType &type,
                                 const TypeResolverState &state) {
@@ -385,9 +400,7 @@ TypeResolver::visitFunctionType(FunctionType &type,
 std::shared_ptr<Type>
 TypeResolver::visitNamedFunctionType(NamedFunctionType &type,
                                      const TypeResolverState &state) {
-  auto newType = visitFunctionTypeNonOverload(*type.type, state);
-  return std::make_shared<NamedFunctionType>(type.loc, std::move(newType),
-                                             type.argNames);
+  return visitNamedFunctionTypeNonOverload(type, state);
 }
 
 std::shared_ptr<Type>

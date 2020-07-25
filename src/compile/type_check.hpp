@@ -35,6 +35,8 @@ class TypePrinter : public BaseTypeVisitor<int, TypePrinterState> {
                              const TypePrinterState &state) override;
 
   int visitTupleType(TupleType &type, const TypePrinterState &state) override;
+  int visitUnresolvedType(UnresolvedType &type,
+                          const TypePrinterState &state) override;
 
 public:
   void clear();

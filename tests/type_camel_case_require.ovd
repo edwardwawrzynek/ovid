@@ -1,0 +1,12 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+type type_t = (i32, i32) //__error: "identifier type_t should be an upper camel case identifier: TypeT"
+type point_3d_vec = (f64, f64, f64) //__error: "identifier point_3d_vec should be an upper camel case identifier: Point3dVec"
+
+type lowerCamelCase = i32 //__error: "identifier lowerCamelCase should be an upper camel case identifier: LowerCamelCase"
+
+type UpperCamelCase = i32
+
+type Bad_Upper = i32 //__error: "identifier Bad_Upper should be an upper camel case identifier: BadUpper"

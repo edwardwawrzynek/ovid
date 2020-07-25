@@ -2,7 +2,7 @@
 //__mode: check_escape compile
 //__end_header
 
-type t1 = (*i32, *i32)
+type T1 = (*i32, *i32)
 
 val tmp i32 = 0
 mut sink *i32 = &tmp

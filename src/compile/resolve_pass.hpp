@@ -64,6 +64,10 @@ public:
   std::shared_ptr<FunctionType>
   visitFunctionTypeNonOverload(FunctionType &type,
                                const TypeResolverState &state);
+
+  std::shared_ptr<NamedFunctionType>
+  visitNamedFunctionTypeNonOverload(NamedFunctionType &type,
+                                    const TypeResolverState &state);
 };
 
 class ResolvePassState {};

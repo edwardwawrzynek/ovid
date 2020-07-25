@@ -65,7 +65,7 @@ llvm::Type *LLVMTypeGen::visitFunctionType(ast::FunctionType &type,
 
 llvm::Type *LLVMTypeGen::visitNamedFunctionType(ast::NamedFunctionType &type,
                                                 const LLVMTypeGenState &state) {
-  return visitFunctionType(*type.type, state);
+  return visitFunctionType(type, state);
 }
 
 llvm::Type *LLVMTypeGen::visitType(ast::Type &type) {
@@ -126,12 +126,12 @@ LLVMCodegenPass::visitFunctionPrototype(ast::NamedFunctionType *proto,
     return prevProto;
 
   std::vector<llvm::Type *> argTypes;
-  for (auto &type : proto->type->argTypes) {
+  for (auto &type : proto->argTypes) {
     argTypes.push_back(type_gen.visitType(*type));
   }
 
   auto functionType = llvm::FunctionType::get(
-      type_gen.visitType(*proto->type->retType), argTypes, false);
+      type_gen.visitType(*proto->retType), argTypes, false);
 
   auto link_type = is_public ? llvm::Function::ExternalLinkage
                              : llvm::Function::InternalLinkage;
@@ -193,11 +193,11 @@ LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
       if (bb->body.empty() || dynamic_cast<BasicBlockTerminator *>(
                                   &*bb->body.back().get()) == nullptr) {
         if (dynamic_cast<ast::VoidType *>(
-                funcType->type->retType->withoutMutability()) != nullptr) {
+                funcType->retType->withoutMutability()) != nullptr) {
           builder.CreateRetVoid();
         } else {
-          builder.CreateRet(llvm::UndefValue::get(
-              type_gen.visitType(*funcType->type->retType)));
+          builder.CreateRet(
+              llvm::UndefValue::get(type_gen.visitType(*funcType->retType)));
         }
       }
     }

@@ -1,0 +1,18 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+/* basic native fn test from c standard library */
+native fn abs(x i64) -> i64
+
+fn ret_assert(cond bool) -> i32 {
+    if !cond {
+        return 255
+    } else {
+        return 0
+    }
+}
+
+pub fn main() -> i32 {
+    return ret_assert(abs(-5 + -5) == 10)
+}

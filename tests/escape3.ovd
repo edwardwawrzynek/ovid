@@ -4,18 +4,18 @@
 
 module test
 
-type t1 = (i32, *i32)
+type T1 = (i32, *i32)
 
 val tmp i32 = 0
-mut sink t1 = (0, &tmp)
+mut sink T1 = (0, &tmp)
 
-fn test1(a *t1) -> *i32 {
+fn test1(a *T1) -> *i32 {
     sink = *a
 
     return (*a).1
 }
 
-fn test2(a *t1) -> **t1 {
+fn test2(a *T1) -> **T1 {
     return &a
 }
 

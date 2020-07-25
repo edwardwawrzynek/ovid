@@ -8,8 +8,8 @@ pub module test3 {
     val a i32 = 1
     pub val b i32 = 2
 
-    type a = i32
-    pub type b = i32
+    type A = i32
+    pub type B = i32
 
     module test4 {
         val c i32 = 3
@@ -73,14 +73,14 @@ fn test() -> void {
     ::ovidc_test:test1:test2:test3:test4:d
 }
 
-fn test1() -> test3:a {} // __error: "use of private type `test3:a`"
-fn test2() -> test2:test3:a {} // __error: "use of private type `test2:test3:a`"
-fn test3() -> test1:test2:test3:a {} // __error: "use of private type `test1:test2:test3:a`"
-fn test4() -> ovidc_test:test1:test2:test3:a {} // __error: "use of private type `ovidc_test:test1:test2:test3:a`"
-fn test5() -> ::ovidc_test:test1:test2:test3:a {} // __error: "use of private type `ovidc_test:test1:test2:test3:a`"
+fn test1() -> test3:A {} // __error: "use of private type `test3:A`"
+fn test2() -> test2:test3:A {} // __error: "use of private type `test2:test3:A`"
+fn test3() -> test1:test2:test3:A {} // __error: "use of private type `test1:test2:test3:A`"
+fn test4() -> ovidc_test:test1:test2:test3:A {} // __error: "use of private type `ovidc_test:test1:test2:test3:A`"
+fn test5() -> ::ovidc_test:test1:test2:test3:A {} // __error: "use of private type `ovidc_test:test1:test2:test3:A`"
 
-fn test6() -> test3:b {}
-fn test7() -> test2:test3:b {}
-fn test8() -> test1:test2:test3:b {}
-fn test9() -> ovidc_test:test1:test2:test3:b {}
-fn test10() -> ::ovidc_test:test1:test2:test3:b {}
+fn test6() -> test3:B {}
+fn test7() -> test2:test3:B {}
+fn test8() -> test1:test2:test3:B {}
+fn test9() -> ovidc_test:test1:test2:test3:B {}
+fn test10() -> ::ovidc_test:test1:test2:test3:B {}

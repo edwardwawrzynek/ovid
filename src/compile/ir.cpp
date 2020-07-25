@@ -100,12 +100,8 @@ FunctionCall::FunctionCall(
       arguments(arguments) {
   // check that type matches function return type
   auto funcType = dynamic_cast<ast::FunctionType *>(function.type.get());
-  auto namedFuncType =
-      dynamic_cast<ast::NamedFunctionType *>(function.type.get());
   if (funcType != nullptr) {
     assert(Expression::type->equalToExpected(*funcType->retType));
-  } else if (namedFuncType != nullptr) {
-    assert(Expression::type->equalToExpected(*namedFuncType->type->retType));
   } else {
     assert(false);
   }

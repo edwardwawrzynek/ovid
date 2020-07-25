@@ -109,8 +109,6 @@ bool PointerType::containsPointer() const { return true; }
 
 bool FunctionType::equalToExpected(const Type &expected) const {
   const auto expectFunctionType = dynamic_cast<const FunctionType *>(&expected);
-  const auto expectNamedFunctionType =
-      dynamic_cast<const NamedFunctionType *>(&expected);
 
   // FunctionType and NamedFunctionType are equivalent if arg types and ret
   // types match (ignoring arg names)
@@ -125,27 +123,13 @@ bool FunctionType::equalToExpected(const Type &expected) const {
     }
 
     return retType->equalToExpected(*expectFunctionType->retType);
-  } else if (expectNamedFunctionType != nullptr) {
-    return this->equalToExpected(*expectNamedFunctionType->type);
   }
 
   return false;
 }
 
 bool NamedFunctionType::equalToExpected(const Type &expected) const {
-  const auto expectFunctionType = dynamic_cast<const FunctionType *>(&expected);
-  const auto expectNamedFunctionType =
-      dynamic_cast<const NamedFunctionType *>(&expected);
-
-  // FunctionType and NamedFunctionType are equivalent if arg types and ret
-  // types match (ignoring arg names)
-  if (expectFunctionType != nullptr) {
-    return type->equalToExpected(*expectFunctionType);
-  } else if (expectNamedFunctionType != nullptr) {
-    return type->equalToExpected(*expectNamedFunctionType->type);
-  }
-
-  return false;
+  return FunctionType::equalToExpected(expected);
 }
 
 std::shared_ptr<Type> ProductType::getTypeOfField(int32_t field_index) const {

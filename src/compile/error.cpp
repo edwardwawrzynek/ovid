@@ -12,6 +12,7 @@ ErrorPrintLevel errorTypeToPrintLevel(ErrorType type) {
     return ErrorPrintLevel::Note;
   case ErrorType::VarDeclareShadowed:
   case ErrorType::NarrowingConversion:
+  case ErrorType::NameConvention:
     return ErrorPrintLevel::Warning;
   default:
     // all fatal errors

@@ -1,5 +1,6 @@
 // __ovid_compiler_test
 //__mode: check_escape compile
+//__ignore_errors: :NameConvention
 //__end_header
 
 module test

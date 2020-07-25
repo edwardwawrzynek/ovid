@@ -306,12 +306,12 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   // create allocations for arguments
   std::vector<std::reference_wrapper<ir::Allocation>> argAllocs;
 
-  assert(node.type->argNames.size() == node.type->type->argTypes.size());
+  assert(node.type->argNames.size() == node.type->argTypes.size());
   assert(node.type->argNames.size() == node.type->resolvedArgs.size());
 
   for (size_t i = 0; i < node.type->argNames.size(); i++) {
     auto &name = node.type->argNames[i];
-    auto &type = node.type->type->argTypes[i];
+    auto &type = node.type->argTypes[i];
 
     std::vector<std::string> argNameSource;
     argNameSource.push_back(name);
@@ -329,7 +329,7 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
 
   // visit body
   auto bodyState =
-      state.withoutTypeHint().withFunctionReturnType(node.type->type->retType);
+      state.withoutTypeHint().withFunctionReturnType(node.type->retType);
   for (auto &child : node.body.statements) {
     visitNode(*child, bodyState);
   }
@@ -419,9 +419,6 @@ TypeCheck::functionTypeFromType(const std::shared_ptr<Type> &type) {
   auto funcType = std::dynamic_pointer_cast<FunctionType>(type);
   if (funcType != nullptr)
     return funcType;
-  auto namedFuncType = std::dynamic_pointer_cast<NamedFunctionType>(type);
-  if (namedFuncType != nullptr)
-    return namedFuncType->type;
 
   return nullptr;
 }
@@ -1246,15 +1243,15 @@ int TypePrinter::visitFunctionType(FunctionType &type,
 int TypePrinter::visitNamedFunctionType(NamedFunctionType &type,
                                         const TypePrinterState &state) {
   res.push_back('(');
-  for (size_t i = 0; i < type.type->argTypes.size(); i++) {
+  for (size_t i = 0; i < type.argTypes.size(); i++) {
     res.append(type.argNames[i]);
     res.push_back(' ');
-    visitType(*type.type->argTypes[i], state);
-    if (i < type.type->argTypes.size() - 1)
+    visitType(*type.argTypes[i], state);
+    if (i < type.argTypes.size() - 1)
       res.append(", ");
   }
   res.append(") -> ");
-  visitType(*type.type->retType, state);
+  visitType(*type.retType, state);
 
   return 0;
 }
@@ -1269,6 +1266,12 @@ int TypePrinter::visitTupleType(TupleType &type,
   }
   res.push_back(')');
 
+  return 0;
+}
+
+int TypePrinter::visitUnresolvedType(UnresolvedType &type,
+                                     const TypePrinterState &state) {
+  assert(false);
   return 0;
 }
 

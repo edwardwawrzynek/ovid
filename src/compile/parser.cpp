@@ -40,9 +40,15 @@ ast::StatementList Parser::parseProgram() {
     tokenizer.nextToken();
 
     // read in name
-    auto names = readScopedName(state);
+    std::vector<SourceLocation> nameLocs;
+    auto names = readScopedName(state, &nameLocs);
+
     if (names.empty())
       return parseProgramWithoutRootModuleDecl(state);
+
+    for (size_t i = 0; i < names.size(); i++) {
+      expectSnakeCase(names[i], nameLocs[i]);
+    }
 
     auto endModHeaderPos = tokenizer.curTokenLoc;
 
@@ -602,6 +608,7 @@ Parser::parseTypeAliasDecl(const ParserState &state, bool is_public) {
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   }
   auto name = tokenizer.curToken.ident;
+  expectUpperCamelCase(name, tokenizer.curTokenLoc);
 
   auto endNamePos = tokenizer.curTokenLoc;
 
@@ -697,10 +704,7 @@ Parser::parseNamedFunctionType(const ParserState &state,
   auto loc = startPos.through(retType->loc);
 
   return std::make_shared<ast::NamedFunctionType>(
-      loc,
-      std::make_shared<ast::FunctionType>(loc, std::move(argTypes),
-                                          std::move(retType)),
-      std::move(argNames));
+      loc, std::move(argTypes), std::move(retType), std::move(argNames));
 }
 
 // functionproto ::= ident namedFunctionType
@@ -714,6 +718,7 @@ Parser::parseFunctionProto(const ParserState &state,
     return errorMan.logError("Expected function name", tokenizer.curTokenLoc,
                              ErrorType::ParseError);
   std::string name = tokenizer.curToken.ident;
+  expectSnakeCase(name, tokenizer.curTokenLoc);
   tokenizer.nextToken();
 
   auto type = parseNamedFunctionType(state, argLocs);
@@ -764,7 +769,7 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
     auto &loc = argLocs[i];
 
     auto sym = std::make_shared<Symbol>(loc, false, false, false, false);
-    sym->type = proto->type->type->argTypes[i];
+    sym->type = proto->type->argTypes[i];
     bodyState.current_scope->addSymbol(arg, sym);
   }
 
@@ -798,7 +803,9 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
 }
 
 // scopedname ::= identifier (':' identifier)*
-std::vector<std::string> Parser::readScopedName(const ParserState &state) {
+std::vector<std::string>
+Parser::readScopedName(const ParserState &state,
+                       std::vector<SourceLocation> *locs) {
   std::vector<std::string> names;
   bool first_iter = true;
   do {
@@ -810,11 +817,17 @@ std::vector<std::string> Parser::readScopedName(const ParserState &state) {
       return std::vector<std::string>();
     }
     names.push_back(tokenizer.curToken.ident);
+    if (locs != nullptr)
+      locs->push_back(tokenizer.curTokenLoc);
     tokenizer.nextToken();
     first_iter = false;
   } while (tokenizer.curToken.token == T_COLON);
 
   return names;
+}
+
+std::vector<std::string> Parser::readScopedName(const ParserState &state) {
+  return readScopedName(state, nullptr);
 }
 
 // create the state needed to parse the body of a module
@@ -904,9 +917,14 @@ Parser::parseModuleDecl(const ParserState &state, bool is_public) {
   // consume 'module'
   tokenizer.nextToken();
 
-  names = readScopedName(state);
+  std::vector<SourceLocation> nameLocs;
+  names = readScopedName(state, &nameLocs);
   if (names.empty() || do_bail_after_name)
     return nullptr;
+
+  for (size_t i = 0; i < names.size(); i++) {
+    expectSnakeCase(names[i], nameLocs[i]);
+  }
 
   return parseModuleDeclBody(state, is_public, names,
                              pos.until(tokenizer.curTokenLoc));
@@ -934,6 +952,8 @@ std::unique_ptr<ast::Statement> Parser::parseVarDecl(const ParserState &state,
   }
 
   auto name = tokenizer.curToken.ident;
+  expectSnakeCase(name, tokenizer.curTokenLoc);
+
   auto endNamePos = tokenizer.curTokenLoc;
 
   tokenizer.nextToken();
@@ -1254,6 +1274,69 @@ bool Parser::checkRedeclaration(const SourceLocation &pos,
   }
 
   return existing != nullptr;
+}
+
+void Parser::expectSnakeCase(const std::string &name, SourceLocation &pos) {
+  /* snake case does not contain upper case characters */
+  bool is_snake = true;
+  std::string valid;
+
+  size_t i = 0;
+  for (auto c : name) {
+    if (isupper(c)) {
+      is_snake = false;
+      if (i > 0)
+        valid.push_back('_');
+      valid.push_back(tolower(c));
+    } else {
+      valid.push_back(c);
+    }
+    i++;
+  }
+
+  if (!is_snake) {
+    errorMan.logError(string_format("identifier \x1b[1m%s\x1b[m should be a "
+                                    "snake case identifier: \x1b[1m%s\x1b[m",
+                                    name.c_str(), valid.c_str()),
+                      pos, ErrorType::NameConvention);
+  }
+}
+
+void Parser::expectUpperCamelCase(const std::string &name,
+                                  SourceLocation &pos) {
+  /* upper camel case must begin with an upper case character, and not contain
+   * underscores */
+  bool is_camel = true;
+  std::string valid;
+
+  size_t i = 0;
+  bool upper_next = false;
+  for (auto c : name) {
+    if (i == 0 && !isupper(c)) {
+      is_camel = false;
+      valid.push_back(toupper(c));
+    } else if (c == '_') {
+      is_camel = false;
+      upper_next = true;
+    } else {
+      if (upper_next)
+        valid.push_back(toupper(c));
+      else
+        valid.push_back(c);
+
+      upper_next = false;
+    }
+
+    i++;
+  }
+
+  if (!is_camel) {
+    errorMan.logError(
+        string_format("identifier \x1b[1m%s\x1b[m should be an upper camel "
+                      "case identifier: \x1b[1m%s\x1b[m",
+                      name.c_str(), valid.c_str()),
+        pos, ErrorType::NameConvention);
+  }
 }
 
 Parser::Parser(Tokenizer &tokenizer, ErrorManager &errorMan,

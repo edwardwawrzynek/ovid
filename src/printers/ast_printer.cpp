@@ -55,7 +55,7 @@ int ASTPrinter::visitFunctionDecl(FunctionDecl &node,
   output << " FunctionDecl: " << node.name << "\n";
   state.printIndent(output);
   output << "  retType:\n";
-  typePrinter.visitType(*node.type->type->retType, state.withIndent());
+  typePrinter.visitType(*node.type->retType, state.withIndent());
   state.printIndent(output);
   output << "  argNames:";
   for (auto &argName : node.type->argNames) {
@@ -64,7 +64,7 @@ int ASTPrinter::visitFunctionDecl(FunctionDecl &node,
   output << "\n";
   state.printIndent(output);
   output << "  argTypes:\n";
-  for (auto &type : node.type->type->argTypes) {
+  for (auto &type : node.type->argTypes) {
     typePrinter.visitType(*type, state.withIndent());
   }
   state.printIndent(output);
@@ -342,7 +342,7 @@ int ASTTypePrinter::visitNamedFunctionType(NamedFunctionType &type,
   output << "\n";
   state.printIndent(output);
   output << "  type:\n";
-  visitType(*type.type, state.withIndent());
+  visitFunctionType(type, state.withIndent());
 
   return 0;
 }

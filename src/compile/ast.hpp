@@ -269,19 +269,18 @@ public:
       : Type(loc), argTypes(std::move(argTypes)), retType(std::move(retType)){};
 };
 
-class NamedFunctionType : public Type {
+class NamedFunctionType : public FunctionType {
 public:
-  std::shared_ptr<FunctionType> type;
   std::vector<std::string> argNames;
   std::vector<std::shared_ptr<Symbol>> resolvedArgs;
 
   bool equalToExpected(const Type &expected) const override;
 
-  NamedFunctionType(const SourceLocation &loc,
-                    std::shared_ptr<FunctionType> type,
+  NamedFunctionType(const SourceLocation &loc, TypeList argTypes,
+                    std::shared_ptr<Type> retType,
                     std::vector<std::string> argNames)
-      : Type(loc), type(std::move(type)), argNames(std::move(argNames)),
-        resolvedArgs(){};
+      : FunctionType(loc, std::move(argTypes), std::move(retType)),
+        argNames(std::move(argNames)), resolvedArgs(){};
 };
 
 /* product types (types with interior fields -- tuples, struct, arrays) */

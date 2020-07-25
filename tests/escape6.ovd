@@ -4,9 +4,9 @@
 
 module test
 
-type t1 = (*i32, *i32)
+type T1 = (*i32, *i32)
 
-fn test1(a *mut t1, b **t1, c bool) {
+fn test1(a *mut T1, b **T1, c bool) {
     if c {
         (*a).0 = (**b).1
     }
