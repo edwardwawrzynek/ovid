@@ -1,0 +1,13 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+pub fn main() -> i32 {
+    val a = 5 + 1
+
+    if a == a + 1 - 1 {
+        return 0
+    } else {
+        return 255
+    }
+}

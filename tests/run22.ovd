@@ -1,0 +1,21 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+pub fn main() -> i32 {
+    mut i = 0
+
+    while i < 100 {
+        while (i & 1) == 0 {
+            i -= 1
+        }
+
+        i += 2
+    }
+
+    if i != 101 {
+        return 255
+    } else {
+        return 0
+    }
+}

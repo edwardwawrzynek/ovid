@@ -1,0 +1,23 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+native fn exit(code i32) -> void
+
+fn assert(cond bool) {
+    if !cond {
+        exit(255)
+    }
+}
+
+pub fn main() -> i32 {
+    mut i = 0
+
+    while i < 10 {
+        i += 1
+    }
+
+    assert(i == 10)
+
+    return 0
+}

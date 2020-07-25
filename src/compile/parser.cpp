@@ -1135,6 +1135,43 @@ void Parser::parseNativeStatement(const ParserState &state) {
   root->addSymbol(name, fun_sym);
 }
 
+std::unique_ptr<ast::WhileStatement>
+Parser::parseWhileStatement(const ParserState &state) {
+  auto startPos = tokenizer.curTokenLoc;
+  // consume 'while'
+  tokenizer.nextToken();
+
+  auto cond = parseExpr(state);
+  // expect opening brace
+  if (tokenizer.curToken.token != T_LBRK) {
+    return errorMan.logError("expected '{' to begin while statement body",
+                             tokenizer.curTokenLoc, ErrorType::ParseError);
+  }
+  tokenizer.nextToken();
+
+  // parse body
+  // setup body's scope
+  auto symbolTable =
+      std::make_unique<ScopeTable<Symbol>>(false, nullptr, true, "");
+  auto symbolTablePointer = symbolTable.get();
+  ast::ScopedBlock body(std::move(symbolTable));
+
+  ParserState bodyState(false, symbolTablePointer, state.current_type_scope,
+                        state.current_module, state.in_private_mod);
+
+  while (tokenizer.curToken.token != T_RBRK) {
+    auto stat = parseStatement(bodyState);
+    if (!stat && tokenizer.curToken.token != T_RBRK)
+      return errorMan.logError("expected '}' to end block",
+                               tokenizer.curTokenLoc, ErrorType::ParseError);
+    body.statements.push_back(std::move(stat));
+  }
+  tokenizer.nextToken();
+
+  return std::make_unique<ast::WhileStatement>(startPos, std::move(cond),
+                                               std::move(body));
+}
+
 // check if parser is currently at an end of statement
 bool Parser::isEndStatement() {
   return tokenizer.curToken.token == T_SEMICOLON ||
@@ -1232,6 +1269,11 @@ Parser::parseStatement(const ParserState &state) {
     errorMan.logError("expected else to be preceded by if or elsif statement",
                       tokenizer.curTokenLoc, ErrorType::ParseError);
     return parseIfStatement(state);
+  case T_WHILE: {
+    auto res = parseWhileStatement(state);
+    expectEndStatement();
+    return res;
+  }
   default: {
     auto res = parseExpr(state);
     expectEndStatement();

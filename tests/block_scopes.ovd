@@ -1,0 +1,58 @@
+// __ovid_compiler_test
+//__mode: parse
+//__end_header
+
+val a i32 = 1
+
+fn test(b i32) {
+    a
+    b
+    if a == 1 {
+        val c = 2
+        a
+        b
+        c
+
+        if a != 2 {
+            val d = 3
+            a
+            b
+            c
+            d
+        } else {
+            a
+            b
+            c
+            d //__error: "use of undeclared identifier `d`"
+        }
+    }
+    a
+    b
+    c //__error: "use of undeclared identifier `c`"
+    d //__error: "use of undeclared identifier `d`"
+
+    while a == 1 {
+        val e = 4
+        a
+        b
+        e
+
+        while a == 1 {
+            val f = 5
+            a
+            b
+            e
+            f
+        }
+
+        a
+        b
+        e
+        f //__error: "use of undeclared identifier `f`"
+    }
+
+    a
+    b
+    e //__error: "use of undeclared identifier `e`"
+    f //__error: "use of undeclared identifier `f`"
+}

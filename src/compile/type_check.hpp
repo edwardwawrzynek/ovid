@@ -120,6 +120,11 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   static std::shared_ptr<FunctionType>
   functionTypeFromType(const std::shared_ptr<Type> &type);
 
+  // create a new basic block and start inserting in it
+  ir::BasicBlock &newBasicBlock(const SourceLocation &loc);
+  // insert a basic block to be the current insert point
+  void insertBasicBlock(std::unique_ptr<ir::BasicBlock> block);
+
   TypeCheckResult visitVarDecl(VarDecl &node,
                                const TypeCheckState &state) override;
   TypeCheckResult visitFunctionDecl(FunctionDecl &node,
@@ -128,6 +133,8 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                   const TypeCheckState &state) override;
   TypeCheckResult visitIfStatement(IfStatement &node,
                                    const TypeCheckState &state) override;
+  TypeCheckResult visitWhileStatement(WhileStatement &node,
+                                      const TypeCheckState &state) override;
   TypeCheckResult visitReturnStatement(ReturnStatement &node,
                                        const TypeCheckState &state) override;
 

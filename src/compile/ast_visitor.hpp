@@ -21,6 +21,7 @@ template <class T, class S> class BaseASTVisitor {
   virtual T visitFunctionDecl(FunctionDecl &node, const S &state);
   virtual T visitModuleDecl(ModuleDecl &node, const S &state);
   virtual T visitIfStatement(IfStatement &node, const S &state);
+  virtual T visitWhileStatement(WhileStatement &node, const S &state);
   virtual T visitReturnStatement(ReturnStatement &node, const S &state);
 
   virtual T visitFunctionCall(FunctionCall &node, const S &state);
@@ -63,6 +64,8 @@ T BaseASTVisitor<T, S>::visitStatement(Statement &node, const S &state) {
     return visitTypeAliasDecl(dynamic_cast<TypeAliasDecl &>(node), state);
   } else if (dynamic_cast<IfStatement *>(&node) != nullptr) {
     return visitIfStatement(dynamic_cast<IfStatement &>(node), state);
+  } else if (dynamic_cast<WhileStatement *>(&node) != nullptr) {
+    return visitWhileStatement(dynamic_cast<WhileStatement &>(node), state);
   } else if (dynamic_cast<ReturnStatement *>(&node) != nullptr) {
     return visitReturnStatement(dynamic_cast<ReturnStatement &>(node), state);
   } else if (dynamic_cast<Expression *>(&node) != nullptr) {
@@ -169,6 +172,12 @@ T BaseASTVisitor<T, S>::visitReturnStatement(ReturnStatement &node,
 
 template <class T, class S>
 T BaseASTVisitor<T, S>::visitFieldAccess(FieldAccess &node, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitWhileStatement(WhileStatement &node,
+                                            const S &state) {
   return std::move(defaultValue);
 }
 

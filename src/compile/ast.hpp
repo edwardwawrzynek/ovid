@@ -397,6 +397,16 @@ public:
         bodies(std::move(bodies)){};
 };
 
+class WhileStatement : public Statement {
+public:
+  std::unique_ptr<Expression> cond;
+  ScopedBlock body;
+
+  WhileStatement(const SourceLocation &loc, std::unique_ptr<Expression> cond,
+                 ScopedBlock body)
+      : Statement(loc), cond(std::move(cond)), body(std::move(body)){};
+};
+
 /* return statement (expression may be null) */
 class ReturnStatement : public Statement {
 public:

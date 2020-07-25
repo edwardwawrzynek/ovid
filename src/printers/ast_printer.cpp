@@ -95,6 +95,23 @@ int ASTPrinter::visitIfStatement(IfStatement &node,
   return 0;
 }
 
+int ASTPrinter::visitWhileStatement(WhileStatement &node,
+                                    const ASTPrinterState &state) {
+  state.printIndent(output);
+  printLoc(output, node.loc);
+  output << " WhileStatement\n";
+  state.printIndent(output);
+  output << "  condition:\n";
+  visitNode(*node.cond, state.withIndent());
+  state.printIndent(output);
+  output << "  body:\n";
+  for (auto &stat : node.body.statements) {
+    visitNode(*stat, state.withIndent());
+  }
+
+  return 0;
+}
+
 int ASTPrinter::visitFunctionCall(FunctionCall &node,
                                   const ASTPrinterState &state) {
   state.printIndent(output);

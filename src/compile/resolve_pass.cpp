@@ -97,17 +97,30 @@ int ResolvePass::visitIfStatement(IfStatement &node,
     // add this body's scope to the active scope stack
     scopes.names.pushScope(body.symbols.get());
 
-    auto pis_in_global = is_in_global;
-    is_in_global = false;
-
+    assert(!is_in_global);
     for (auto &statement : body.statements) {
       visitNode(*statement, state);
     }
 
-    is_in_global = pis_in_global;
-
     scopes.names.popScope(body.symbols.get());
   }
+
+  return 0;
+}
+
+int ResolvePass::visitWhileStatement(WhileStatement &node,
+                                     const ResolvePassState &state) {
+  visitNode(*node.cond, state);
+
+  // push scope onto active scope stack
+  scopes.names.pushScope(node.body.symbols.get());
+  assert(!is_in_global);
+
+  for (auto &stat : node.body.statements) {
+    visitNode(*stat, state);
+  }
+
+  scopes.names.popScope(node.body.symbols.get());
 
   return 0;
 }

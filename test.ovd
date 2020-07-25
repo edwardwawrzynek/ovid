@@ -1,29 +1,13 @@
-module Std:ScopeTest
+// __ovid_compiler_test
+//__mode: run
+//__end_header
 
-native fn std:bootstrap:print_num(num i64) -> void
+mut global i32 = 1
 
-module test {
-    module test:CoreName:test_scope {}
-}
-
-type test_type = (i8, i8)
-
-fn fact(n i64) -> i64 {
-    if n <= 1 {
-        return 1
-    } else {
-        return n * fact(n - 1)
-    }
-}
-
-fn run(n i32) {
-    if(n < 20) {
-        bootstrap:print_num(fact(n))
-        run(n + 1)
-    }
+pub fn test() -> *mut i32 {
+    return &global
 }
 
 pub fn main() -> i32 {
-    run(0)
-    return 0
+    return *test()
 }

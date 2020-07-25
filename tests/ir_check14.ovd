@@ -1,0 +1,16 @@
+// __ovid_compiler_test
+//__mode: check_ir compile
+//__end_header
+
+module test
+
+fn test() {
+    mut i = 0
+
+    while i < 100 {
+        while i - 10 != 0 {
+            i += 1
+        }
+        i += 1
+    }
+}

@@ -8,6 +8,8 @@ set(DRIVER src/compile/main.cpp)
 set(UNIT_TESTS src/test/misc_unit.cpp)
 set(TEST_FRAMEWORK src/test/tester.cpp)
 
+set(LIB src/lib/bootstrap.c)
+
 ##################################
 # Compiler options
 add_definitions(-D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
@@ -70,3 +72,7 @@ add_test(NAME runTests
 add_executable(ovid ${SOURCES} ${DRIVER})
 target_compile_options(ovid PRIVATE ${CCFLAGS})
 target_link_libraries(ovid ${REQ_LLVM_LIBRARIES})
+
+##################################
+# Runtime library
+add_library(ovidrt STATIC ${LIB})

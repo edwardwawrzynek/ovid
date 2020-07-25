@@ -1,0 +1,23 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+mut global i32 = 1
+
+fn test(arg i32) -> *(*i32, *mut i32) {
+    val t = (&arg, &global)
+
+    return &t
+}
+
+pub fn main() -> i32 {
+    while *test(global).0 < 100 {
+        *test(global).1 += 1
+    }
+
+    if global != 100 {
+        return 255
+    }
+
+    return 0
+}

@@ -130,6 +130,9 @@ class Parser {
 
   void parseNativeStatement(const ParserState &state);
 
+  std::unique_ptr<ast::WhileStatement>
+  parseWhileStatement(const ParserState &state);
+
   void addTypeAlias(const ParserState &state, std::string name,
                     std::shared_ptr<TypeAlias> alias);
 

@@ -254,3 +254,4 @@ is equivalent to the more verbose:
 fn foo2(a *(i32, i32)) -> i32 {
    return (*a).0
 }
+```

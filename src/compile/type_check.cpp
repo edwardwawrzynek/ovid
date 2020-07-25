@@ -48,6 +48,25 @@ TypeCheck::withoutMutType(const std::shared_ptr<Type> &type) {
     return mutType->type;
 }
 
+ir::BasicBlock &TypeCheck::newBasicBlock(const SourceLocation &loc) {
+  // create bb
+  auto block = std::make_unique<ir::BasicBlock>(loc);
+  auto &ref = *block;
+
+  // insert bb
+  curBasicBlockList->push_back(std::move(block));
+  curInstructionList = &ref.body;
+
+  return ref;
+}
+
+void TypeCheck::insertBasicBlock(std::unique_ptr<ir::BasicBlock> block) {
+  auto &ref = *block;
+
+  curBasicBlockList->push_back(std::move(block));
+  curInstructionList = &ref.body;
+}
+
 TypeCheckResult TypeCheck::visitBoolLiteral(BoolLiteral &node,
                                             const TypeCheckState &state) {
   auto instr =
@@ -365,11 +384,8 @@ TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
     auto &body = node.bodies[i];
 
     auto condRes = visitNode(*cond, state.withTypeHint(condTypeHint));
-    if (condRes.isNull()) {
-      errorMan.logError("condition does not have a value", cond->loc,
-                        ErrorType::TypeError);
+    if (condRes.isNull())
       return TypeCheckResult::nullResult();
-    }
 
     // check that condRes is a bool
     if (!condRes.resultType->equalToExpected(*condTypeHint)) {
@@ -396,8 +412,7 @@ TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
     curInstructionList->push_back(std::move(condJump));
 
     // setup condition body
-    curBasicBlockList->push_back(std::move(condBody));
-    curInstructionList = &condBodyRef.body;
+    insertBasicBlock(std::move(condBody));
     // visit body
     for (auto &child : body.statements) {
       visitNode(*child, state.withoutTypeHint());
@@ -407,9 +422,59 @@ TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
         std::make_unique<ir::Jump>(cond->loc, endRef));
 
     // setup next condition header (or end)
-    curBasicBlockList->push_back(std::move(nextCondHead));
-    curInstructionList = &nextCondHeadRef.body;
+    insertBasicBlock(std::move(nextCondHead));
   }
+
+  return TypeCheckResult::nullResult();
+}
+
+TypeCheckResult TypeCheck::visitWhileStatement(WhileStatement &node,
+                                               const TypeCheckState &state) {
+  // create end of loop basic block
+  auto end = std::make_unique<ir::BasicBlock>(node.loc);
+  auto &endRef = *end;
+
+  // setup loop header
+  auto header = std::make_unique<ir::BasicBlock>(node.loc);
+  auto &headerRef = *header;
+  curInstructionList->emplace_back(
+      std::make_unique<ir::Jump>(node.loc, headerRef));
+  insertBasicBlock(std::move(header));
+
+  auto condTypeHint = std::make_shared<BoolType>(node.loc);
+  // visit condition
+  auto cond = visitNode(*node.cond, state.withTypeHint(condTypeHint));
+  if (cond.isNull())
+    return TypeCheckResult::nullResult();
+
+  if (!cond.resultType->equalToExpected(*condTypeHint)) {
+    errorMan.logError(
+        string_format("type of expression \x1b[1m%s\x1b[m is not equal to "
+                      "expected type \x1b[1mbool\x1b[m",
+                      type_printer.getType(*cond.resultType).c_str()),
+        node.cond->loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+  // create body basic block
+  auto body = std::make_unique<ir::BasicBlock>(node.loc);
+  auto &bodyRef = *body;
+  // conditional jump to end/or body
+  auto condJump = std::make_unique<ir::ConditionalJump>(
+      node.loc, bodyRef, endRef, *cond.resultInstruction);
+  curInstructionList->push_back(std::move(condJump));
+
+  // visit body
+  insertBasicBlock(std::move(body));
+
+  for (auto &stat : node.body.statements) {
+    visitNode(*stat, state);
+  }
+
+  // jump back to header
+  curInstructionList->emplace_back(
+      std::make_unique<ir::Jump>(node.loc, headerRef));
+
+  insertBasicBlock(std::move(end));
 
   return TypeCheckResult::nullResult();
 }

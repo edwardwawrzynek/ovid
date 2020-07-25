@@ -1,0 +1,12 @@
+// __ovid_compiler_test
+//__mode: check_ast
+//__end_header
+
+fn test() {
+    mut i = 0
+
+    while i < 10 {
+        val a = i * 2
+        i += 1
+    }
+}

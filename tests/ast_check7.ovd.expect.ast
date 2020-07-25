@@ -1,0 +1,30 @@
+(5:1) FunctionDecl: test
+  retType:
+    VoidType
+  argNames:
+  argTypes:
+  body:
+    (6:5) VarDecl: i
+        (6:13) IntLiteral: 0
+    (8:5) WhileStatement
+      condition:
+        (8:11) FunctionCall
+          function:
+            (8:13) OperatorSymbol: <
+          args:
+            (8:11) Identifier: i
+            (8:15) IntLiteral: 10
+      body:
+        (9:9) VarDecl: a
+            (9:17) FunctionCall
+              function:
+                (9:19) OperatorSymbol: *
+              args:
+                (9:17) Identifier: i
+                (9:21) IntLiteral: 2
+        (10:9) FunctionCall
+          function:
+            (10:11) OperatorSymbol: +=
+          args:
+            (10:9) Identifier: i
+            (10:14) IntLiteral: 1
