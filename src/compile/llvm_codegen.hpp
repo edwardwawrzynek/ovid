@@ -176,7 +176,9 @@ public:
   void optAndEmit(llvm::PassBuilder::OptimizationLevel optLevel,
                   const std::string &filename, CodegenOutputType outType,
                   bool genMainFunc = false,
-                  const std::vector<std::string> *mainFuncName = nullptr);
+                  const std::vector<std::string> *mainFuncName = nullptr,
+                  llvm::Reloc::Model relocModel = llvm::Reloc::PIC_,
+                  llvm::CodeModel::Model codeModel = llvm::CodeModel::Small);
 };
 
 } // namespace ovid::ir

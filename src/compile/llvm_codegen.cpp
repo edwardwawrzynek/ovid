@@ -781,7 +781,9 @@ void LLVMCodegenPass::addMain(const std::vector<std::string> &main_func_name) {
 void LLVMCodegenPass::optAndEmit(llvm::PassBuilder::OptimizationLevel optLevel,
                                  const std::string &filename,
                                  CodegenOutputType outType, bool genMainFunc,
-                                 const std::vector<std::string> *mainFuncName) {
+                                 const std::vector<std::string> *mainFuncName,
+                                 llvm::Reloc::Model relocModel,
+                                 llvm::CodeModel::Model codeModel) {
   if (genMainFunc) {
     assert(mainFuncName != nullptr);
     addMain(*mainFuncName);
@@ -808,9 +810,10 @@ void LLVMCodegenPass::optAndEmit(llvm::PassBuilder::OptimizationLevel optLevel,
   auto features = "";
 
   llvm::TargetOptions opts;
-  auto relocModel = llvm::Optional<llvm::Reloc::Model>();
-  auto targetMachine = target->createTargetMachine(targetTripleStr, cpu,
-                                                   features, opts, relocModel);
+  auto relocateModel = llvm::Optional<llvm::Reloc::Model>(relocModel);
+  auto llvmCodeModel = llvm::Optional<llvm::CodeModel::Model>(codeModel);
+  auto targetMachine = target->createTargetMachine(
+      targetTripleStr, cpu, features, opts, relocateModel, llvmCodeModel);
 
   /* set target + data layout */
   llvm_module->setDataLayout(targetMachine->createDataLayout());

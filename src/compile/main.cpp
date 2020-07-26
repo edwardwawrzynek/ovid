@@ -10,68 +10,266 @@
 #include "tokenizer.hpp"
 #include "type_check.hpp"
 #include <iostream>
+extern "C" {
+#include <getopt.h>
+}
+
+class DriverArgs {
+public:
+  /* intermediate forms to emit on command line */
+  bool dump_ast;
+  bool dump_ir;
+  bool dump_escape_analysis;
+
+  // object, asm, or llvm output
+  ovid::ir::CodegenOutputType codegen_out;
+  // llvm optimization level
+  llvm::PassBuilder::OptimizationLevel opt_level;
+  // llvm relocation model
+  llvm::Reloc::Model reloc_model;
+  // llvm code model
+  llvm::CodeModel::Model code_model;
+
+  std::string out_file;
+  std::vector<std::string> in_files;
+  std::vector<std::string> package_name;
+
+  bool do_main;
+
+  DriverArgs()
+      : dump_ast(false), dump_ir(false), dump_escape_analysis(false),
+        codegen_out(ovid::ir::CodegenOutputType::OBJ),
+        opt_level(llvm::PassBuilder::O2), reloc_model(llvm::Reloc::PIC_),
+        code_model(llvm::CodeModel::Small), out_file("ovidc.out"), in_files(),
+        package_name(), do_main(false){};
+};
+
+void usage(int argc, char **argv) {
+  std::cout
+      << "Usage: " << std::string(argv[0])
+      << " [OPTIONS] file...\n"
+         "The Ovid Language Compiler Backend\n"
+         "Options:\n"
+         "  -h, --help             Display this message\n"
+         "  -o, --output FILE      Output compilation results in FILE\n"
+         "  -c, --emit-obj         Produce object code output\n"
+         "  -S, --emit-asm         Produce assembly output\n"
+         "  --emit-llvm            Produce LLVM IR output\n"
+         "  -O, --opt-level OPT    Set the optimization level:\n"
+         "    0  no optimization\n"
+         "    1  optimize without greatly increasing compile time\n"
+         "    2  optimize without greatly increasing output size\n"
+         "    3  optimize fully for speed\n"
+         "    s  optimize for output size\n"
+         "    z  optimize fully for output size\n"
+         "  --code-model MODEL     Set the code model to use:\n"
+         "    tiny, small, kernel, medium, large\n"
+         "  --reloc-model MODEL    Set the relocation mode to use:\n"
+         "    static, pic, dynamic-no-pic, ropi, rwpi, ropi-rwpi\n"
+         "  --dump-ast             Print the abstract syntax tree for "
+         "the source code\n"
+         "  --dump-ir              Print the internal intermediate "
+         "representation for the source code\n"
+         "  --dump-escape          Print escape analysis results\n"
+         "  --package NAME[:NAME]...\n"
+         "                         Set the package name\n"
+         "  --main                 Generate a main function\n"
+         "  --no-main              Don't generate a main function (default)\n";
+
+  exit(1);
+}
+
+static struct option cli_opts[] = {
+    {"dump-ast", no_argument, nullptr, 0},
+    {"dump-ir", no_argument, nullptr, 1},
+    {"dump-escape", no_argument, nullptr, 2},
+    {"emit-obj", no_argument, nullptr, 'c'},
+    {"emit-asm", no_argument, nullptr, 'S'},
+    {"emit-llvm", no_argument, nullptr, 3},
+    {"output", required_argument, nullptr, 'o'},
+    {"reloc-model", required_argument, nullptr, 4},
+    {"code-model", required_argument, nullptr, 5},
+    {"opt-level", required_argument, nullptr, 'O'},
+    {"help", no_argument, nullptr, 'h'},
+    {"package", required_argument, nullptr, 6},
+    {"main", no_argument, nullptr, 7},
+    {"no-main", no_argument, nullptr, 8},
+    {nullptr, 0, nullptr, 0}};
+
+DriverArgs parseCLIArgs(int argc, char **argv) {
+  DriverArgs res;
+
+  int opt;
+  int opt_index;
+  while ((opt = getopt_long(argc, argv, "cSo:O:h", cli_opts, &opt_index)) !=
+         -1) {
+    switch (opt) {
+    case 'o':
+      res.out_file = std::string(optarg);
+      break;
+    case 'c':
+      res.codegen_out = ovid::ir::CodegenOutputType::OBJ;
+      break;
+    case 'S':
+      res.codegen_out = ovid::ir::CodegenOutputType::ASM;
+      break;
+    case 3:
+      res.codegen_out = ovid::ir::CodegenOutputType::LLVM_IR;
+      break;
+    case 'O':
+      if (!strcmp(optarg, "0")) {
+        res.opt_level = llvm::PassBuilder::O0;
+      } else if (!strcmp(optarg, "1")) {
+        res.opt_level = llvm::PassBuilder::O1;
+      } else if (!strcmp(optarg, "2")) {
+        res.opt_level = llvm::PassBuilder::O2;
+      } else if (!strcmp(optarg, "3")) {
+        res.opt_level = llvm::PassBuilder::O3;
+      } else if (!strcmp(optarg, "s")) {
+        res.opt_level = llvm::PassBuilder::Os;
+      } else if (!strcmp(optarg, "z")) {
+        res.opt_level = llvm::PassBuilder::Oz;
+      } else {
+        std::cerr << "invalid optimization level " << std::string(optarg)
+                  << "\n";
+      }
+      break;
+    case 0:
+      res.dump_ast = true;
+      break;
+    case 1:
+      res.dump_ir = true;
+      break;
+    case 2:
+      res.dump_escape_analysis = true;
+      break;
+    case 4:
+      if (!strcmp(optarg, "static")) {
+        res.reloc_model = llvm::Reloc::Static;
+      } else if (!strcmp(optarg, "pic")) {
+        res.reloc_model = llvm::Reloc::PIC_;
+      } else if (!strcmp(optarg, "dynamic-no-pic")) {
+        res.reloc_model = llvm::Reloc::DynamicNoPIC;
+      } else if (!strcmp(optarg, "ropi")) {
+        res.reloc_model = llvm::Reloc::ROPI;
+      } else if (!strcmp(optarg, "rwpi")) {
+        res.reloc_model = llvm::Reloc::RWPI;
+      } else if (!strcmp(optarg, "ropi-rwpi")) {
+        res.reloc_model = llvm::Reloc::ROPI_RWPI;
+      } else {
+        std::cerr << "invalid relocation model " << std::string(optarg) << "\n";
+      }
+      break;
+    case 5:
+      if (!strcmp(optarg, "tiny")) {
+        res.code_model = llvm::CodeModel::Tiny;
+      } else if (!strcmp(optarg, "small")) {
+        res.code_model = llvm::CodeModel::Small;
+      } else if (!strcmp(optarg, "kernel")) {
+        res.code_model = llvm::CodeModel::Kernel;
+      } else if (!strcmp(optarg, "medium")) {
+        res.code_model = llvm::CodeModel::Medium;
+      } else if (!strcmp(optarg, "large")) {
+        res.code_model = llvm::CodeModel::Large;
+      } else {
+        std::cerr << "invalid code model " << std::string(optarg) << "\n";
+      }
+      break;
+    case 6: {
+      std::string package = optarg;
+      size_t last = 0;
+      size_t next = 0;
+      while ((next = package.find(':', last)) != std::string::npos) {
+        res.package_name.emplace_back(package.substr(last, next - last));
+        last = next + 1;
+      }
+      res.package_name.emplace_back(package.substr(last));
+      break;
+    }
+    case 7:
+      res.do_main = true;
+      break;
+    case 8:
+      res.do_main = false;
+      break;
+    case 'h':
+    default:
+      usage(argc, argv);
+    }
+  }
+
+  for (int index = optind; index < argc; index++) {
+    res.in_files.emplace_back(argv[index]);
+  }
+
+  return res;
+}
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    std::cout << "usage: ovid source.ovd\n";
-    exit(1);
+  auto args = parseCLIArgs(argc, argv);
+  // TODO: support multiple input files
+  if (args.in_files.empty() || args.in_files.size() > 1) {
+    usage(argc, argv);
   }
-  auto filein = std::fstream(argv[1]);
+
+  auto filein = std::fstream(args.in_files[0]);
 
   auto errorMan = ovid::PrintingErrorManager();
   ovid::ir::reset_id();
 
   auto root_scopes = ovid::ScopesRoot();
 
-  auto lexer = ovid::Tokenizer(argv[1], &filein, errorMan);
+  auto lexer = ovid::Tokenizer(args.in_files[0], &filein, errorMan);
 
-  std::vector<std::string> package;
-  package.emplace_back("std");
-  package.emplace_back("scope");
-  auto scopes = ovid::ActiveScopes(package, root_scopes.names.get(),
+  auto scopes = ovid::ActiveScopes(args.package_name, root_scopes.names.get(),
                                    root_scopes.types.get());
 
-  auto parser = ovid::Parser(lexer, errorMan, scopes, package);
+  auto parser = ovid::Parser(lexer, errorMan, scopes, args.package_name);
 
   auto ast = parser.parseProgram();
   parser.removePushedPackageScope();
 
-  auto resolvePass = ovid::ast::ResolvePass(scopes, errorMan, package);
+  auto resolvePass =
+      ovid::ast::ResolvePass(scopes, errorMan, args.package_name);
   resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());
   resolvePass.removePushedPackageScope();
 
-  std::cout << "---- AST ----\n";
-  auto astPrinter = ovid::ast::ASTPrinter(std::cout);
-  astPrinter.visitNodes(ast, ovid::ast::ASTPrinterState());
+  if (args.dump_ast) {
+    std::cout << "---- AST ----\n";
+    auto astPrinter = ovid::ast::ASTPrinter(std::cout);
+    astPrinter.visitNodes(ast, ovid::ast::ASTPrinterState());
+  }
 
-  auto ir = ovid::ast::typeCheckProduceIR(errorMan, package, ast);
+  auto ir = ovid::ast::typeCheckProduceIR(errorMan, args.package_name, ast);
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31mtype checking failed";
     return 1;
   }
 
-  std::cout << "\n---- IR ----\n";
-  auto irPrinter = ovid::ir::IRPrinter(std::cout);
-  irPrinter.visitInstructions(ir, ovid::ast::ASTPrinterState());
+  if (args.dump_ir) {
+    std::cout << "\n---- IR ----\n";
+    auto irPrinter = ovid::ir::IRPrinter(std::cout);
+    irPrinter.visitInstructions(ir, ovid::ast::ASTPrinterState());
+  }
 
   // run escape analysis
-  std::cout << "\n---- ESCAPE ANALYSIS ----\n";
-  ovid::ir::runEscapeAnalysis(ir, true, true, true, std::cout);
+  if (args.dump_escape_analysis) {
+    std::cout << "\n---- ESCAPE ANALYSIS ----\n";
+    ovid::ir::runEscapeAnalysis(ir, true, true, true, std::cout);
+  }
 
   // generate llvm
-  std::cout << "\n---- LLVM OUT ----\n";
   auto codegen = ovid::ir::LLVMCodegenPass(argv[1], errorMan);
   codegen.visitInstructions(ir, ovid::ir::LLVMCodegenPassState());
-  codegen.llvm_module->print(llvm::outs(), nullptr);
 
   /* construct main function name */
-  auto main_func = package;
+  auto main_func = args.package_name;
   main_func.emplace_back("main");
   /* emit */
-  codegen.optAndEmit(llvm::PassBuilder::O2,
-                     ovid::string_format("%s.o", argv[1]),
-                     ovid::ir::CodegenOutputType::LLVM_IR, true, &main_func);
+  codegen.optAndEmit(args.opt_level, args.out_file, args.codegen_out,
+                     args.do_main, &main_func, args.reloc_model,
+                     args.code_model);
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";
