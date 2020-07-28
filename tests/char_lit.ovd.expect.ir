@@ -1,0 +1,28 @@
+(6:5)	%ovidc_test:main = FUNCTIONDECLARE () -> i32 {
+    (6:5)	BASICBLOCK @0 {
+        (7:13)	%1 = INTLITERAL u8 65
+        (7:5)	%a = ALLOCATION u8
+        (7:5)	STORE %a <- %1
+        (8:13)	%3 = INTLITERAL u8 55
+        (8:5)	%b = ALLOCATION u8
+        (8:5)	STORE %b <- %3
+        (9:13)	%5 = INTLITERAL u8 10
+        (9:5)	%c = ALLOCATION u8
+        (9:5)	STORE %c <- %5
+        (10:13)	%7 = INTLITERAL u8 7
+        (10:5)	%d = ALLOCATION u8
+        (10:5)	STORE %d <- %7
+        (12:12)	%9 = INTLITERAL u8 49
+        (12:18)	%10 = INTLITERAL i32 2
+        (12:12)	%11 = BUILTINCAST u32 %9
+        (12:18)	%12 = BUILTINCAST u32 %10
+        (12:16)	%13 = BUILTINOPERATOR (u32, u32) -> u32 *
+        (12:12)	%14 = FUNCTIONCALL u32 %13(%11, %12)
+        (12:22)	%15 = INTLITERAL u8 98
+        (12:22)	%16 = BUILTINCAST u32 %15
+        (12:20)	%17 = BUILTINOPERATOR (u32, u32) -> u32 -
+        (12:12)	%18 = FUNCTIONCALL u32 %17(%14, %16)
+        (12:12)	%19 = BUILTINCAST i32 %18
+        (12:5)	RETURN %19
+    }
+}

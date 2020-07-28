@@ -1,0 +1,13 @@
+// __ovid_compiler_test
+//__mode: check_ast check_ir run
+//__end_header
+
+/* check char literal parsing */
+pub fn main() -> i32 {
+    val a = 'A'
+    val b = '7'
+    val c = '\n'
+    val d = '\a'
+
+    return '1' * 2 - 'b'
+}

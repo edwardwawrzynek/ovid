@@ -257,6 +257,8 @@ int main(int argc, char **argv) {
   if (args.dump_escape_analysis) {
     std::cout << "\n---- ESCAPE ANALYSIS ----\n";
     ovid::ir::runEscapeAnalysis(ir, true, true, true, std::cout);
+  } else {
+    ovid::ir::runEscapeAnalysis(ir, false, false, false, std::cout);
   }
 
   // generate llvm

@@ -1,0 +1,10 @@
+/** Integral conversions (unsafe - narrowing conversions) **/
+fn u8(input u64) -> u8 { return input }
+fn u16(input u64) -> u16 { return input }
+fn u32(input u64) -> u32 { return input }
+fn u64(input u64) -> u64 { return input }
+
+fn i8(input i64) -> i8 { return input }
+fn i16(input i64) -> i16 { return input }
+fn i32(input i64) -> i32 { return input }
+fn i64(input i64) -> i64 { return input }

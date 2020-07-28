@@ -2,12 +2,23 @@
 //__mode: run
 //__end_header
 
-mut global i32 = 1
+native fn std:bootstrap:print_num(num i64) -> void
+native fn std:bootstrap:print_char(c u8) -> void
+native fn std:bootstrap:print_float(f f64) -> void
+native fn std:bootstrap:assert(cond bool) -> void
 
-pub fn test() -> *mut i32 {
-    return &global
+fn toupper(char u8) -> u8 {
+    if char >= 0x61 && char <= 0x7a {
+        return char - 0x20
+    } else {
+        return char
+    }
 }
 
 pub fn main() -> i32 {
-    return *test()
+    bootstrap:print_char(toupper('a'))
+    bootstrap:print_char(toupper('d'))
+    bootstrap:print_char(toupper('A'))
+    bootstrap:print_char(toupper('D'))
+    bootstrap:print_char(toupper('\n'))
 }

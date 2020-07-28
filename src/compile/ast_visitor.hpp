@@ -30,6 +30,8 @@ template <class T, class S> class BaseASTVisitor {
   virtual T visitAssignment(Assignment &node, const S &state);
   virtual T visitIntLiteral(IntLiteral &node, const S &state);
   virtual T visitBoolLiteral(BoolLiteral &node, const S &state);
+  virtual T visitFloatLiteral(FloatLiteral &node, const S &state);
+  virtual T visitCharLiteral(CharLiteral &node, const S &state);
   virtual T visitTuple(Tuple &node, const S &state);
   virtual T visitTypeAliasDecl(TypeAliasDecl &node, const S &state);
   virtual T visitFieldAccess(FieldAccess &node, const S &state);
@@ -99,6 +101,10 @@ T BaseASTVisitor<T, S>::visitLiteral(Literal &node, const S &state) {
     return visitIntLiteral(dynamic_cast<IntLiteral &>(node), state);
   } else if (dynamic_cast<BoolLiteral *>(&node) != nullptr) {
     return visitBoolLiteral(dynamic_cast<BoolLiteral &>(node), state);
+  } else if (dynamic_cast<FloatLiteral *>(&node) != nullptr) {
+    return visitFloatLiteral(dynamic_cast<FloatLiteral &>(node), state);
+  } else if (dynamic_cast<CharLiteral *>(&node) != nullptr) {
+    return visitCharLiteral(dynamic_cast<CharLiteral &>(node), state);
   }
   assert(false);
 }
@@ -178,6 +184,16 @@ T BaseASTVisitor<T, S>::visitFieldAccess(FieldAccess &node, const S &state) {
 template <class T, class S>
 T BaseASTVisitor<T, S>::visitWhileStatement(WhileStatement &node,
                                             const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitFloatLiteral(FloatLiteral &node, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitCharLiteral(CharLiteral &node, const S &state) {
   return std::move(defaultValue);
 }
 

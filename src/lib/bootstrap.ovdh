@@ -1,0 +1,4 @@
+native fn std:bootstrap:print_num(num i64) -> void
+native fn std:bootstrap:print_char(c u8) -> void
+native fn std:bootstrap:print_float(f f64) -> void
+native fn std:bootstrap:assert(cond bool) -> void

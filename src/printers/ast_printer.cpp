@@ -214,6 +214,24 @@ int ASTPrinter::visitBoolLiteral(BoolLiteral &node,
   return 0;
 }
 
+int ASTPrinter::visitFloatLiteral(FloatLiteral &node,
+                                  const ASTPrinterState &state) {
+  state.printIndent(output);
+  printLoc(output, node.loc);
+  output << " FloatLiteral: " << node.value << "\n";
+
+  return 0;
+}
+
+int ASTPrinter::visitCharLiteral(CharLiteral &node,
+                                 const ASTPrinterState &state) {
+  state.printIndent(output);
+  printLoc(output, node.loc);
+  output << " CharLiteral: 0x" << std::hex << (int)(node.value) << std::dec << "\n";
+
+  return 0;
+}
+
 int ASTPrinter::visitTuple(Tuple &node, const ASTPrinterState &state) {
   state.printIndent(output);
   printLoc(output, node.loc);

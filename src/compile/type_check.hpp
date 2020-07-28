@@ -150,6 +150,10 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                   const TypeCheckState &state) override;
   TypeCheckResult visitBoolLiteral(BoolLiteral &node,
                                    const TypeCheckState &state) override;
+  TypeCheckResult visitFloatLiteral(FloatLiteral &node,
+                                   const TypeCheckState &state) override;
+  TypeCheckResult visitCharLiteral(CharLiteral &node,
+                                   const TypeCheckState &state) override;
   TypeCheckResult visitTuple(Tuple &node, const TypeCheckState &state) override;
   /*TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node, const
  TypeCheckState &state) override;*/

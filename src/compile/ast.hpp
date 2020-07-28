@@ -523,7 +523,7 @@ class IntLiteral : public Literal {
 public:
   const int64_t value;
 
-  IntLiteral(const SourceLocation &loc, const int64_t value)
+  IntLiteral(const SourceLocation &loc, int64_t value)
       : Literal(loc), value(value){};
 };
 
@@ -531,8 +531,22 @@ class BoolLiteral : public Literal {
 public:
   const bool value;
 
-  BoolLiteral(const SourceLocation &loc, const bool value)
+  BoolLiteral(const SourceLocation &loc, bool value)
       : Literal(loc), value(value){};
+};
+
+class FloatLiteral : public Literal {
+public:
+  const double value;
+
+  FloatLiteral(const SourceLocation &loc, double value): Literal(loc), value(value){};
+};
+
+class CharLiteral : public Literal {
+public:
+  const char value;
+
+  CharLiteral(const SourceLocation &loc, char value): Literal(loc), value(value){};
 };
 
 class Tuple : public Expression {
