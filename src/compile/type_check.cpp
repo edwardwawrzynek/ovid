@@ -141,7 +141,8 @@ TypeCheckResult TypeCheck::visitIntLiteral(IntLiteral &node,
 TypeCheckResult TypeCheck::visitCharLiteral(CharLiteral &node,
                                             const TypeCheckState &state) {
   auto type = std::make_shared<IntType>(node.loc, 8, true);
-  auto res = std::make_unique<ir::IntLiteral>(node.loc, ir::Value(), type, node.value);
+  auto res =
+      std::make_unique<ir::IntLiteral>(node.loc, ir::Value(), type, node.value);
   auto resPointer = res.get();
 
   curInstructionList->push_back(std::move(res));
@@ -151,7 +152,19 @@ TypeCheckResult TypeCheck::visitCharLiteral(CharLiteral &node,
 
 TypeCheckResult TypeCheck::visitFloatLiteral(FloatLiteral &node,
                                              const TypeCheckState &state) {
+  /* if no type hint present, default to f64 */
+  auto floatHint = std::dynamic_pointer_cast<ast::FloatType>(state.typeHint);
+  auto type = floatHint != nullptr
+                  ? floatHint
+                  : std::make_shared<ast::FloatType>(node.loc, 64);
 
+  auto res = std::make_unique<ir::FloatLiteral>(node.loc, ir::Value(), type,
+                                                node.value);
+  auto resPointer = res.get();
+
+  curInstructionList->push_back(std::move(res));
+
+  return TypeCheckResult(type, resPointer);
 }
 
 TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,

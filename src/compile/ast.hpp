@@ -539,14 +539,16 @@ class FloatLiteral : public Literal {
 public:
   const double value;
 
-  FloatLiteral(const SourceLocation &loc, double value): Literal(loc), value(value){};
+  FloatLiteral(const SourceLocation &loc, double value)
+      : Literal(loc), value(value){};
 };
 
 class CharLiteral : public Literal {
 public:
   const char value;
 
-  CharLiteral(const SourceLocation &loc, char value): Literal(loc), value(value){};
+  CharLiteral(const SourceLocation &loc, char value)
+      : Literal(loc), value(value){};
 };
 
 class Tuple : public Expression {

@@ -108,6 +108,8 @@ private:
                                const LLVMCodegenPassState &state) override;
   llvm::Value *visitBoolLiteral(BoolLiteral &instruct,
                                 const LLVMCodegenPassState &state) override;
+  llvm::Value *visitFloatLiteral(FloatLiteral &instruct,
+                                 const LLVMCodegenPassState &state) override;
   llvm::Value *visitTupleLiteral(TupleLiteral &instruct,
                                  const LLVMCodegenPassState &state) override;
   llvm::Value *visitFunctionCall(FunctionCall &instruct,

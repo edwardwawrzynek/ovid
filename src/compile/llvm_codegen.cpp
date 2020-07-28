@@ -116,6 +116,18 @@ LLVMCodegenPass::visitBoolLiteral(BoolLiteral &instruct,
              llvm_context, llvm::APInt(1, instruct.value ? 1 : 0));
 }
 
+llvm::Value *
+LLVMCodegenPass::visitFloatLiteral(FloatLiteral &instruct,
+                                   const LLVMCodegenPassState &state) {
+  auto floatType = dynamic_cast<ast::FloatType *>(instruct.type.get());
+  assert(floatType != nullptr &&
+         (floatType->size == 32 || floatType->size == 64));
+  return instruct.val.llvm_value = llvm::ConstantFP::get(
+             llvm_context, floatType->size == 64
+                               ? llvm::APFloat((double)instruct.value)
+                               : llvm::APFloat((float)instruct.value));
+}
+
 llvm::Function *
 LLVMCodegenPass::visitFunctionPrototype(ast::NamedFunctionType *proto,
                                         const std::string &name, bool is_public,

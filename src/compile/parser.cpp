@@ -128,6 +128,15 @@ Parser::parseCharLiteral(const ParserState &state) {
   return res;
 }
 
+std::unique_ptr<ast::FloatLiteral>
+Parser::parseFloatLiteral(const ParserState &state) {
+  auto res = std::make_unique<ast::FloatLiteral>(
+      tokenizer.curTokenLoc, tokenizer.curToken.float_literal);
+
+  tokenizer.nextToken();
+  return res;
+}
+
 // identexpr ::= identifier (':' identifier)*
 std::unique_ptr<ast::Expression>
 Parser::parseIdentifier(const ParserState &state) {
@@ -284,6 +293,8 @@ Parser::parsePrimary(const ParserState &state) {
     return parseBoolLiteral(state);
   case T_CHARLITERAL:
     return parseCharLiteral(state);
+  case T_FLOATLITERAL:
+    return parseFloatLiteral(state);
   default:
     auto loc = tokenizer.curTokenLoc;
     // consume token (the parse methods normally do this)

@@ -16,3 +16,6 @@ void _I3std9bootstrap11print_float(double f) { printf("%lf\n", f); }
 
 // native fn std:bootstrap:assert(cond bool) -> void
 void _I3std9bootstrap6assert(_Bool cond) { assert(cond); }
+
+// native fn std:bootstrap:i32_to_f64(num i32) -> f64
+double _I3std9bootstrap10i32_to_f64(int32_t num) { return (double)num; }

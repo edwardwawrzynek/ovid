@@ -375,6 +375,15 @@ public:
   BoolLiteral(const SourceLocation &loc, const Value &val, bool value);
 };
 
+/* floating point literal */
+class FloatLiteral : public Expression {
+public:
+  double value;
+
+  FloatLiteral(const SourceLocation &loc, const Value &val,
+               std::shared_ptr<ast::FloatType> type, double value);
+};
+
 /* tuple literal */
 class TupleLiteral : public Expression {
 public:

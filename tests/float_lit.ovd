@@ -1,0 +1,15 @@
+// __ovid_compiler_test
+//__mode: check_ast check_ir run
+//__end_header
+
+/* check float literal parsing */
+pub fn main() -> i32 {
+    val a = 0.01
+    val b = -1234.5
+
+    if b * 2.0 + 2469.0 != 0.0 {
+        return 255
+    } else {
+        return 0
+    }
+}

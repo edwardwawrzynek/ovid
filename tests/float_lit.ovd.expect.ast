@@ -1,0 +1,36 @@
+(6:5) FunctionDecl: main
+  retType:
+    IntType: i32
+  argNames:
+  argTypes:
+  body:
+    (7:5) VarDecl: a
+        (7:13) FloatLiteral: 0.01
+    (8:5) VarDecl: b
+        (8:13) FloatLiteral: -1234.5
+    (10:5) IfStatement
+      condition:
+        (10:8) FunctionCall
+          function:
+            (10:25) OperatorSymbol: !=
+          args:
+            (10:8) FunctionCall
+              function:
+                (10:16) OperatorSymbol: +
+              args:
+                (10:8) FunctionCall
+                  function:
+                    (10:10) OperatorSymbol: *
+                  args:
+                    (10:8) Identifier: b
+                    (10:12) FloatLiteral: 2
+                (10:18) FloatLiteral: 2469
+            (10:28) FloatLiteral: 0
+      body:
+        (11:9) ReturnStatement
+            (11:16) IntLiteral: 255
+      condition:
+        (12:12) BoolLiteral: true
+      body:
+        (13:9) ReturnStatement
+            (13:16) IntLiteral: 0

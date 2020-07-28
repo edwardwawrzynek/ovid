@@ -274,10 +274,8 @@ int main(int argc, char **argv) {
                      args.code_model);
 
   if (errorMan.criticalErrorOccurred()) {
-    std::cout << "\x1b[1;31merror\x1b[;1m: compilation failed\n\x1b[m";
     return 1;
   } else {
-    std::cout << "\x1b[1;32mcompilation succeeded\n\x1b[m";
     return 0;
   }
 }

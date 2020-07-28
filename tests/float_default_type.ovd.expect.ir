@@ -1,0 +1,13 @@
+(5:1)	%ovidc_test:test = FUNCTIONDECLARE () -> void {
+    (5:1)	BASICBLOCK @0 {
+        (6:13)	%1 = FLOATLITERAL f64 1
+        (6:5)	%a = ALLOCATION f64
+        (6:5)	STORE %a <- %1
+        (7:17)	%3 = FLOATLITERAL f32 1
+        (7:5)	%b = ALLOCATION f32
+        (7:5)	STORE %b <- %3
+        (8:17)	%5 = FLOATLITERAL f64 1
+        (8:5)	%c = ALLOCATION f64
+        (8:5)	STORE %c <- %5
+    }
+}

@@ -1,0 +1,36 @@
+(6:5)	%ovidc_test:main = FUNCTIONDECLARE () -> i32 {
+    (6:5)	BASICBLOCK @0 {
+        (7:13)	%1 = FLOATLITERAL f64 0.01
+        (7:5)	%a = ALLOCATION f64
+        (7:5)	STORE %a <- %1
+        (8:13)	%3 = FLOATLITERAL f64 -1234.5
+        (8:5)	%b = ALLOCATION f64
+        (8:5)	STORE %b <- %3
+        (10:12)	%6 = FLOATLITERAL f64 2
+        (10:10)	%7 = BUILTINOPERATOR (f64, f64) -> f64 *
+        (10:8)	%8 = FUNCTIONCALL f64 %7(%b, %6)
+        (10:18)	%9 = FLOATLITERAL f64 2469
+        (10:16)	%10 = BUILTINOPERATOR (f64, f64) -> f64 +
+        (10:8)	%11 = FUNCTIONCALL f64 %10(%8, %9)
+        (10:28)	%12 = FLOATLITERAL f64 0
+        (10:25)	%13 = BUILTINOPERATOR (f64, f64) -> bool !=
+        (10:8)	%14 = FUNCTIONCALL bool %13(%11, %12)
+        (10:8)	CONDITIONALJUMP %14 @15(true) @16(false)
+    }
+    (10:8)	BASICBLOCK @15 {
+        (11:16)	%17 = INTLITERAL i32 255
+        (11:9)	RETURN %17
+        (10:8)	JUMP @5
+    }
+    (10:8)	BASICBLOCK @16 {
+        (12:12)	%18 = BOOLLITERAL bool true
+        (12:12)	CONDITIONALJUMP %18 @19(true) @5(false)
+    }
+    (12:12)	BASICBLOCK @19 {
+        (13:16)	%20 = INTLITERAL i32 0
+        (13:9)	RETURN %20
+        (12:12)	JUMP @5
+    }
+    (10:5)	BASICBLOCK @5 {
+    }
+}

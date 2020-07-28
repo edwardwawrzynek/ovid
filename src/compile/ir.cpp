@@ -185,6 +185,10 @@ BoolLiteral::BoolLiteral(const SourceLocation &loc, const Value &val,
     : Expression(loc, val, std::make_shared<ast::BoolType>(loc)), value(value) {
 }
 
+FloatLiteral::FloatLiteral(const SourceLocation &loc, const Value &val,
+                           std::shared_ptr<ast::FloatType> type, double value)
+    : Expression(loc, val, std::move(type)), value(value) {}
+
 BuiltinOperator::BuiltinOperator(const SourceLocation &loc, const Value &val,
                                  ast::OperatorType opType,
                                  std::shared_ptr<ast::Type> type)

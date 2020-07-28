@@ -204,6 +204,9 @@ void TesterInstance::readInErrors() {
   // read errors
   while (readToComment()) {
     auto desc = readToken();
+    if (desc[0] == '/')
+      continue;
+
     if (desc != "__error:") {
       doError("invalid comment annotation type (expected __error: __)");
       return;
@@ -442,8 +445,13 @@ int TesterInstance::runLLVMCodegen(ErrorManager &errorMan,
                             ir::CodegenOutputType::OBJ, run_mode, &packageName);
 
     if (run_mode) {
+      const char *link_path = std::getenv("OVIDC_TESTSUITE_LINK_PATH");
       /* link object code */
-      int ld_res = system("cc -o ovidc_test_out_tmp ovidc_test_out_tmp.o -lgc");
+      int ld_res =
+          system(string_format("cc -o ovidc_test_out_tmp ovidc_test_out_tmp.o "
+                               "-lgc -lm -lovidrt -L%s",
+                               link_path != nullptr ? link_path : ".")
+                     .c_str());
       if (ld_res != 0) {
         std::cout << "\x1b[1;31mlinking llvm output failed\x1b[m\n";
         return 1;

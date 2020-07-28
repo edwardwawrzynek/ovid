@@ -1,0 +1,9 @@
+// __ovid_compiler_test
+//__mode: check_ir
+//__end_header
+
+fn test() {
+    val a = 1.0
+    val b f32 = 1.0
+    val c f64 = 1.0
+}

@@ -227,7 +227,8 @@ int ASTPrinter::visitCharLiteral(CharLiteral &node,
                                  const ASTPrinterState &state) {
   state.printIndent(output);
   printLoc(output, node.loc);
-  output << " CharLiteral: 0x" << std::hex << (int)(node.value) << std::dec << "\n";
+  output << " CharLiteral: 0x" << std::hex << (int)(node.value) << std::dec
+         << "\n";
 
   return 0;
 }

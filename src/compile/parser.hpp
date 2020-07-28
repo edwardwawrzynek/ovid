@@ -56,6 +56,9 @@ class Parser {
 
   std::unique_ptr<ast::CharLiteral> parseCharLiteral(const ParserState &state);
 
+  std::unique_ptr<ast::FloatLiteral>
+  parseFloatLiteral(const ParserState &state);
+
   std::unique_ptr<ast::Expression> parseIdentifier(const ParserState &state);
 
   std::unique_ptr<ast::Expression> parseParenExpr(const ParserState &state);
