@@ -47,6 +47,7 @@ class ASTTypePrinter : public BaseTypeVisitor<int, ASTPrinterState> {
                              const ASTPrinterState &state) override;
 
   int visitTupleType(TupleType &type, const ASTPrinterState &state) override;
+  int visitStructType(StructType &type, const ASTPrinterState &state) override;
 
 public:
   explicit ASTTypePrinter(std::ostream &output)

@@ -55,6 +55,8 @@ class TypeResolver
 
   std::shared_ptr<Type> visitTupleType(TupleType &type,
                                        const TypeResolverState &state) override;
+  std::shared_ptr<Type>
+  visitStructType(StructType &type, const TypeResolverState &state) override;
 
 public:
   TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan);

@@ -1,0 +1,12 @@
+// __ovid_compiler_test
+//__mode: check_ir compile
+//__end_header
+
+struct TestType {
+    field1  i32
+    field2  *i32
+}
+
+fn test(a TestType) -> i32 {
+    return *a.field2
+}

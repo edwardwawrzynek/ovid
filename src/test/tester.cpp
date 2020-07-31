@@ -449,7 +449,7 @@ int TesterInstance::runLLVMCodegen(ErrorManager &errorMan,
       /* link object code */
       int ld_res =
           system(string_format("cc -o ovidc_test_out_tmp ovidc_test_out_tmp.o "
-                               "-lgc -lm -lovidrt -L%s",
+                               "-lgc -lm -lovidruntime -L%s",
                                link_path != nullptr ? link_path : ".")
                      .c_str());
       if (ld_res != 0) {

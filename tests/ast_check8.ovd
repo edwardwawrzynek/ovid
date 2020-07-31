@@ -1,0 +1,16 @@
+// __ovid_compiler_test
+//__mode: check_ast
+//__end_header
+
+/* basic structure test */
+struct Type1 {
+    field1  i32
+    field2  *Type1
+    field3  Type2
+}
+
+struct Type2 {
+    field1 *Type1
+}
+
+fn test(arg0 *(Type1, Type2)) {}

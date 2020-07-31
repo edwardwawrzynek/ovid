@@ -288,8 +288,15 @@ class ProductType : public Type {
 public:
   ProductType(const SourceLocation &loc) : Type(loc){};
 
+  // getNumFields and getTypeOfField are the internal representation of fields
   virtual std::shared_ptr<Type> getTypeOfField(int32_t field_index) const;
   virtual size_t getNumFields() const;
+  // getNamedFieldIndex and getNumberedFieldIndex are the external
+  // representation of fields
+  virtual int32_t getNamedFieldIndex(const std::string &field_name) const;
+  virtual int32_t getNumberedFieldIndex(int32_t field) const;
+
+  bool containsPointer() const override;
 };
 
 class TupleType : public ProductType {
@@ -298,12 +305,47 @@ public:
 
   bool equalToExpected(const Type &expected) const override;
 
-  bool containsPointer() const override;
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
   size_t getNumFields() const override;
 
+  int32_t getNamedFieldIndex(const std::string &field_name) const override;
+  int32_t getNumberedFieldIndex(int32_t field) const override;
+
   TupleType(const SourceLocation &loc, TypeList types)
       : ProductType(loc), types(std::move(types)){};
+};
+
+class StructType : public ProductType {
+public:
+  TypeList field_types;
+  std::vector<std::string> field_names;
+  std::vector<bool> fields_are_public;
+  // type alias for this structure type
+  std::weak_ptr<TypeAlias> type_alias;
+
+  bool equalToExpected(const Type &expected) const override;
+
+  std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
+  size_t getNumFields() const override;
+
+  int32_t getNamedFieldIndex(const std::string &field_name) const override;
+  int32_t getNumberedFieldIndex(int32_t field) const override;
+
+  StructType(const SourceLocation &loc, TypeList field_types,
+             std::vector<std::string> field_names,
+             std::vector<bool> fields_are_public)
+      : ProductType(loc), field_types(std::move(field_types)),
+        field_names(std::move(field_names)),
+        fields_are_public(std::move(fields_are_public)), type_alias(){};
+
+  StructType(const SourceLocation &loc, TypeList field_types,
+             std::vector<std::string> field_names,
+             std::vector<bool> fields_are_public,
+             std::weak_ptr<TypeAlias> type_alias)
+      : ProductType(loc), field_types(std::move(field_types)),
+        field_names(std::move(field_names)),
+        fields_are_public(std::move(fields_are_public)),
+        type_alias(type_alias){};
 };
 
 class FunctionPrototype {

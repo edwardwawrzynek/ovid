@@ -1,0 +1,14 @@
+(6:1) TypeAliasDecl: Type1
+    StructType ovidc_test:Type1
+(12:1) TypeAliasDecl: Type2
+    StructType ovidc_test:Type2
+(16:1) FunctionDecl: test
+  retType:
+    VoidType
+  argNames: arg0
+  argTypes:
+    PointerType
+        TupleType
+            StructType ovidc_test:Type1
+            StructType ovidc_test:Type2
+  body:

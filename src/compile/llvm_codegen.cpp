@@ -48,11 +48,13 @@ llvm::Type *LLVMTypeGen::visitPointerType(ast::PointerType &type,
   return llvm::PointerType::get(visitType(*type.type, state), 0);
 }
 
-llvm::Type *LLVMTypeGen::visitTupleType(ast::TupleType &type,
-                                        const LLVMTypeGenState &state) {
+llvm::Type *LLVMTypeGen::visitProductType(ast::ProductType &type,
+                                          const LLVMTypeGenState &state) {
   std::vector<llvm::Type *> types;
-  for (auto &field : type.types) {
-    types.push_back(visitType(*field, state));
+  size_t numFields = type.getNumFields();
+
+  for (size_t i = 0; i < numFields; i++) {
+    types.push_back(visitType(*type.getTypeOfField(i), state));
   }
   return llvm::StructType::get(llvm_context, types);
 }

@@ -61,6 +61,7 @@ enum TokenType {
   T_ELSE,          // else
   T_NATIVE,        // native
   T_WHILE,         // while
+  T_STRUCT,        // struct
 };
 
 struct Token {

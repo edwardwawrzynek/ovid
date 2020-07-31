@@ -69,10 +69,10 @@ add_test(NAME runTests
 ##################################
 # Main build
 # Main executable
-add_executable(ovid ${SOURCES} ${DRIVER})
-target_compile_options(ovid PRIVATE ${CCFLAGS})
-target_link_libraries(ovid ${REQ_LLVM_LIBRARIES})
+add_executable(ovidc ${SOURCES} ${DRIVER})
+target_compile_options(ovidc PRIVATE ${CCFLAGS})
+target_link_libraries(ovidc ${REQ_LLVM_LIBRARIES})
 
 ##################################
 # Runtime library
-add_library(ovidrt STATIC ${LIB})
+add_library(ovidruntime STATIC ${LIB})

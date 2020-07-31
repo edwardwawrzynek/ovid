@@ -1,0 +1,182 @@
+/* A basic julia set rendered that outputs a ppm image */
+
+native fn std:bootstrap:print_num(num i64) -> void
+native fn std:bootstrap:print_char(c u8) -> void
+native fn std:bootstrap:print_float(f f64) -> void
+native fn std:bootstrap:assert(cond bool) -> void
+native fn std:bootstrap:i32_to_f64(num i32) -> f64
+native fn std:bootstrap:f64_to_i32(num f64) -> i32
+native fn std:bootstrap:print_nl() -> void
+native fn fabs(num f64) -> f64
+native fn log(num f64) -> f64
+
+// a point on the complex plane
+type Complex = (f64, f64)
+
+// image size (width, height) in pixels
+type ImageSize = (i32, i32)
+
+// a subset of the complex plane (upper_left, lower_right)
+type ComplexPlaneSubset = (Complex, Complex)
+
+// a color
+type Color = (u8, u8, u8)
+
+// square a complex number
+fn complex_square(num Complex) -> Complex {
+    return (num.0 * num.0 - num.1 * num.1, 2.0 * num.0 * num.1)
+}
+
+// add two complex numbers
+fn complex_add(a Complex, b Complex) -> Complex {
+    return (a.0 + b.0, a.1 + b.1)
+}
+
+// return the squared magnitude of a complex number
+fn complex_mag_sq(num Complex) -> f64 {
+    return num.0 * num.0 + num.1 * num.1
+}
+
+// determine if the given point is part of the julia set
+// z is the point, c is the julia constant, max_iters is the maximum number of iterations to run, and escape_radius_sq is the squared escape radius
+fn run(z Complex, c Complex, max_iters i32, escape_radius_sq f64) -> f64 {
+    mut iter = 0
+    mut value = z
+
+    while iter < max_iters {
+        value = complex_add(complex_square(value), c)
+        // if magnitude of value escaped radius, not part of set
+        if complex_mag_sq(value) > escape_radius_sq {
+            return log(std:bootstrap:i32_to_f64(iter)) / log(std:bootstrap:i32_to_f64(max_iters))
+        }
+
+        iter += 1
+    }
+    // did not escape in given iterations, must be part of set
+    return 1.0
+}
+
+// run multiple samples on a point
+// incs are the increments between points, samples is the number of samples to run in one axis (real number is samples*samples)
+fn sample(z Complex, c Complex, max_iters i32, escape_radius_sq f64, incs (f64, f64), samples i32) -> f64 {
+    mut res = 0.0
+
+    mut y = z.1
+    mut y_index = 0
+    while y_index < samples {
+        mut x = z.0
+        mut x_index = 0
+        while x_index < samples {
+            x_index += 1
+            x += incs.0 / std:bootstrap:i32_to_f64(samples)
+
+            res += run((x, y), c, max_iters, escape_radius_sq) / std:bootstrap:i32_to_f64(samples * samples)
+        }
+
+        y_index += 1
+        y += incs.1 / std:bootstrap:i32_to_f64(samples)
+    }
+
+    return res
+}
+
+fn range_to_steps(range ComplexPlaneSubset, size ImageSize) -> (f64, f64) {
+    val p0 = range.0
+    val p1 = range.1
+
+    return (
+        (fabs(p1.0 - p0.0) / std:bootstrap:i32_to_f64(size.0)),
+        (fabs(p1.1 - p0.1) / std:bootstrap:i32_to_f64(size.1))
+    )
+}
+
+fn interp_color(num f64, low f64, high f64, low_color Color, high_color Color) -> Color {
+    // normalized (0.0 - 1.0) dist between colors
+    val norm = (num - low) / (high - low)
+
+    val r = std:bootstrap:i32_to_f64(low_color.0) + (std:bootstrap:i32_to_f64(high_color.0) - std:bootstrap:i32_to_f64(low_color.0)) * norm
+    val g = std:bootstrap:i32_to_f64(low_color.1) + (std:bootstrap:i32_to_f64(high_color.1) - std:bootstrap:i32_to_f64(low_color.1)) * norm
+    val b = std:bootstrap:i32_to_f64(low_color.2) + (std:bootstrap:i32_to_f64(high_color.2) - std:bootstrap:i32_to_f64(low_color.2)) * norm
+
+    return (std:bootstrap:f64_to_i32(r), std:bootstrap:f64_to_i32(g), std:bootstrap:f64_to_i32(b))
+}
+
+// convert a number between 0 - 1.0 to a color
+fn get_color(num f64) -> Color {
+    if num < 0.15 {
+        return (0, 20, 40)
+    } elsif num < 0.3 {
+        return interp_color(num, 0.15, 0.3, (0, 20, 40), (0, 100, 255))
+    } elsif num < 0.6 {
+        return interp_color(num, 0.3, 0.6, (0, 100, 255), (255, 255, 255))
+    } elsif num < 0.75 {
+        return interp_color(num, 0.6, 0.75, (255, 255, 255), (255, 200, 0))
+    } elsif num < 0.95 {
+        return interp_color(num, 0.75, 0.95, (255, 200, 0), (100, 20, 0))
+    } else {
+        return interp_color(num, 0.95, 1.0, (100, 20, 0), (80, 10, 0))
+    }
+}
+
+fn emit_header(size ImageSize) {
+    std:bootstrap:print_char('P')
+    std:bootstrap:print_char('3')
+    std:bootstrap:print_nl()
+    std:bootstrap:print_num(size.0)
+    std:bootstrap:print_char(' ')
+    std:bootstrap:print_num(size.1)
+    std:bootstrap:print_nl()
+    std:bootstrap:print_num(255)
+    std:bootstrap:print_nl()
+}
+
+fn emit_pixel(color Color) {
+    std:bootstrap:print_num(color.0)
+    std:bootstrap:print_char(' ')
+    std:bootstrap:print_num(color.1)
+    std:bootstrap:print_char(' ')
+    std:bootstrap:print_num(color.2)
+    std:bootstrap:print_nl()
+}
+
+pub fn main() -> i32 {
+    // julia c constant
+    //val c = (-0.8, 0.156)
+    val c = (-0.4, 0.6)
+    // width and height of output
+    val size = (1920, 1080)
+    // range of fractal to display (in the complex plane)
+    val range = (
+        (-1.75, -1.1),
+        (1.75, 1.1)
+    )
+    // max iterations to run for each point
+    val max_iters = 700
+    // squared escape radius
+    val escape_radius_sq = 4.0
+
+    emit_header(size)
+
+    val incs = range_to_steps(range, size)
+    val x_inc = incs.0
+    val y_inc = incs.1
+
+    mut y = (range.0).1
+    mut y_pix = 0
+    while y_pix < size.1 {
+        mut x = (range.0).0
+        mut x_pix = 0
+
+        while x_pix < size.0 {
+            val res = sample((x, y), c, max_iters, escape_radius_sq, (x_inc, y_inc), 5)
+            emit_pixel(get_color(res))
+
+            x += x_inc
+            x_pix += 1
+        }
+        y += y_inc
+        y_pix += 1
+    }
+
+    return 0
+}

@@ -19,3 +19,9 @@ module std:scope_name:scope {
         val local_var = 5
     }
 }
+
+struct UpperCaseName {
+    UpperField  i32 //__error: "identifier UpperField should be a snake case identifier: upper_field"
+    newField    i32 //__error: "identifier newField should be a snake case identifier: new_field"
+    good_field  i32
+}

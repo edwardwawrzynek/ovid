@@ -202,8 +202,10 @@ Parser::parseParenExpr(const ParserState &state) {
     tupleExprs.push_back(std::move(expr));
   } while (tokenizer.curToken.token == T_COMMA);
   if (tokenizer.curToken.token == T_RPAREN) {
+    auto endPos = tokenizer.curTokenLoc;
     tokenizer.nextToken();
-    return std::make_unique<ast::Tuple>(pos, std::move(tupleExprs));
+    return std::make_unique<ast::Tuple>(pos.through(endPos),
+                                        std::move(tupleExprs));
   }
   return errorMan.logError("Expected ')' or ','", tokenizer.curTokenLoc,
                            ErrorType::ParseError);
@@ -1195,6 +1197,77 @@ Parser::parseWhileStatement(const ParserState &state) {
                                                std::move(body));
 }
 
+std::unique_ptr<ast::TypeAliasDecl>
+Parser::parseStructStatement(const ParserState &state, bool is_public) {
+  auto startPos = tokenizer.curTokenLoc;
+  // consume 'struct'
+  tokenizer.nextToken();
+  auto pos = startPos.through(tokenizer.curTokenLoc);
+
+  if (!state.is_global_level) {
+    return errorMan.logError("struct declaration cannot be inside a function",
+                             startPos, ErrorType::ParseError);
+  }
+  // parse name of struct
+  if (tokenizer.curToken.token != T_IDENT) {
+    return errorMan.logError("expected struct name (identifier)",
+                             tokenizer.curTokenLoc, ErrorType::ParseError);
+  }
+  auto name = tokenizer.curToken.ident;
+  expectUpperCamelCase(name, tokenizer.curTokenLoc);
+  tokenizer.nextToken();
+  // expect opening brace
+  if (tokenizer.curToken.token != T_LBRK) {
+    return errorMan.logError("expected '{' to begin struct body",
+                             tokenizer.curTokenLoc, ErrorType::ParseError);
+  }
+  tokenizer.nextToken();
+  // read in field declarations
+  std::vector<std::string> field_names;
+  std::vector<std::shared_ptr<ast::Type>> field_types;
+  std::vector<bool> field_publics;
+
+  while (tokenizer.curToken.token != T_RBRK) {
+    while (tokenizer.curToken.token == T_SEMICOLON)
+      tokenizer.nextToken();
+    // check for public field
+    if (tokenizer.curToken.token == T_PUB) {
+      tokenizer.nextToken();
+      field_publics.push_back(true);
+    } else {
+      field_publics.push_back(false);
+    }
+    // read name
+    if (tokenizer.curToken.token != T_IDENT) {
+      return errorMan.logError("expected field name (identifier)",
+                               tokenizer.curTokenLoc, ErrorType::ParseError);
+    }
+    field_names.push_back(tokenizer.curToken.ident);
+    expectSnakeCase(tokenizer.curToken.ident, tokenizer.curTokenLoc);
+    tokenizer.nextToken();
+    // parse type
+    auto type = parseType(state);
+    if (type == nullptr)
+      return nullptr;
+    field_types.push_back(type);
+
+    expectEndStatement();
+    while (tokenizer.curToken.token == T_SEMICOLON)
+      tokenizer.nextToken();
+  }
+  tokenizer.nextToken();
+
+  auto type = std::make_shared<ast::StructType>(pos, std::move(field_types),
+                                                std::move(field_names),
+                                                std::move(field_publics));
+  auto alias = std::make_shared<TypeAlias>(pos, type, is_public);
+  type->type_alias = alias;
+
+  addTypeAlias(state, name, alias);
+
+  return std::make_unique<ast::TypeAliasDecl>(pos, name, alias);
+}
+
 // check if parser is currently at an end of statement
 bool Parser::isEndStatement() {
   return tokenizer.curToken.token == T_SEMICOLON ||
@@ -1240,6 +1313,11 @@ Parser::parsePossiblePubStatement(const ParserState &state, bool is_public) {
     expectEndStatement();
     return res;
   }
+  case T_STRUCT: {
+    auto res = parseStructStatement(state, is_public);
+    expectEndStatement();
+    return res;
+  }
   case T_PUB: {
     if (is_public)
       return errorMan.logError("expected 'pub' to be followed by variable, "
@@ -1268,6 +1346,7 @@ Parser::parseStatement(const ParserState &state) {
   case T_VAL:
   case T_TYPE:
   case T_PUB:
+  case T_STRUCT:
     return parsePossiblePubStatement(state, false);
   case T_NATIVE: {
     parseNativeStatement(state);

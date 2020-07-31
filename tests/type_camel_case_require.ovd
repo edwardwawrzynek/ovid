@@ -10,3 +10,7 @@ type lowerCamelCase = i32 //__error: "identifier lowerCamelCase should be an upp
 type UpperCamelCase = i32
 
 type Bad_Upper = i32 //__error: "identifier Bad_Upper should be an upper camel case identifier: BadUpper"
+
+struct lower_type {} //__error: "identifier lower_type should be an upper camel case identifier: LowerType"
+
+struct UpperType {}

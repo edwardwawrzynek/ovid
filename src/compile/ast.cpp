@@ -65,16 +65,6 @@ bool TupleType::equalToExpected(const Type &expected) const {
   return true;
 }
 
-bool TupleType::containsPointer() const {
-  // check if any interior types are pointers
-  for (auto &type : types) {
-    if (type->containsPointer())
-      return true;
-  }
-
-  return false;
-}
-
 bool FloatType::equalToExpected(const Type &expected) const {
   const auto expectFloat = dynamic_cast<const FloatType *>(&expected);
 
@@ -138,13 +128,75 @@ std::shared_ptr<Type> ProductType::getTypeOfField(int32_t field_index) const {
 
 size_t ProductType::getNumFields() const { assert(false); }
 
+bool ProductType::containsPointer() const {
+  auto numFields = getNumFields();
+  for (size_t i = 0; i < numFields; i++) {
+    if (getTypeOfField(i)->containsPointer())
+      return true;
+  }
+
+  return false;
+}
+
+int32_t ProductType::getNamedFieldIndex(const std::string &field_name) const {
+  assert(false);
+}
+
+int32_t ProductType::getNumberedFieldIndex(int32_t field) const {
+  assert(false);
+}
+
+size_t TupleType::getNumFields() const { return types.size(); }
+
 std::shared_ptr<Type> TupleType::getTypeOfField(int32_t field_index) const {
   assert(field_index >= 0 && (uint32_t)field_index < types.size());
 
   return types[field_index];
 }
 
-size_t TupleType::getNumFields() const { return types.size(); }
+int32_t TupleType::getNamedFieldIndex(const std::string &field_name) const {
+  return -1;
+}
+
+int32_t TupleType::getNumberedFieldIndex(int32_t field) const {
+  if (field < 0 || field >= (int32_t)(types.size()))
+    return -1;
+
+  return field;
+}
+
+bool StructType::equalToExpected(const Type &expected) const {
+  auto expectedStruct = dynamic_cast<const StructType *>(&expected);
+  if (expectedStruct == nullptr)
+    return false;
+
+  assert(type_alias.lock() != nullptr);
+  assert(expectedStruct->type_alias.lock() != nullptr);
+
+  /* structure types use name equality */
+  return type_alias.lock().get() == expectedStruct->type_alias.lock().get();
+}
+
+size_t StructType::getNumFields() const { return field_types.size(); }
+
+std::shared_ptr<Type> StructType::getTypeOfField(int32_t field_index) const {
+  assert(field_index < (int32_t)(field_types.size()) && field_index >= 0);
+  return field_types[field_index];
+}
+
+int32_t StructType::getNamedFieldIndex(const std::string &field_name) const {
+  for (size_t i = 0; i < field_names.size(); i++) {
+    if (field_names[i] == field_name)
+      return i;
+  }
+
+  return -1;
+}
+
+int32_t StructType::getNumberedFieldIndex(int32_t field) const {
+  /* no numbered fields on a struct */
+  return -1;
+}
 
 } // namespace ovid::ast
 // namespace ovid::ast

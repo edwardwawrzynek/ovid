@@ -1153,35 +1153,44 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
 
     return TypeCheckResult::nullResult();
   }
-  // make sure field isn't a string
+  // internal field index
+  int32_t field_index;
+
+  // lookup named or numbered field index
   if (!node.has_field_num) {
-    errorMan.logError(
-        string_format(
-            "type \x1b[1m%s\x1b[m does not have field \x1b[1m%s\x1b[m",
-            type_printer.getType(*recordType).c_str(), node.field.c_str()),
-        node.loc, ErrorType::TypeError);
+    field_index = recordType->getNamedFieldIndex(node.field);
 
-    return TypeCheckResult::nullResult();
+    if (field_index == -1) {
+      errorMan.logError(
+          string_format(
+              "type \x1b[1m%s\x1b[m does not have field \x1b[1m%s\x1b[m",
+              type_printer.getType(*recordType).c_str(), node.field.c_str()),
+          node.loc, ErrorType::TypeError);
+
+      return TypeCheckResult::nullResult();
+    }
+  } else {
+    field_index = recordType->getNumberedFieldIndex(node.field_num);
+
+    if (field_index == -1) {
+      errorMan.logError(
+          string_format(
+              "type \x1b[1m%s\x1b[m does not have field \x1b[1m%lu\x1b[m",
+              type_printer.getType(*recordType).c_str(), node.field_num),
+          node.loc, ErrorType::TypeError);
+
+      return TypeCheckResult::nullResult();
+    }
   }
-  // make sure field is in right range
-  if (node.field_num >= (int32_t)(recordType->getNumFields())) {
-    errorMan.logError(
-        string_format(
-            "type \x1b[1m%s\x1b[m does not have field \x1b[1m%lu\x1b[m",
-            type_printer.getType(*recordType).c_str(), node.field_num),
-        node.loc, ErrorType::TypeError);
 
-    return TypeCheckResult::nullResult();
-  }
-
-  auto resType = recordType->getTypeOfField(node.field_num);
+  auto resType = recordType->getTypeOfField(field_index);
   // if tuple was mutable, add mutability back to field
   if (dynamic_cast<MutType *>(lvalueRes.resultType.get()) != nullptr) {
     resType = addMutType(resType, true);
   }
   // emit ir instruction
   auto instruct = std::make_unique<ir::FieldSelect>(
-      node.loc, ir::Value(), *lvalueInstr, node.field_num, resType);
+      node.loc, ir::Value(), *lvalueInstr, field_index, resType);
   auto instructPointer = instruct.get();
 
   curInstructionList->push_back(std::move(instruct));
@@ -1359,6 +1368,20 @@ int TypePrinter::visitTupleType(TupleType &type,
       res.append(", ");
   }
   res.push_back(')');
+
+  return 0;
+}
+
+int TypePrinter::visitStructType(StructType &type,
+                                 const TypePrinterState &state) {
+  assert(type.type_alias.lock() != nullptr);
+  auto name = type.type_alias.lock()->getFullyScopedName();
+
+  for (size_t i = 0; i < name.size(); i++) {
+    res.append(name[i]);
+    if (i < name.size() - 1)
+      res.push_back(':');
+  }
 
   return 0;
 }

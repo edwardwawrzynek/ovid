@@ -131,6 +131,9 @@ class Parser {
   std::unique_ptr<ast::TypeAliasDecl>
   parseTypeAliasDecl(const ParserState &state, bool is_public);
 
+  std::unique_ptr<ast::TypeAliasDecl>
+  parseStructStatement(const ParserState &state, bool is_public);
+
   std::unique_ptr<ast::IfStatement> parseIfStatement(const ParserState &state);
 
   void parseNativeStatement(const ParserState &state);

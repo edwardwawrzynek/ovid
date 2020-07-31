@@ -150,14 +150,25 @@ void Tokenizer::parseNumber(char c) {
                         curTokenLoc, ErrorType::ParseError);
       return;
     }
-    std::string decimal_part = "0.";
+    std::string decimal_part = std::to_string(curToken.int_literal);
+    decimal_part.push_back('.');
     while (isdigit(c = next()))
       decimal_part.push_back(c);
 
-    /* TODO: handle exponent */
+    if (c == 'e' || c == 'E') {
+      /* handle exponent */
+      decimal_part.push_back(c);
+      c = next();
+      if (c == '-' || c == '+') {
+        decimal_part.push_back(c);
+      } else {
+        putback(c);
+      }
+      while (isdigit(c = next()))
+        decimal_part.push_back(c);
+    }
 
-    curToken.float_literal =
-        ((double)curToken.int_literal) + std::stod(decimal_part);
+    curToken.float_literal = std::stod(decimal_part);
     curToken.token = T_FLOATLITERAL;
   }
 
@@ -175,7 +186,7 @@ static std::map<std::string, TokenType> keywordMap = {
     {"module", T_MODULE}, {"import", T_IMPORT}, {"return", T_RETURN},
     {"pub", T_PUB},       {"type", T_TYPE},     {"if", T_IF},
     {"elsif", T_ELSIF},   {"else", T_ELSE},     {"native", T_NATIVE},
-    {"while", T_WHILE}};
+    {"while", T_WHILE},   {"struct", T_STRUCT}};
 
 /* scan and read the next token */
 void Tokenizer::nextToken() {

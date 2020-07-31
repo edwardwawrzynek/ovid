@@ -427,6 +427,20 @@ TypeResolver::visitTupleType(TupleType &type, const TypeResolverState &state) {
   return std::make_shared<TupleType>(type.loc, std::move(types));
 }
 
+std::shared_ptr<Type>
+TypeResolver::visitStructType(StructType &type,
+                              const TypeResolverState &state) {
+  TypeList types;
+
+  for (auto &child : type.field_types) {
+    types.push_back(visitType(*child, state));
+  }
+
+  return std::make_shared<StructType>(
+      type.loc, std::move(types), std::move(type.field_names),
+      std::move(type.fields_are_public), type.type_alias);
+}
+
 TypeResolver::TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan)
     : BaseTypeVisitor(nullptr), scopes(scopes), errorMan(errorMan) {}
 

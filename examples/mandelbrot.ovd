@@ -55,8 +55,8 @@ fn range_to_steps(range ComplexPlaneSubset, size TermSize) -> (f64, f64) {
     val p1 = range.1
 
     return (
-        (fabs(p1.0 - p0.0) / bootstrap:i32_to_f64(size.0)),
-        (fabs(p1.1 - p0.1) / bootstrap:i32_to_f64(size.1))
+        (fabs(p1.0 - p0.0) / std:bootstrap:i32_to_f64(size.0)),
+        (fabs(p1.1 - p0.1) / std:bootstrap:i32_to_f64(size.1))
     )
 }
 
@@ -83,13 +83,13 @@ pub fn main() -> i32 {
 
         while x < (range.1).0 {
             if run((0.0, 0.0), (x, y), max_iters, escape_radius_sq) {
-                bootstrap:print_char('*')
+                std:bootstrap:print_char('*')
             } else {
-                bootstrap:print_char(' ')
+                std:bootstrap:print_char(' ')
             }
             x += x_inc
         }
-        bootstrap:print_char('\n')
+        std:bootstrap:print_char('\n')
         y += y_inc
     }
 

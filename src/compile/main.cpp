@@ -20,6 +20,7 @@ public:
   bool dump_ast;
   bool dump_ir;
   bool dump_escape_analysis;
+  bool dump_llvm;
 
   // object, asm, or llvm output
   ovid::ir::CodegenOutputType codegen_out;
@@ -38,7 +39,7 @@ public:
 
   DriverArgs()
       : dump_ast(false), dump_ir(false), dump_escape_analysis(false),
-        codegen_out(ovid::ir::CodegenOutputType::OBJ),
+        dump_llvm(false), codegen_out(ovid::ir::CodegenOutputType::OBJ),
         opt_level(llvm::PassBuilder::O2), reloc_model(llvm::Reloc::PIC_),
         code_model(llvm::CodeModel::Small), out_file("ovidc.out"), in_files(),
         package_name(), do_main(false){};
@@ -71,6 +72,7 @@ void usage(int argc, char **argv) {
          "  --dump-ir              Print the internal intermediate "
          "representation for the source code\n"
          "  --dump-escape          Print escape analysis results\n"
+         "  --dump-llvm            Print unoptimized llvm ir\n"
          "  --package NAME[:NAME]...\n"
          "                         Set the package name\n"
          "  --main                 Generate a main function\n"
@@ -94,6 +96,7 @@ static struct option cli_opts[] = {
     {"package", required_argument, nullptr, 6},
     {"main", no_argument, nullptr, 7},
     {"no-main", no_argument, nullptr, 8},
+    {"dump-llvm", no_argument, nullptr, 9},
     {nullptr, 0, nullptr, 0}};
 
 DriverArgs parseCLIArgs(int argc, char **argv) {
@@ -192,6 +195,9 @@ DriverArgs parseCLIArgs(int argc, char **argv) {
     case 8:
       res.do_main = false;
       break;
+    case 9:
+      res.dump_llvm = true;
+      break;
     case 'h':
     default:
       usage(argc, argv);
@@ -264,6 +270,11 @@ int main(int argc, char **argv) {
   // generate llvm
   auto codegen = ovid::ir::LLVMCodegenPass(argv[1], errorMan);
   codegen.visitInstructions(ir, ovid::ir::LLVMCodegenPassState());
+
+  if (args.dump_llvm) {
+    std::cout << "\n---- LLVM IR ----\n";
+    codegen.llvm_module->print(llvm::outs(), nullptr);
+  }
 
   /* construct main function name */
   auto main_func = args.package_name;

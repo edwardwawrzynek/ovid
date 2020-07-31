@@ -394,4 +394,19 @@ int ASTTypePrinter::visitTupleType(TupleType &type,
   return 0;
 }
 
+int ASTTypePrinter::visitStructType(StructType &type,
+                                    const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "StructType ";
+  auto name = type.type_alias.lock()->getFullyScopedName();
+  for (size_t i = 0; i < name.size(); i++) {
+    output << name[i];
+    if (i < name.size() - 1)
+      output << ":";
+  }
+  output << "\n";
+
+  return 0;
+}
+
 } // namespace ovid::ast
