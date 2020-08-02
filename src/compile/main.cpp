@@ -268,7 +268,7 @@ int main(int argc, char **argv) {
   }
 
   // generate llvm
-  auto codegen = ovid::ir::LLVMCodegenPass(argv[1], errorMan);
+  auto codegen = ovid::ir::LLVMCodegenPass(args.in_files[0], errorMan);
   codegen.visitInstructions(ir, ovid::ir::LLVMCodegenPassState());
 
   if (args.dump_llvm) {

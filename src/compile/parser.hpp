@@ -136,7 +136,8 @@ class Parser {
 
   std::unique_ptr<ast::IfStatement> parseIfStatement(const ParserState &state);
 
-  void parseNativeStatement(const ParserState &state);
+  std::unique_ptr<ast::NativeFunctionDecl>
+  parseNativeStatement(const ParserState &state);
 
   std::unique_ptr<ast::WhileStatement>
   parseWhileStatement(const ParserState &state);

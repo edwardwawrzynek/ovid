@@ -278,6 +278,22 @@ int ASTPrinter::visitFieldAccess(FieldAccess &node,
   return 0;
 }
 
+int ASTPrinter::visitNativeFunctionDecl(NativeFunctionDecl &node,
+                                        const ASTPrinterState &state) {
+  state.printIndent(output);
+  printLoc(output, node.loc);
+  output << " NativeFunctionDecl ";
+  auto name = node.sym->getFullyScopedName();
+  for (size_t i = 0; i < name.size(); i++) {
+    output << name[i];
+    if (i < name.size() - 1)
+      output << ":";
+  }
+  output << "\n";
+  typePrinter.visitType(*node.sym->type, state.withIndent());
+  return 0;
+}
+
 int ASTTypePrinter::visitVoidType(VoidType &type,
                                   const ASTPrinterState &state) {
   state.printIndent(output);

@@ -1124,16 +1124,16 @@ Parser::parseReturnStatement(const ParserState &state) {
   return std::make_unique<ast::ReturnStatement>(pos, std::move(retExpr));
 }
 
-void Parser::parseNativeStatement(const ParserState &state) {
+std::unique_ptr<ast::NativeFunctionDecl>
+Parser::parseNativeStatement(const ParserState &state) {
   auto pos = tokenizer.curTokenLoc;
   // consume 'native'
   tokenizer.nextToken();
 
   if (tokenizer.curToken.token != T_FN) {
-    errorMan.logError(
+    return errorMan.logError(
         "expected 'native' to be followed by a function prototype",
         tokenizer.curTokenLoc, ErrorType::ParseError);
-    return;
   }
   // consume 'fn'
   tokenizer.nextToken();
@@ -1158,6 +1158,8 @@ void Parser::parseNativeStatement(const ParserState &state) {
     }
   }
   root->addSymbol(name, fun_sym);
+
+  return std::make_unique<ast::NativeFunctionDecl>(pos, fun_sym);
 }
 
 std::unique_ptr<ast::WhileStatement>
@@ -1349,9 +1351,9 @@ Parser::parseStatement(const ParserState &state) {
   case T_STRUCT:
     return parsePossiblePubStatement(state, false);
   case T_NATIVE: {
-    parseNativeStatement(state);
+    auto res = parseNativeStatement(state);
     expectEndStatement();
-    return parseStatement(state);
+    return res;
   }
   case T_SEMICOLON:
     tokenizer.nextToken();

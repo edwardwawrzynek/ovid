@@ -3,6 +3,7 @@
 
 #include "symbols.hpp"
 #include "tokenizer.hpp"
+#include "llvm/IR/DerivedTypes.h"
 #include <iostream>
 #include <memory>
 #include <utility>
@@ -325,9 +326,10 @@ public:
   std::vector<bool> fields_are_public;
   // type alias for this structure type
   std::weak_ptr<TypeAlias> type_alias;
-
   // if the field types have gone through type resolution
   bool fields_resolved;
+  // llvm structure type alias
+  llvm::StructType *llvm_type;
 
   bool equalToExpected(const Type &expected) const override;
 
@@ -343,7 +345,7 @@ public:
       : ProductType(loc), field_types(std::move(field_types)),
         field_names(std::move(field_names)),
         fields_are_public(std::move(fields_are_public)), type_alias(),
-        fields_resolved(false){};
+        fields_resolved(false), llvm_type(nullptr){};
 
   StructType(const SourceLocation &loc, TypeList field_types,
              std::vector<std::string> field_names,
@@ -352,7 +354,8 @@ public:
       : ProductType(loc), field_types(std::move(field_types)),
         field_names(std::move(field_names)),
         fields_are_public(std::move(fields_are_public)),
-        type_alias(std::move(type_alias)), fields_resolved(false){};
+        type_alias(std::move(type_alias)), fields_resolved(false),
+        llvm_type(nullptr){};
 };
 
 class FunctionPrototype {
@@ -411,6 +414,14 @@ public:
                ScopedBlock body)
       : Statement(loc), type(std::move(type)), name(name),
         body(std::move(body)), resolved_symbol(){};
+};
+
+class NativeFunctionDecl : public Statement {
+public:
+  std::shared_ptr<Symbol> sym;
+
+  NativeFunctionDecl(const SourceLocation &loc, std::shared_ptr<Symbol> sym)
+      : Statement(loc), sym(std::move(sym)){};
 };
 
 class ModuleDecl : public Statement {

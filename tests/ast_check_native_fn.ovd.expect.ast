@@ -1,0 +1,29 @@
+(5:1) NativeFunctionDecl native1
+    NamedFunctionType
+      argNames: a b
+      type:
+        FunctionType
+          retType:
+            IntType: i32
+          argTypes:
+            IntType: i32
+            IntType: i32
+(7:1) TypeAliasDecl: Type1
+    TupleType
+        IntType: i32
+        IntType: i32
+(9:1) NativeFunctionDecl native2
+    NamedFunctionType
+      argNames: a
+      type:
+        FunctionType
+          retType:
+            PointerType
+                MutType
+                    TupleType
+                        IntType: i32
+                        IntType: i32
+          argTypes:
+            TupleType
+                IntType: i32
+                IntType: i32

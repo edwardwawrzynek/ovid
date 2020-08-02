@@ -71,6 +71,8 @@ class ResolvePass : public BaseASTVisitor<int, ResolvePassState> {
   int visitVarDecl(VarDecl &node, const ResolvePassState &state) override;
   int visitFunctionDecl(FunctionDecl &node,
                         const ResolvePassState &state) override;
+  int visitNativeFunctionDecl(NativeFunctionDecl &node,
+                              const ResolvePassState &state) override;
   int visitModuleDecl(ModuleDecl &node, const ResolvePassState &state) override;
   int visitIfStatement(IfStatement &node,
                        const ResolvePassState &state) override;

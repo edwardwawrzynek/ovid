@@ -19,6 +19,7 @@ template <class T, class S> class BaseASTVisitor {
 
   virtual T visitVarDecl(VarDecl &node, const S &state);
   virtual T visitFunctionDecl(FunctionDecl &node, const S &state);
+  virtual T visitNativeFunctionDecl(NativeFunctionDecl &node, const S &state);
   virtual T visitModuleDecl(ModuleDecl &node, const S &state);
   virtual T visitIfStatement(IfStatement &node, const S &state);
   virtual T visitWhileStatement(WhileStatement &node, const S &state);
@@ -60,6 +61,9 @@ T BaseASTVisitor<T, S>::visitStatement(Statement &node, const S &state) {
     return visitVarDecl(dynamic_cast<VarDecl &>(node), state);
   } else if (dynamic_cast<FunctionDecl *>(&node) != nullptr) {
     return visitFunctionDecl(dynamic_cast<FunctionDecl &>(node), state);
+  } else if (dynamic_cast<NativeFunctionDecl *>(&node) != nullptr) {
+    return visitNativeFunctionDecl(dynamic_cast<NativeFunctionDecl &>(node),
+                                   state);
   } else if (dynamic_cast<ModuleDecl *>(&node)) {
     return visitModuleDecl(dynamic_cast<ModuleDecl &>(node), state);
   } else if (dynamic_cast<TypeAliasDecl *>(&node) != nullptr) {
@@ -194,6 +198,12 @@ T BaseASTVisitor<T, S>::visitFloatLiteral(FloatLiteral &node, const S &state) {
 
 template <class T, class S>
 T BaseASTVisitor<T, S>::visitCharLiteral(CharLiteral &node, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitNativeFunctionDecl(NativeFunctionDecl &node,
+                                                const S &state) {
   return std::move(defaultValue);
 }
 

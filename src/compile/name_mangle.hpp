@@ -18,8 +18,16 @@
  * _I4test6scope4func */
 
 namespace ovid::name_mangling {
+
+enum class MangleType {
+  IDENTIFIER, // identifier namespace: _I prefix
+  TYPE        // Type namespace: _T prefix
+};
+
+std::string mangle(const std::vector<std::string> &name, MangleType type);
 std::string mangle(const std::vector<std::string> &name);
 std::string mangle(const ir::Value &val);
+
 } // namespace ovid::name_mangling
 
 #endif

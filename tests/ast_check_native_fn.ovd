@@ -1,0 +1,9 @@
+// __ovid_compiler_test
+//__mode: check_ast
+//__end_header
+
+native fn native1(a i32, b i32) -> i32
+
+type Type1 = (i32, i32)
+
+native fn native2(a Type1) -> *mut Type1

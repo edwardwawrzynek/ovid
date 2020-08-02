@@ -48,8 +48,8 @@ llvm::Type *LLVMTypeGen::visitPointerType(ast::PointerType &type,
   return llvm::PointerType::get(visitType(*type.type, state), 0);
 }
 
-llvm::Type *LLVMTypeGen::visitProductType(ast::ProductType &type,
-                                          const LLVMTypeGenState &state) {
+llvm::Type *LLVMTypeGen::visitTupleType(ast::TupleType &type,
+                                        const LLVMTypeGenState &state) {
   std::vector<llvm::Type *> types;
   size_t numFields = type.getNumFields();
 
@@ -57,6 +57,26 @@ llvm::Type *LLVMTypeGen::visitProductType(ast::ProductType &type,
     types.push_back(visitType(*type.getTypeOfField(i), state));
   }
   return llvm::StructType::get(llvm_context, types);
+}
+
+llvm::Type *LLVMTypeGen::visitStructType(ast::StructType &type,
+                                         const LLVMTypeGenState &state) {
+  if (type.llvm_type != nullptr)
+    return type.llvm_type;
+  // create struct type
+  auto name =
+      name_mangling::mangle(type.type_alias.lock()->getFullyScopedName(),
+                            name_mangling::MangleType::TYPE);
+  auto structType = llvm::StructType::create(llvm_context, name);
+  type.llvm_type = structType;
+  // fill in body
+  std::vector<llvm::Type *> types;
+  for (auto &field : type.field_types) {
+    types.push_back(visitType(*field, state));
+  }
+  structType->setBody(types);
+
+  return structType;
 }
 
 llvm::Type *LLVMTypeGen::visitFunctionType(ast::FunctionType &type,
@@ -881,7 +901,12 @@ void LLVMCodegenPass::optAndEmit(llvm::PassBuilder::OptimizationLevel optLevel,
 
   llvm::ModulePassManager MPM(DebugPassManager);
   MPM = passBuilder.buildPerModuleDefaultPipeline(optLevel, DebugPassManager);
-  MPM.addPass(llvm::VerifierPass());
+
+  if (llvm::verifyModule(*llvm_module, &llvm::outs())) {
+    errorMan.logError("llvm module verification failed",
+                      SourceLocation::nullLocation(), ErrorType::InternalError);
+    return;
+  }
 
   MPM.run(*llvm_module, MAM);
 

@@ -57,8 +57,10 @@ class LLVMTypeGen
   llvm::Type *visitNamedFunctionType(ast::NamedFunctionType &type,
                                      const LLVMTypeGenState &state) override;
 
-  llvm::Type *visitProductType(ast::ProductType &type,
-                               const LLVMTypeGenState &state) override;
+  llvm::Type *visitTupleType(ast::TupleType &type,
+                             const LLVMTypeGenState &state) override;
+  llvm::Type *visitStructType(ast::StructType &type,
+                              const LLVMTypeGenState &state) override;
 
 public:
   using BaseTypeVisitor::visitType;

@@ -66,6 +66,15 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
   return 0;
 }
 
+int ResolvePass::visitNativeFunctionDecl(NativeFunctionDecl &node,
+                                         const ResolvePassState &state) {
+  // resolve function type
+  node.sym->type = type_resolver.visitType(
+      node.sym->type, TypeResolverState(package, current_module));
+
+  return 0;
+}
+
 int ResolvePass::visitModuleDecl(ModuleDecl &node,
                                  const ResolvePassState &state) {
   // add this module's scope to active scope stack

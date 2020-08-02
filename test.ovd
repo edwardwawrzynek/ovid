@@ -1,8 +1,12 @@
-struct TestType {
-    field1  i32
-    field2  *TestType
+struct Test {
+    field1 i32
+    field2 Test
 }
 
-fn test(a TestType) -> *TestType {
-    return a.field2.field2
+pub fn test(a Test) {
+
+}
+
+pub fn main() -> i32 {
+    return 0
 }
