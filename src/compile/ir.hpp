@@ -145,8 +145,8 @@ typedef std::vector<Flow> FlowList;
 /* a value in the ir -- holds the result of an instruction */
 class Value {
 public:
-  /* name (scoped) from the source code */
-  std::vector<std::string> sourceName;
+  /* scoped name from the source code */
+  std::shared_ptr<Symbol> sourceName;
   // if value was unnamed, it is given an id
   uint64_t id;
 
@@ -156,7 +156,7 @@ public:
   // the generated llvm value (used by llvm_codegen)
   llvm::Value *llvm_value;
 
-  explicit Value(const std::vector<std::string> &sourceName);
+  explicit Value(std::shared_ptr<Symbol> sourceName);
 
   Value();
 };

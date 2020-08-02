@@ -181,9 +181,10 @@ void FlowValue::print(std::ostream &output) const {
     output << "ESCAPE";
   } else {
     if (expr.val.hasSourceName) {
-      for (size_t i = 0; i < expr.val.sourceName.size(); i++) {
-        output << expr.val.sourceName[i];
-        if (i < expr.val.sourceName.size() - 1)
+      auto name = expr.val.sourceName->getFullyScopedName();
+      for (size_t i = 0; i < name.size(); i++) {
+        output << name[i];
+        if (i < name.size() - 1)
           output << ":";
       }
     } else {
@@ -584,7 +585,8 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
   // print flows
   if (print_flows || print_escapes || print_func_flow_metadata) {
     output << "FUNCTION ";
-    for (auto &scope : instruct.val.sourceName) {
+    auto name = instruct.val.sourceName->getFullyScopedName();
+    for (auto &scope : name) {
       output << scope << ":";
     }
     output << "\n";
@@ -650,7 +652,8 @@ void EscapeAnalysisPass::markEscapingAllocations(
           }
           /* print debug info */
           if (print_escapes) {
-            output << "%" << alloc.val.sourceName[0] << " escapes\n";
+            output << "%" << alloc.val.sourceName->getFullyScopedName()[0]
+                   << " escapes\n";
           }
         }
       },

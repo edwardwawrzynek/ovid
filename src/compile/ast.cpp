@@ -219,6 +219,7 @@ void ActiveScopes::popComponentScopesByName(
 }
 
 ActiveScopes::ActiveScopes(const std::vector<std::string> &packageName,
+                           int64_t package_version,
                            ScopeTable<Symbol> *rootNameScope,
                            ScopeTable<TypeAlias> *rootTypeScope)
     : names(), types() {
@@ -234,6 +235,9 @@ ActiveScopes::ActiveScopes(const std::vector<std::string> &packageName,
     curNameScope = curNameScope->addScopeTable(scope, true);
     curTypeScope = curTypeScope->addScopeTable(scope, true);
   }
+
+  curNameScope->setVersionInt(package_version);
+  curTypeScope->setVersionInt(package_version);
 }
 
 std::vector<std::string> Symbol::getFullyScopedName() {

@@ -19,14 +19,12 @@
 
 namespace ovid::name_mangling {
 
-enum class MangleType {
-  IDENTIFIER, // identifier namespace: _I prefix
-  TYPE        // Type namespace: _T prefix
-};
+std::string mangleIdentifier(const ir::Value &val);
+std::string mangleIdentifier(const std::shared_ptr<Symbol> &sym);
+std::string mangleType(const std::shared_ptr<TypeAlias> &sym);
 
-std::string mangle(const std::vector<std::string> &name, MangleType type);
-std::string mangle(const std::vector<std::string> &name);
-std::string mangle(const ir::Value &val);
+std::string mangleMainFunc(const ScopeTable<Symbol> *package,
+                           const std::string &name);
 
 } // namespace ovid::name_mangling
 

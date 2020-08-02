@@ -169,7 +169,8 @@ private:
                                     const LLVMCodegenPassState &state);
 
   /* add a main function that calls the given main function */
-  void addMain(const std::vector<std::string> &main_func_name);
+  void addMain(const ScopeTable<Symbol> *package,
+               const std::string &main_func_name);
 
   /* init llvm decl's for native methods */
   void initNativeFns();
@@ -180,7 +181,8 @@ public:
   void optAndEmit(llvm::PassBuilder::OptimizationLevel optLevel,
                   const std::string &filename, CodegenOutputType outType,
                   bool genMainFunc = false,
-                  const std::vector<std::string> *mainFuncName = nullptr,
+                  const ScopeTable<Symbol> *mainPackage = nullptr,
+                  const std::string *mainFuncName = nullptr,
                   llvm::Reloc::Model relocModel = llvm::Reloc::PIC_,
                   llvm::CodeModel::Model codeModel = llvm::CodeModel::Small);
 };

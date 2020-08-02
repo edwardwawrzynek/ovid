@@ -118,6 +118,8 @@ template <class T> class ScopeTable {
   ScopeTable<T> *parent;
   // name of this part of the table
   std::string name;
+  // versioning number for this scope (package version hash)
+  int64_t version_int;
 
 public:
   // return the SymbolTable associated with this scope
@@ -165,19 +167,21 @@ public:
 
   void addSymbol(const std::string &name, std::shared_ptr<T> symbol);
 
-  std::string getName();
-  ScopeTable<T> *getParent();
+  std::string getName() const;
+  ScopeTable<T> *getParent() const;
+  int getVersionInt() const;
+  void setVersionInt(int64_t version);
 
   ScopeTable(bool is_public, ScopeTable<T> *parent, const std::string &name)
       : symbols(std::make_unique<SymbolTable<T>>()), scopes(),
-        is_public(is_public), is_func_scope(false), parent(parent),
-        name(name){};
+        is_public(is_public), is_func_scope(false), parent(parent), name(name),
+        version_int(-1){};
 
   ScopeTable(bool is_public, ScopeTable<T> *parent, bool is_func_scope,
-             const std::string &name)
+             const std::string &name, int64_t version_int = -1)
       : symbols(std::make_unique<SymbolTable<T>>()), scopes(),
         is_public(is_public), is_func_scope(is_func_scope), parent(parent),
-        name(name){};
+        name(name), version_int(version_int){};
 };
 
 template <class T> SymbolTable<T> &ScopeTable<T>::getDirectScopeTable() {
@@ -334,9 +338,19 @@ bool ScopeTable<T>::checkAccessible(const std::vector<std::string> &scope_name,
       curPackage, curModule, is_symbol_pub);
 }
 
-template <class T> std::string ScopeTable<T>::getName() { return name; }
+template <class T> std::string ScopeTable<T>::getName() const { return name; }
 
-template <class T> ScopeTable<T> *ScopeTable<T>::getParent() { return parent; }
+template <class T> ScopeTable<T> *ScopeTable<T>::getParent() const {
+  return parent;
+}
+
+template <class T> int ScopeTable<T>::getVersionInt() const {
+  return version_int;
+}
+
+template <class T> void ScopeTable<T>::setVersionInt(int64_t version) {
+  version_int = version;
+}
 
 /* the active scopes and symbol tables
  * maintained as a stack -- global namespaces at bottom, local scopes at top */

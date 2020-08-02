@@ -5,11 +5,12 @@ namespace ovid::ir {
 void ovid::ir::IRPrinter::printValue(const ovid::ir::Value &val) {
   if (val.hasSourceName) {
     output << "%";
-    for (size_t i = 0; i < val.sourceName.size(); i++) {
-      auto &scope = val.sourceName[i];
+    auto name = val.sourceName->getFullyScopedName();
+    for (size_t i = 0; i < name.size(); i++) {
+      auto &scope = name[i];
       output << scope;
 
-      if (i < val.sourceName.size() - 1)
+      if (i < name.size() - 1)
         output << ":";
     }
   } else {

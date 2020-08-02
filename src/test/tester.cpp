@@ -430,7 +430,9 @@ int TesterInstance::runCheckEscape(ErrorManager &errorMan,
 }
 
 int TesterInstance::runLLVMCodegen(ErrorManager &errorMan,
-                                   ir::LLVMCodegenPass &codegen_pass) {
+                                   ir::LLVMCodegenPass &codegen_pass,
+                                   ScopesRoot &root_scopes,
+                                   const std::vector<std::string> &package) {
   /* if run mode is included, require main function */
   bool run_mode = modes.count(TestMode::Run) > 0;
 
@@ -438,11 +440,12 @@ int TesterInstance::runLLVMCodegen(ErrorManager &errorMan,
       llvm::PassBuilder::Oz, llvm::PassBuilder::Os, llvm::PassBuilder::O0,
       llvm::PassBuilder::O1, llvm::PassBuilder::O2, llvm::PassBuilder::O3};
 
-  packageName.emplace_back("main");
+  std::string main_name = "main";
 
   for (auto optLevel : optsToRun) {
-    codegen_pass.optAndEmit(optLevel, "ovidc_test_out_tmp.o",
-                            ir::CodegenOutputType::OBJ, run_mode, &packageName);
+    codegen_pass.optAndEmit(
+        optLevel, "ovidc_test_out_tmp.o", ir::CodegenOutputType::OBJ, run_mode,
+        root_scopes.names->getScopeTable(package), &main_name);
 
     if (run_mode) {
       const char *link_path = std::getenv("OVIDC_TESTSUITE_LINK_PATH");
@@ -520,7 +523,7 @@ int TesterInstance::run() {
             auto codegen = ir::LLVMCodegenPass(filename, errorMan);
             codegen.visitInstructions(ir, ir::LLVMCodegenPassState());
 
-            if (runLLVMCodegen(errorMan, codegen))
+            if (runLLVMCodegen(errorMan, codegen, root_scopes, packageName))
               failed = 1;
           }
         }

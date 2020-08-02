@@ -112,7 +112,9 @@ class TesterInstance {
   int runCheckEscape(ErrorManager &errorMan, const ir::InstructionList &ir);
 
   // run code emission and run and run_check_output modes
-  int runLLVMCodegen(ErrorManager &errorMan, ir::LLVMCodegenPass &codegen_pass);
+  int runLLVMCodegen(ErrorManager &errorMan, ir::LLVMCodegenPass &codegen_pass,
+                     ScopesRoot &root_scopes,
+                     const std::vector<std::string> &package);
 
 public:
   explicit TesterInstance(const std::string &filename);

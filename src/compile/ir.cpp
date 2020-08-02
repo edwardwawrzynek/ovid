@@ -41,11 +41,13 @@ bool FieldSelect::isAddressable() const {
  * some are non trivial and perform checks on their arguments
  */
 
-Value::Value(const std::vector<std::string> &sourceName)
-    : sourceName(sourceName), id(next_id()), hasSourceName(true),
+Value::Value(std::shared_ptr<Symbol> sourceName)
+    : sourceName(std::move(sourceName)), id(next_id()), hasSourceName(true),
       llvm_value(nullptr) {}
 
-Value::Value() : id(next_id()), hasSourceName(false), llvm_value(nullptr) {}
+Value::Value()
+    : sourceName(nullptr), id(next_id()), hasSourceName(false),
+      llvm_value(nullptr) {}
 
 Instruction::Instruction(const SourceLocation &loc) : loc(loc) {}
 

@@ -34,6 +34,7 @@ public:
   std::string out_file;
   std::vector<std::string> in_files;
   std::vector<std::string> package_name;
+  int64_t package_version;
 
   bool do_main;
 
@@ -42,7 +43,7 @@ public:
         dump_llvm(false), codegen_out(ovid::ir::CodegenOutputType::OBJ),
         opt_level(llvm::PassBuilder::O2), reloc_model(llvm::Reloc::PIC_),
         code_model(llvm::CodeModel::Small), out_file("ovidc.out"), in_files(),
-        package_name(), do_main(false){};
+        package_name(), package_version(-1), do_main(false){};
 };
 
 void usage(int argc, char **argv) {
@@ -75,6 +76,9 @@ void usage(int argc, char **argv) {
          "  --dump-llvm            Print unoptimized llvm ir\n"
          "  --package NAME[:NAME]...\n"
          "                         Set the package name\n"
+         "  --package-version VERSION\n"
+         "                         Set the package version (must be an "
+         "integer)\n"
          "  --main                 Generate a main function\n"
          "  --no-main              Don't generate a main function (default)\n";
 
@@ -97,6 +101,7 @@ static struct option cli_opts[] = {
     {"main", no_argument, nullptr, 7},
     {"no-main", no_argument, nullptr, 8},
     {"dump-llvm", no_argument, nullptr, 9},
+    {"package-version", required_argument, nullptr, 10},
     {nullptr, 0, nullptr, 0}};
 
 DriverArgs parseCLIArgs(int argc, char **argv) {
@@ -198,6 +203,9 @@ DriverArgs parseCLIArgs(int argc, char **argv) {
     case 9:
       res.dump_llvm = true;
       break;
+    case 10:
+      res.package_version = std::strtol(optarg, nullptr, 10);
+      break;
     case 'h':
     default:
       usage(argc, argv);
@@ -223,12 +231,12 @@ int main(int argc, char **argv) {
   auto errorMan = ovid::PrintingErrorManager();
   ovid::ir::reset_id();
 
-  auto root_scopes = ovid::ScopesRoot();
-
   auto lexer = ovid::Tokenizer(args.in_files[0], &filein, errorMan);
 
-  auto scopes = ovid::ActiveScopes(args.package_name, root_scopes.names.get(),
-                                   root_scopes.types.get());
+  auto root_scopes = ovid::ScopesRoot();
+  auto scopes =
+      ovid::ActiveScopes(args.package_name, args.package_version,
+                         root_scopes.names.get(), root_scopes.types.get());
 
   auto parser = ovid::Parser(lexer, errorMan, scopes, args.package_name);
 
@@ -277,12 +285,12 @@ int main(int argc, char **argv) {
   }
 
   /* construct main function name */
-  auto main_func = args.package_name;
-  main_func.emplace_back("main");
+  std::string main_name = "main";
   /* emit */
   codegen.optAndEmit(args.opt_level, args.out_file, args.codegen_out,
-                     args.do_main, &main_func, args.reloc_model,
-                     args.code_model);
+                     args.do_main,
+                     root_scopes.names->getScopeTable(args.package_name),
+                     &main_name, args.reloc_model, args.code_model);
 
   if (errorMan.criticalErrorOccurred()) {
     return 1;

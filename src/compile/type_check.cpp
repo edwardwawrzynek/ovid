@@ -192,19 +192,13 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
     return TypeCheckResult::nullResult();
   }
 
-  // recreate source name
-  auto sourceName =
-      (node.resolved_symbol->is_global ? currentModule
-                                       : std::vector<std::string>());
-  sourceName.push_back(node.name);
-
   /* reuslting allocation ir node */
   ir::Expression *allocPointer;
 
   if (node.resolved_symbol->is_global) {
     // create GlobalAllocation instruction
     auto global = std::make_unique<ir::GlobalAllocation>(
-        node.loc, ir::Value(sourceName), initialType,
+        node.loc, ir::Value(node.resolved_symbol), initialType,
         *initial.resultInstruction, node.resolved_symbol);
     allocPointer = global.get();
 
@@ -212,7 +206,7 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
   } else {
     // create the allocation instruction and add to initial.instruction
     auto alloc = std::make_unique<ir::Allocation>(
-        node.loc, ir::Value(sourceName), initialType,
+        node.loc, ir::Value(node.resolved_symbol), initialType,
         ir::AllocationType::UNRESOLVED_LOCAL);
     allocPointer = alloc.get();
     auto &allocRef = *alloc;
@@ -264,8 +258,7 @@ TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
   // insert a ForwardIdentifier node
   if (node.resolved_symbol->ir_decl_instruction == nullptr) {
     auto forwardIdent = std::make_unique<ir::ForwardIdentifier>(
-        node.loc, ir::Value(node.resolved_symbol->getFullyScopedName()),
-        node.resolved_symbol);
+        node.loc, ir::Value(node.resolved_symbol), node.resolved_symbol);
     alloc_node = forwardIdent.get();
     curInstructionList->push_back(std::move(forwardIdent));
   } else {
@@ -347,10 +340,6 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   curBasicBlockList = &body;
   curInstructionList = &body[0]->body;
 
-  // recreate source name
-  std::vector<std::string> sourceName = currentModule;
-  sourceName.push_back(node.name);
-
   // create allocations for arguments
   std::vector<std::reference_wrapper<ir::Allocation>> argAllocs;
 
@@ -358,14 +347,10 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   assert(node.type->argNames.size() == node.type->resolvedArgs.size());
 
   for (size_t i = 0; i < node.type->argNames.size(); i++) {
-    auto &name = node.type->argNames[i];
     auto &type = node.type->argTypes[i];
 
-    std::vector<std::string> argNameSource;
-    argNameSource.push_back(name);
-
     auto argAlloc = std::make_unique<ir::Allocation>(
-        type->loc, ir::Value(argNameSource), type,
+        type->loc, ir::Value(node.type->resolvedArgs[i]), type,
         ir::AllocationType::UNRESOLVED_FUNC_ARG);
     auto argAllocPointer = argAlloc.get();
 
@@ -388,8 +373,8 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
 
   // construct the function declaration instruction
   auto instr = std::make_unique<ir::FunctionDeclare>(
-      node.loc, ir::Value(sourceName), node.type, argAllocs, std::move(body),
-      node.resolved_symbol->is_public);
+      node.loc, ir::Value(node.resolved_symbol), node.type, argAllocs,
+      std::move(body), node.resolved_symbol->is_public);
   auto instrPointer = instr.get();
 
   curInstructionList->push_back(std::move(instr));

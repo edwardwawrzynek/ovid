@@ -64,9 +64,7 @@ llvm::Type *LLVMTypeGen::visitStructType(ast::StructType &type,
   if (type.llvm_type != nullptr)
     return type.llvm_type;
   // create struct type
-  auto name =
-      name_mangling::mangle(type.type_alias.lock()->getFullyScopedName(),
-                            name_mangling::MangleType::TYPE);
+  auto name = name_mangling::mangleType(type.type_alias.lock());
   auto structType = llvm::StructType::create(llvm_context, name);
   type.llvm_type = structType;
   // fill in body
@@ -189,7 +187,7 @@ LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
   assert(funcType != nullptr);
 
   function = visitFunctionPrototype(
-      funcType, name_mangling::mangle(instruct.val.sourceName),
+      funcType, name_mangling::mangleIdentifier(instruct.val),
       instruct.is_public, state);
 
   /* shouldn't be redefining a function */
@@ -342,7 +340,7 @@ LLVMCodegenPass::visitAllocationEntry(Allocation &instruct,
       /* create alloca on stack */
       auto alloca =
           builder.CreateAlloca(type_gen.visitType(*instruct.type), nullptr,
-                               name_mangling::mangle(instruct.val));
+                               name_mangling::mangleIdentifier(instruct.val));
       /* copy from arg */
       builder.CreateStore(instruct.val.llvm_value, alloca);
       return instruct.val.llvm_value = alloca;
@@ -355,7 +353,7 @@ LLVMCodegenPass::visitAllocationEntry(Allocation &instruct,
     if (instruct.allocType == AllocationType::STACK) {
       auto alloca =
           builder.CreateAlloca(type_gen.visitType(*instruct.type), nullptr,
-                               name_mangling::mangle(instruct.val));
+                               name_mangling::mangleIdentifier(instruct.val));
       return instruct.val.llvm_value = alloca;
     } else if (instruct.allocType == AllocationType::HEAP) {
       /* heap isn't an alloca, so it doesn't need to be in the entry block.
@@ -425,7 +423,7 @@ LLVMCodegenPass::visitGlobalAllocation(GlobalAllocation &instruct,
       instruct.symbol->is_public ? llvm::GlobalValue::ExternalLinkage
                                  : llvm::GlobalValue::InternalLinkage,
       llvm::dyn_cast<llvm::Constant>(initVal),
-      name_mangling::mangle(instruct.val));
+      name_mangling::mangleIdentifier(instruct.val));
 
   return instruct.val.llvm_value = global;
 }
@@ -784,14 +782,15 @@ LLVMCodegenPass::visitForwardIdentifier(ForwardIdentifier &instruct,
       dynamic_cast<ast::NamedFunctionType *>(instruct.symbol_ref->type.get());
   assert(funcType != nullptr);
 
-  auto function =
-      visitFunctionPrototype(funcType, name_mangling::mangle(instruct.val),
-                             instruct.symbol_ref->is_public, state);
+  auto function = visitFunctionPrototype(
+      funcType, name_mangling::mangleIdentifier(instruct.val),
+      instruct.symbol_ref->is_public, state);
 
   return instruct.val.llvm_value = function;
 }
 
-void LLVMCodegenPass::addMain(const std::vector<std::string> &main_func_name) {
+void LLVMCodegenPass::addMain(const ScopeTable<Symbol> *package,
+                              const std::string &main_func_name) {
   auto funcType =
       llvm::FunctionType::get(llvm::Type::getInt32Ty(llvm_context), false);
   auto function = llvm::Function::Create(
@@ -800,8 +799,8 @@ void LLVMCodegenPass::addMain(const std::vector<std::string> &main_func_name) {
   auto block = llvm::BasicBlock::Create(llvm_context, "bb0", function);
   builder.SetInsertPoint(block);
 
-  auto main_func =
-      llvm_module->getFunction(name_mangling::mangle(main_func_name));
+  auto main_func = llvm_module->getFunction(
+      name_mangling::mangleMainFunc(package, main_func_name));
   if (main_func == nullptr) {
     errorMan.logError("no main function declared",
                       SourceLocation::nullLocation(), ErrorType::InternalError);
@@ -815,12 +814,13 @@ void LLVMCodegenPass::addMain(const std::vector<std::string> &main_func_name) {
 void LLVMCodegenPass::optAndEmit(llvm::PassBuilder::OptimizationLevel optLevel,
                                  const std::string &filename,
                                  CodegenOutputType outType, bool genMainFunc,
-                                 const std::vector<std::string> *mainFuncName,
+                                 const ScopeTable<Symbol> *mainPackage,
+                                 const std::string *mainFuncName,
                                  llvm::Reloc::Model relocModel,
                                  llvm::CodeModel::Model codeModel) {
   if (genMainFunc) {
-    assert(mainFuncName != nullptr);
-    addMain(*mainFuncName);
+    assert(mainFuncName != nullptr && mainPackage != nullptr);
+    addMain(mainPackage, *mainFuncName);
   }
 
   llvm::InitializeNativeTarget();

@@ -1,12 +1,6 @@
-struct Test {
-    field1 i32
-    field2 Test
-}
-
-pub fn test(a Test) {
-
-}
+native fn std:scope:test() -> i32
+native fn std:test() -> i32
 
 pub fn main() -> i32 {
-    return 0
+    return test() + ::std:test()
 }

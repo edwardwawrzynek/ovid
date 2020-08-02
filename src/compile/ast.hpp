@@ -105,7 +105,7 @@ public:
   void popComponentScopesByName(const std::vector<std::string> &module);
 
   ActiveScopes(const std::vector<std::string> &packageName,
-               ScopeTable<Symbol> *rootNameScope,
+               int64_t package_version, ScopeTable<Symbol> *rootNameScope,
                ScopeTable<TypeAlias> *rootTypeScope);
 };
 
