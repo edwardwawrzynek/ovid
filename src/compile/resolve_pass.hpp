@@ -22,54 +22,38 @@ public:
       : package(package), current_module(current_module){};
 };
 
-class TypeResolver
-    : public BaseTypeVisitor<std::shared_ptr<Type>, TypeResolverState> {
-
+class TypeResolver {
   ActiveScopes &scopes;
   ErrorManager &errorMan;
 
   std::shared_ptr<Type>
-  visitUnresolvedType(UnresolvedType &type,
-                      const TypeResolverState &state) override;
+  visitUnresolvedType(std::shared_ptr<UnresolvedType> type,
+                      const TypeResolverState &state);
 
-  std::shared_ptr<Type> visitVoidType(VoidType &type,
-                                      const TypeResolverState &state) override;
-  std::shared_ptr<Type> visitBoolType(BoolType &type,
-                                      const TypeResolverState &state) override;
-  std::shared_ptr<Type> visitIntType(IntType &type,
-                                     const TypeResolverState &state) override;
-  std::shared_ptr<Type> visitFloatType(FloatType &type,
-                                       const TypeResolverState &state) override;
+  std::shared_ptr<MutType> visitMutType(std::shared_ptr<MutType> type,
+                                        const TypeResolverState &state);
+  std::shared_ptr<PointerType>
+  visitPointerType(std::shared_ptr<PointerType> type,
+                   const TypeResolverState &state);
 
-  std::shared_ptr<Type> visitMutType(MutType &type,
-                                     const TypeResolverState &state) override;
-  std::shared_ptr<Type>
-  visitPointerType(PointerType &type, const TypeResolverState &state) override;
+  std::shared_ptr<FunctionType>
+  visitFunctionType(std::shared_ptr<FunctionType> type,
+                    const TypeResolverState &state);
 
-  std::shared_ptr<Type>
-  visitFunctionType(FunctionType &type,
-                    const TypeResolverState &state) override;
-  std::shared_ptr<Type>
-  visitNamedFunctionType(NamedFunctionType &type,
-                         const TypeResolverState &state) override;
-
-  std::shared_ptr<Type> visitTupleType(TupleType &type,
-                                       const TypeResolverState &state) override;
-  std::shared_ptr<Type>
-  visitStructType(StructType &type, const TypeResolverState &state) override;
+  std::shared_ptr<TupleType> visitTupleType(std::shared_ptr<TupleType> type,
+                                            const TypeResolverState &state);
+  std::shared_ptr<Type> visitStructType(std::shared_ptr<StructType> type,
+                                        const TypeResolverState &state);
 
 public:
-  TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan);
-
-  // function must be non overloaded to get the right return type (FunctionType,
-  // not just the generic Type
-  std::shared_ptr<FunctionType>
-  visitFunctionTypeNonOverload(FunctionType &type,
-                               const TypeResolverState &state);
+  std::shared_ptr<Type> visitType(const std::shared_ptr<Type> &type,
+                                  const TypeResolverState &state);
 
   std::shared_ptr<NamedFunctionType>
-  visitNamedFunctionTypeNonOverload(NamedFunctionType &type,
-                                    const TypeResolverState &state);
+  visitNamedFunctionType(std::shared_ptr<NamedFunctionType> type,
+                         const TypeResolverState &state);
+
+  TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan);
 };
 
 class ResolvePassState {};

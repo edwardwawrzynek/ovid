@@ -1,0 +1,15 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+fn test(arg C) -> A {
+    return arg.0
+}
+
+pub fn main() -> i32 {
+    return test((0, 255))
+}
+
+type A = i32
+type B = (A, A)
+type C = B

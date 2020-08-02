@@ -1,3 +1,7 @@
+// __ovid_compiler_test
+//__mode: type_check
+//__end_header
+
 struct TestType {
     field1  i32
     field2  *TestType

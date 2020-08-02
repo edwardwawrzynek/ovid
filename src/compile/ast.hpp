@@ -70,19 +70,22 @@ public:
   // if the type is marked pub
   bool is_public;
 
+  // if the contained type has been run through type resolution
+  bool inner_resolved;
+
   /* the symbol's name and containing table (used for generating fully scoped
    * names backwards) */
   std::string name;
   ScopeTable<TypeAlias> *parent_table;
 
   explicit TypeAlias(const SourceLocation &decl_loc)
-      : decl_loc(decl_loc), type(), is_public(false), name(),
-        parent_table(nullptr){};
+      : decl_loc(decl_loc), type(), is_public(false), inner_resolved(false),
+        name(), parent_table(nullptr){};
 
   TypeAlias(const SourceLocation &decl_loc, std::shared_ptr<ast::Type> type,
             bool is_public)
-      : decl_loc(decl_loc), type(std::move(type)), is_public(is_public), name(),
-        parent_table(nullptr){};
+      : decl_loc(decl_loc), type(std::move(type)), is_public(is_public),
+        inner_resolved(false), name(), parent_table(nullptr){};
 
   /* get this symbol's fully scoped name */
   std::vector<std::string> getFullyScopedName();
@@ -323,6 +326,9 @@ public:
   // type alias for this structure type
   std::weak_ptr<TypeAlias> type_alias;
 
+  // if the field types have gone through type resolution
+  bool fields_resolved;
+
   bool equalToExpected(const Type &expected) const override;
 
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
@@ -336,7 +342,8 @@ public:
              std::vector<bool> fields_are_public)
       : ProductType(loc), field_types(std::move(field_types)),
         field_names(std::move(field_names)),
-        fields_are_public(std::move(fields_are_public)), type_alias(){};
+        fields_are_public(std::move(fields_are_public)), type_alias(),
+        fields_resolved(false){};
 
   StructType(const SourceLocation &loc, TypeList field_types,
              std::vector<std::string> field_names,
@@ -345,7 +352,7 @@ public:
       : ProductType(loc), field_types(std::move(field_types)),
         field_names(std::move(field_names)),
         fields_are_public(std::move(fields_are_public)),
-        type_alias(type_alias){};
+        type_alias(std::move(type_alias)), fields_resolved(false){};
 };
 
 class FunctionPrototype {

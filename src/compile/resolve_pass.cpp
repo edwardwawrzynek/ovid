@@ -1,5 +1,7 @@
 #include "resolve_pass.hpp"
 
+#include <utility>
+
 namespace ovid::ast {
 
 int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
@@ -14,8 +16,9 @@ int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
   node.resolved_symbol->resolve_pass_declared_yet = true;
 
   if (node.explicitType != nullptr) {
-    auto state = TypeResolverState(package, current_module);
-    node.explicitType = type_resolver.visitType(*node.explicitType, state);
+    auto type_resolv_state = TypeResolverState(package, current_module);
+    node.explicitType =
+        type_resolver.visitType(node.explicitType, type_resolv_state);
   }
 
   return 0;
@@ -31,8 +34,7 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
 
   assert(node.type->resolvedArgs.empty());
   auto typeResolveState = TypeResolverState(package, current_module);
-  node.type = type_resolver.visitNamedFunctionTypeNonOverload(*node.type,
-                                                              typeResolveState);
+  node.type = type_resolver.visitNamedFunctionType(node.type, typeResolveState);
 
   node.resolved_symbol->type = node.type;
 
@@ -206,12 +208,57 @@ int ResolvePass::visitTypeAliasDecl(TypeAliasDecl &node,
   checkTypeShadowed(node.loc, node.name,
                     [](const TypeAlias &t) { return true; });
 
-  if (node.type->type == nullptr)
-    return 0;
+  // if the aliased type hasn't already been resolved, resolve it
+  // needed to reject invalid aliases if they are never otherwise used
+  if (!node.type->inner_resolved) {
+    node.type->type = type_resolver.visitType(
+        node.type->type, TypeResolverState(package, current_module));
+  }
 
-  // run type resolution on the type
-  auto resolverState = TypeResolverState(package, current_module);
-  node.type->type = type_resolver.visitType(*node.type->type, resolverState);
+  return 0;
+}
+
+bool ResolvePass::checkShadowed(const SourceLocation &pos,
+                                const std::string &name,
+                                std::function<bool(const Symbol &)> predicate,
+                                bool is_arg) {
+  // pop top scope of scope stack, so that current declaration isn't found
+  auto poppedScope = scopes.names.popScope();
+
+  auto shadowed = scopes.names.findSymbol(std::vector<std::string>(), name,
+                                          std::move(predicate));
+  if (shadowed) {
+    auto scoped_name =
+        scopesAndNameToString(current_module, name, is_in_global);
+
+    errorMan.logError(
+        string_format(
+            "declaration of %s`\x1b[1m%s\x1b[m` shadows higher declaration",
+            (is_arg ? "argument " : ""), scoped_name.c_str()),
+        pos, ErrorType::VarDeclareShadowed, false);
+    errorMan.logError(
+        string_format("shadowed declaration of `\x1b[1m%s\x1b[m` here",
+                      scoped_name.c_str()),
+        shadowed->decl_loc, ErrorType::Note);
+  }
+
+  scopes.names.pushScope(poppedScope);
+
+  return shadowed != nullptr;
+}
+
+int ResolvePass::visitReturnStatement(ReturnStatement &node,
+                                      const ResolvePassState &state) {
+  if (node.expression != nullptr) {
+    visitNode(*node.expression, state);
+  }
+
+  return 0;
+}
+
+int ResolvePass::visitFieldAccess(FieldAccess &node,
+                                  const ResolvePassState &state) {
+  visitNode(*node.lvalue, state);
 
   return 0;
 }
@@ -232,35 +279,6 @@ void ResolvePass::removePushedPackageScope() {
   scopes.popComponentScopesByName(package);
   assert(scopes.names.getNumActiveScopes() == 1);
   assert(scopes.types.getNumActiveScopes() == 1);
-}
-
-bool ResolvePass::checkShadowed(const SourceLocation &pos,
-                                const std::string &name,
-                                std::function<bool(const Symbol &)> predicate,
-                                bool is_arg) {
-  // pop top scope of scope stack, so that current declaration isn't found
-  auto poppedScope = scopes.names.popScope();
-
-  auto shadowed =
-      scopes.names.findSymbol(std::vector<std::string>(), name, predicate);
-  if (shadowed) {
-    auto scoped_name =
-        scopesAndNameToString(current_module, name, is_in_global);
-
-    errorMan.logError(
-        string_format(
-            "declaration of %s`\x1b[1m%s\x1b[m` shadows higher declaration",
-            (is_arg ? "argument " : ""), scoped_name.c_str()),
-        pos, ErrorType::VarDeclareShadowed, false);
-    errorMan.logError(
-        string_format("shadowed declaration of `\x1b[1m%s\x1b[m` here",
-                      scoped_name.c_str()),
-        shadowed->decl_loc, ErrorType::Note);
-  }
-
-  scopes.names.pushScope(poppedScope);
-
-  return shadowed != nullptr;
 }
 
 bool ResolvePass::checkTypeShadowed(
@@ -293,155 +311,128 @@ bool ResolvePass::checkTypeShadowed(
   return shadowed != nullptr;
 }
 
-int ResolvePass::visitReturnStatement(ReturnStatement &node,
-                                      const ResolvePassState &state) {
-  if (node.expression != nullptr) {
-    visitNode(*node.expression, state);
-  }
-
-  return 0;
-}
-
-int ResolvePass::visitFieldAccess(FieldAccess &node,
-                                  const ResolvePassState &state) {
-  visitNode(*node.lvalue, state);
-
-  return 0;
-}
-
 std::shared_ptr<Type>
-TypeResolver::visitUnresolvedType(UnresolvedType &type,
+TypeResolver::visitUnresolvedType(std::shared_ptr<UnresolvedType> type,
                                   const TypeResolverState &state) {
   // lookup type in type tables
   std::shared_ptr<TypeAlias> sym;
   ScopeTable<TypeAlias> *containingTable;
-  if (type.is_root_scoped) {
-    sym = scopes.types.getRootScope()->findSymbol(type.scopes, type.name);
+  if (type->is_root_scoped) {
+    sym = scopes.types.getRootScope()->findSymbol(type->scopes, type->name);
     containingTable = scopes.types.getRootScope();
   } else {
-    sym = scopes.types.findSymbol(type.scopes, type.name);
+    sym = scopes.types.findSymbol(type->scopes, type->name);
     containingTable =
-        scopes.types.findTableContainingSymbol(type.scopes, type.name);
+        scopes.types.findTableContainingSymbol(type->scopes, type->name);
   }
 
-  auto scopedName = scopesAndNameToString(type.scopes, type.name, true);
+  auto scopedName = scopesAndNameToString(type->scopes, type->name, true);
 
   if (sym == nullptr) {
     errorMan.logError(string_format("use of undeclared type `\x1b[1m%s\x1b[m`",
                                     scopedName.c_str()),
-                      type.loc, ErrorType::UndeclaredType);
+                      type->loc, ErrorType::UndeclaredType);
 
     return nullptr;
   }
   // check for use of private type
   else if (!containingTable->checkAccessible(
-               type.scopes, type.name,
+               type->scopes, type->name,
                scopes.types.getRootScope()->getScopeTable(state.package),
                scopes.types.getRootScope()->getScopeTable(state.current_module),
                sym->is_public)) {
     errorMan.logError(string_format("use of private type `\x1b[1m%s\x1b[m`",
                                     scopedName.c_str()),
-                      type.loc, ErrorType::UseOfPrivateType);
+                      type->loc, ErrorType::UseOfPrivateType);
   }
 
-  // return std::make_shared<ResolvedAlias>(type.loc, sym);
-  // TODO: somehow preserve info that type was aliased (for error messages, etc)
+  // resolve inner type if it hasn't been already
+  if (!sym->inner_resolved) {
+    sym->inner_resolved = true;
+    sym->type = visitType(sym->type, state);
+  }
   return sym->type;
 }
 
-std::shared_ptr<Type>
-TypeResolver::visitVoidType(VoidType &type, const TypeResolverState &state) {
-  return std::make_shared<VoidType>(type.loc);
+std::shared_ptr<MutType>
+TypeResolver::visitMutType(std::shared_ptr<MutType> type,
+                           const TypeResolverState &state) {
+  type->type = visitType(type->type, state);
+  return type;
 }
 
-std::shared_ptr<Type>
-TypeResolver::visitBoolType(BoolType &type, const TypeResolverState &state) {
-  return std::make_shared<BoolType>(type.loc);
-}
-
-std::shared_ptr<Type>
-TypeResolver::visitIntType(IntType &type, const TypeResolverState &state) {
-  return std::make_shared<IntType>(type.loc, type.size, type.isUnsigned);
-}
-
-std::shared_ptr<Type>
-TypeResolver::visitFloatType(FloatType &type, const TypeResolverState &state) {
-  return std::make_shared<FloatType>(type.loc, type.size);
-}
-
-std::shared_ptr<Type>
-TypeResolver::visitMutType(MutType &type, const TypeResolverState &state) {
-  return std::make_shared<MutType>(type.loc, visitType(*type.type, state));
-}
-
-std::shared_ptr<Type>
-TypeResolver::visitPointerType(PointerType &type,
+std::shared_ptr<PointerType>
+TypeResolver::visitPointerType(std::shared_ptr<PointerType> type,
                                const TypeResolverState &state) {
-  return std::make_shared<PointerType>(type.loc, visitType(*type.type, state));
+  type->type = visitType(type->type, state);
+  return type;
 }
 
 std::shared_ptr<FunctionType>
-TypeResolver::visitFunctionTypeNonOverload(FunctionType &type,
-                                           const TypeResolverState &state) {
-  TypeList argTypes;
-  for (auto &arg : type.argTypes) {
-    argTypes.push_back(visitType(*arg, state));
+TypeResolver::visitFunctionType(std::shared_ptr<FunctionType> type,
+                                const TypeResolverState &state) {
+  for (auto &arg : type->argTypes) {
+    arg = visitType(arg, state);
   }
-  auto retType = visitType(*type.retType, state);
-  return std::make_shared<FunctionType>(type.loc, std::move(argTypes),
-                                        std::move(retType));
+
+  type->retType = visitType(type->retType, state);
+
+  return type;
 }
 
 std::shared_ptr<NamedFunctionType>
-TypeResolver::visitNamedFunctionTypeNonOverload(
-    NamedFunctionType &type, const TypeResolverState &state) {
-  TypeList argTypes;
-  for (auto &arg : type.argTypes) {
-    argTypes.push_back(visitType(*arg, state));
-  }
-  auto retType = visitType(*type.retType, state);
-  return std::make_shared<NamedFunctionType>(type.loc, std::move(argTypes),
-                                             std::move(retType), type.argNames);
-}
-
-std::shared_ptr<Type>
-TypeResolver::visitFunctionType(FunctionType &type,
-                                const TypeResolverState &state) {
-  return visitFunctionTypeNonOverload(type, state);
-}
-
-std::shared_ptr<Type>
-TypeResolver::visitNamedFunctionType(NamedFunctionType &type,
+TypeResolver::visitNamedFunctionType(std::shared_ptr<NamedFunctionType> type,
                                      const TypeResolverState &state) {
-  return visitNamedFunctionTypeNonOverload(type, state);
+  auto funcTypeRes = visitFunctionType(type, state);
+  assert(funcTypeRes.get() == type.get());
+
+  return type;
 }
 
-std::shared_ptr<Type>
-TypeResolver::visitTupleType(TupleType &type, const TypeResolverState &state) {
-  TypeList types;
-
-  for (auto &child : type.types) {
-    types.push_back(visitType(*child, state));
+std::shared_ptr<TupleType>
+TypeResolver::visitTupleType(std::shared_ptr<TupleType> type,
+                             const TypeResolverState &state) {
+  for (auto &field : type->types) {
+    field = visitType(field, state);
   }
 
-  return std::make_shared<TupleType>(type.loc, std::move(types));
+  return type;
 }
 
 std::shared_ptr<Type>
-TypeResolver::visitStructType(StructType &type,
+TypeResolver::visitStructType(std::shared_ptr<StructType> type,
                               const TypeResolverState &state) {
-  TypeList types;
+  if (type->fields_resolved) {
+    return type;
+  }
+  type->fields_resolved = true;
 
-  for (auto &child : type.field_types) {
-    types.push_back(visitType(*child, state));
+  for (auto &field : type->field_types) {
+    field = visitType(field, state);
   }
 
-  return std::make_shared<StructType>(
-      type.loc, std::move(types), std::move(type.field_names),
-      std::move(type.fields_are_public), type.type_alias);
+  return type;
+}
+
+#define TYPE_RESOLVER_VISIT_CASE(caseType, caseFunction)                       \
+  if (std::dynamic_pointer_cast<caseType>(type) != nullptr) {                  \
+    return caseFunction(std::dynamic_pointer_cast<caseType>(type), state);     \
+  }
+
+std::shared_ptr<Type> TypeResolver::visitType(const std::shared_ptr<Type> &type,
+                                              const TypeResolverState &state) {
+  TYPE_RESOLVER_VISIT_CASE(UnresolvedType, visitUnresolvedType);
+  TYPE_RESOLVER_VISIT_CASE(MutType, visitMutType);
+  TYPE_RESOLVER_VISIT_CASE(PointerType, visitPointerType);
+  TYPE_RESOLVER_VISIT_CASE(FunctionType, visitFunctionType);
+  TYPE_RESOLVER_VISIT_CASE(TupleType, visitTupleType);
+  TYPE_RESOLVER_VISIT_CASE(StructType, visitStructType);
+
+  /* all other types can't contain type aliases */
+  return type;
 }
 
 TypeResolver::TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan)
-    : BaseTypeVisitor(nullptr), scopes(scopes), errorMan(errorMan) {}
+    : scopes(scopes), errorMan(errorMan) {}
 
 } // namespace ovid::ast
