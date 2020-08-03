@@ -1107,24 +1107,28 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
     return TypeCheckResult::nullResult();
 
   auto lvalueInstr = lvalueRes.resultInstruction;
-  // emit field access
+  // type of expression
   auto recordType =
       dynamic_cast<ProductType *>(lvalueRes.resultType->withoutMutability());
+  // if the resulting fields should be mutable
+  bool isMut = dynamic_cast<MutType *>(lvalueRes.resultType.get()) != nullptr;
   // check for pointer to a RecordType, and, if so, perform implicit dereference
   if (recordType == nullptr) {
     auto pointerType =
         dynamic_cast<PointerType *>(lvalueRes.resultType->withoutMutability());
     if (pointerType != nullptr) {
-      auto pointToType =
-          std::dynamic_pointer_cast<ProductType>(pointerType->type);
+      auto recordPointerType = std::dynamic_pointer_cast<ProductType>(
+          withoutMutType(pointerType->type));
+      // preserve mutability
+      isMut = dynamic_cast<MutType *>(pointerType->type.get()) != nullptr;
       // if type is pointer to record, add dereference instruction
-      if (pointToType != nullptr) {
+      if (recordPointerType != nullptr) {
         auto deref = std::make_unique<ir::Dereference>(
-            node.loc, ir::Value(), *lvalueInstr, pointToType);
+            node.loc, ir::Value(), *lvalueInstr, pointerType->type);
         lvalueInstr = deref.get();
         curInstructionList->push_back(std::move(deref));
 
-        recordType = pointToType.get();
+        recordType = recordPointerType.get();
       }
     }
   }
@@ -1170,7 +1174,7 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
 
   auto resType = recordType->getTypeOfField(field_index);
   // if tuple was mutable, add mutability back to field
-  if (dynamic_cast<MutType *>(lvalueRes.resultType.get()) != nullptr) {
+  if (isMut) {
     resType = addMutType(resType, true);
   }
   // emit ir instruction

@@ -321,7 +321,7 @@ int TesterInstance::runParse(ErrorManager &errorMan, ast::StatementList &astRes,
                              const ScopesRoot &scopes_root) {
   // Parse
   auto lexer = Tokenizer(filename, &file, errorMan);
-  auto scopes = ActiveScopes(packageName, scopes_root.names.get(),
+  auto scopes = ActiveScopes(packageName, -1, scopes_root.names.get(),
                              scopes_root.types.get());
   auto parser = Parser(lexer, errorMan, scopes, packageName);
   astRes = parser.parseProgram();

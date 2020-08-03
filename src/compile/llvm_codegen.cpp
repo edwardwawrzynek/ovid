@@ -929,6 +929,8 @@ void LLVMCodegenPass::optAndEmit(llvm::PassBuilder::OptimizationLevel optLevel,
     pass.run(*llvm_module);
     outFile.flush();
   }
+
+  delete targetMachine;
 }
 
 } // namespace ovid::ir

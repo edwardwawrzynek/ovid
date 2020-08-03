@@ -10,7 +10,11 @@ struct Type1 {
 type Type2 = (i32, *mut i32)
 
 fn test(a *mut Type1, b Type1, c *mut Type2) {
+    a.field1 = 5
     a.field2 = a
-}
 
-pub fn main() -> i32 {}
+    c.0 += *c.1
+    *c.1 = 10
+
+    b.field1 = 5 //__error: "left side of assignment is non mutable"
+}

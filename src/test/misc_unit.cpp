@@ -176,7 +176,7 @@ TEST(BasicActiveScopesTest, Symbols) {
 
   auto root_scope = ScopesRoot();
   auto scopes =
-      ActiveScopes(package, root_scope.names.get(), root_scope.types.get());
+      ActiveScopes(package, -1, root_scope.names.get(), root_scope.types.get());
 
   auto t1 = scopes.types.getRootScope()->addScopeTable("test1", true);
   t1->addScopeTable("test2", true);
@@ -213,7 +213,7 @@ TEST(ActiveScopesDeathTest, Symbols) {
 
   auto root_scope = ScopesRoot();
   auto scopes =
-      ActiveScopes(package, root_scope.names.get(), root_scope.types.get());
+      ActiveScopes(package, -1, root_scope.names.get(), root_scope.types.get());
   auto t1 = scopes.types.getRootScope()->addScopeTable("test1", true);
   t1->addScopeTable("test2", true);
   std::vector<std::string> mods;
