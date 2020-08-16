@@ -17,6 +17,6 @@ fn test2() -> *Type1 {
     mut t = new_type1()
     test(&t)
 
-    return t.field2.field2.field2
+    return t.field2.field2
 }
 

@@ -14,6 +14,20 @@
 
 namespace ovid::ir {
 
+/* struct used to contain the visited state of traceFlow */
+struct TraceFlowVisitedState {
+public:
+  // from values that have already been visited
+  std::vector<FlowValue> visitedFroms;
+  // specialized from values that have already been visited
+  std::vector<FlowValue> visitedSpecialFroms;
+  // full flows to avoid revisiting
+  std::vector<Flow> visitedFlows;
+
+  TraceFlowVisitedState()
+      : visitedFroms(), visitedSpecialFroms(), visitedFlows(){};
+};
+
 /* given a value and a list of flows, find all values to which the value may
  * flow. if a flow matching a more specialized form of value is found, that more
  * specified form is passed to specializedFlowFunc (but not followed)
@@ -24,8 +38,7 @@ void traceFlow(
     const FlowValue &value, const FlowValue &initValue, const FlowList &flows,
     const std::function<void(const FlowValue &)> &func,
     const std::function<void(const FlowValue &)> &specializedFlowFunc,
-    std::vector<FlowValue> &visitedFlows,
-    std::vector<FlowValue> &visitedSpecializations);
+    TraceFlowVisitedState &state);
 
 // given a product type, produce an array of all of its types (including nested
 // product types)
@@ -95,13 +108,11 @@ class EscapeAnalysisPass : public BaseIRVisitor<int, EscapeAnalysisState> {
       ir::FuncFlowList &functionFlows,
       const std::vector<std::reference_wrapper<Allocation>> &funcArgs,
       const ir::FlowList &flows, const FlowValue &srcValue,
-      std::vector<FlowValue> &visitedFlows,
-      std::vector<FlowValue> &visitedSpecialization);
+      TraceFlowVisitedState &trace_state);
 
   void markEscapingAllocations(const ir::FlowList &flows, Allocation &alloc,
                                const FlowValue &srcValue,
-                               std::vector<FlowValue> &visitedFlows,
-                               std::vector<FlowValue> &visitedSpecialization);
+                               TraceFlowVisitedState &trace_state);
 
 public:
   EscapeAnalysisPass(bool print_flows, bool print_escapes,

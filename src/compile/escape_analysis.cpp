@@ -473,25 +473,32 @@ void traceFlow(
     const FlowValue &value, const FlowValue &initValue, const FlowList &flows,
     const std::function<void(const FlowValue &)> &func,
     const std::function<void(const FlowValue &)> &specializedFlowFunc,
-    std::vector<FlowValue> &visitedFlows,
-    std::vector<FlowValue> &visitedSpecializations) {
+    TraceFlowVisitedState &state) {
   for (auto &flow : flows) {
+    // if we've already visited this flow for this value, don't revisit
+    if (vectorContains(state.visitedFlows, flow))
+      continue;
+
     if (flow.contains(value)) {
       auto specialized = flow.specializedTo(value);
-
+      // new value to trace
       auto &newVal = specialized.into;
 
-      if (vectorContains(visitedFlows, newVal))
+      if (vectorContains(state.visitedFroms, newVal))
         continue;
 
-      func(specialized.into);
-      /* don't follow escaping flows */
+      func(newVal);
+      /* trace the flow further, unless it is to an escaping location (no point
+       * tracing it when it is already known to escape) */
       if (newVal.is_escape == EscapeType::NONE) {
-        traceFlow(newVal, initValue, flows, func, specializedFlowFunc,
-                  visitedFlows, visitedSpecializations);
+        // don't follow the same flow twice for the same value
+        state.visitedFlows.push_back(flow);
+        // trace the new from value
+        traceFlow(newVal, initValue, flows, func, specializedFlowFunc, state);
+        state.visitedFlows.pop_back();
       }
 
-      visitedFlows.push_back(newVal);
+      state.visitedFroms.push_back(newVal);
     } else if (flow.from.expr.val.id == value.expr.val.id) {
       /* flow is more specialized than value, adjust to initValue and call
        * specializedFlowFunc */
@@ -503,11 +510,11 @@ void traceFlow(
       auto specialFlow = generalFlow.specializedTo(flow.from);
       auto &specialVal = specialFlow.into;
 
-      if (vectorContains(visitedSpecializations, specialVal))
+      if (vectorContains(state.visitedSpecialFroms, specialVal))
         continue;
 
       specializedFlowFunc(specialVal);
-      visitedSpecializations.push_back(specialVal);
+      state.visitedSpecialFroms.push_back(specialVal);
     }
   }
 }
@@ -562,6 +569,12 @@ bool operator!=(const FlowValue &lhs, const FlowValue &rhs) {
   return !(lhs == rhs);
 }
 
+bool operator==(const Flow &lhs, const Flow &rhs) {
+  return lhs.from == rhs.from && lhs.into == rhs.into;
+}
+
+bool operator!=(const Flow &lhs, const Flow &rhs) { return !(lhs == rhs); }
+
 int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                              const EscapeAnalysisState &state) {
   // if the function has already been visited, skip it
@@ -598,27 +611,28 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
     }
   }
 
-  /* trace flows for each allocation and mark escaping */
+  /* trace flows for each allocation and mark if they escape */
   visitAllocations(instruct.body, [this, &flows](Allocation &alloc) {
     /* trace flow of address of allocation */
     std::vector<std::vector<int32_t>> selects;
     selects.emplace_back();
     auto value = FlowValue(alloc, 0, selects);
 
-    std::vector<FlowValue> tmp1, tmp2;
-    markEscapingAllocations(flows, alloc, value, tmp1, tmp2);
+    TraceFlowVisitedState trace_state;
+    markEscapingAllocations(flows, alloc, value, trace_state);
   });
 
   // calculate flows needed for function metadata
   // these are flows where the source is an argument and the dest is another
   // arg, escape, or return
   for (auto &arg : instruct.argAllocs) {
-    std::vector<FlowValue> tmp1, tmp2;
+    TraceFlowVisitedState trace_state;
+
     std::vector<std::vector<int32_t>> selects;
     selects.emplace_back();
     auto value = FlowValue(arg.get(), 0, selects);
     calculateFunctionFlowMetadata(instruct.flow_metadata, instruct.argAllocs,
-                                  flows, value, tmp1, tmp2);
+                                  flows, value, trace_state);
   }
 
   if (print_func_flow_metadata) {
@@ -635,8 +649,7 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
 
 void EscapeAnalysisPass::markEscapingAllocations(
     const ir::FlowList &flows, Allocation &alloc, const FlowValue &srcValue,
-    std::vector<FlowValue> &visitedFlows,
-    std::vector<FlowValue> &visitedSpecialization) {
+    TraceFlowVisitedState &trace_state) {
   traceFlow(
       srcValue, srcValue, flows,
       [this, &alloc](const FlowValue &dst) {
@@ -657,15 +670,13 @@ void EscapeAnalysisPass::markEscapingAllocations(
           }
         }
       },
-      [this, &alloc, &flows, &visitedFlows,
-       &visitedSpecialization](const FlowValue &special) {
+      [this, &alloc, &flows, &trace_state](const FlowValue &special) {
         /* if %a.field escapes, so does %a */
         if (special.indirect_level == 0) {
-          markEscapingAllocations(flows, alloc, special, visitedFlows,
-                                  visitedSpecialization);
+          markEscapingAllocations(flows, alloc, special, trace_state);
         }
       },
-      visitedFlows, visitedSpecialization);
+      trace_state);
 }
 
 bool EscapeAnalysisPass::argsContain(
@@ -683,8 +694,7 @@ void EscapeAnalysisPass::calculateFunctionFlowMetadata(
     ir::FuncFlowList &functionFlows,
     const std::vector<std::reference_wrapper<Allocation>> &funcArgs,
     const ir::FlowList &flows, const FlowValue &srcValue,
-    std::vector<FlowValue> &visitedFlows,
-    std::vector<FlowValue> &visitedSpecialization) {
+    TraceFlowVisitedState &trace_state) {
   traceFlow(
       srcValue, srcValue, flows,
       [&functionFlows, &funcArgs, &srcValue](const FlowValue &dstValue) {
@@ -711,14 +721,13 @@ void EscapeAnalysisPass::calculateFunctionFlowMetadata(
           }
         }
       },
-      [this, &functionFlows, &funcArgs, &flows, &visitedFlows,
-       &visitedSpecialization](const FlowValue &specialValue) {
+      [this, &functionFlows, &funcArgs, &flows,
+       &trace_state](const FlowValue &specialValue) {
         /* trace specialized value */
         calculateFunctionFlowMetadata(functionFlows, funcArgs, flows,
-                                      specialValue, visitedFlows,
-                                      visitedSpecialization);
+                                      specialValue, trace_state);
       },
-      visitedFlows, visitedSpecialization);
+      trace_state);
 }
 
 int EscapeAnalysisPass::visitBasicBlock(BasicBlock &instruct,

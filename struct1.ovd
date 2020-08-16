@@ -15,6 +15,4 @@ fn test(a *mut Type1, b Type1, c *mut Type2) {
 
     c.0 += *c.1
     *c.1 = 10
-
-    b.field1 = 5 //__error: "left side of assignment is non mutable"
 }
