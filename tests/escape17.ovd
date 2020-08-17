@@ -10,7 +10,7 @@ struct Type1 {
 native fn new_type1() -> Type1
 
 fn test(a *mut Type1) {
-    a.field2 = a
+    a.field2 = a.field2.field2
 }
 
 fn test2() -> *Type1 {

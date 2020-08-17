@@ -1,0 +1,28 @@
+// __ovid_compiler_test
+//__mode: check_escape
+//__end_header
+
+struct Type1 {
+    field   *Type2
+}
+
+struct Type2 {
+    field *Type1
+}
+
+native fn new_type1() -> Type1
+native fn new_type2() -> Type2
+
+fn test(t1 *mut Type1, t2 *mut Type2) {
+    t1.field = t2
+    t2.field = t1
+}
+
+fn test2() -> *Type1 {
+    mut t1 = new_type1()
+    mut t2 = new_type2()
+
+    test(&t1, &t2)
+
+    return t1.field.field.field.field
+}

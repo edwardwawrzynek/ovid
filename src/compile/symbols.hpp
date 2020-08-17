@@ -16,7 +16,7 @@ namespace ovid {
  *
  * Storage:
  *    A symbol tables stores the name, type, and other metatdata for symbols. A
- * symbol table contains only symbols that share a scope
+ * symbol table containsFrom only symbols that share a scope
  *
  *    A scope table consists of a reference to the symbol table for that scope,
  * as well a table of child scope tables

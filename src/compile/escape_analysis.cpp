@@ -3,6 +3,22 @@
 
 namespace ovid::ir {
 
+bool operator==(const FlowValue &lhs, const FlowValue &rhs) {
+  return lhs.expr.val.id == rhs.expr.val.id &&
+         lhs.indirect_level == rhs.indirect_level &&
+         lhs.field_selects == rhs.field_selects;
+}
+
+bool operator!=(const FlowValue &lhs, const FlowValue &rhs) {
+  return !(lhs == rhs);
+}
+
+bool operator==(const Flow &lhs, const Flow &rhs) {
+  return lhs.from == rhs.from && lhs.into == rhs.into;
+}
+
+bool operator!=(const Flow &lhs, const Flow &rhs) { return !(lhs == rhs); }
+
 FlowValue::FlowValue(Expression &expr, int32_t indirect_level,
                      const std::vector<std::vector<int32_t>> &field_selects,
                      EscapeType is_escape)
@@ -243,6 +259,66 @@ FlowValue FlowValue::getFlowForDereference(Expression &expr) {
   return FlowValue(expr, 1, selects);
 }
 
+FlowValue FlowValue::withAddedIndirections(int32_t indirections) const {
+  auto newVal = FlowValue(expr, indirect_level, field_selects, is_escape);
+
+  newVal.indirect_level += indirections;
+  for (int32_t i = 0; i < indirections; i++) {
+    newVal.field_selects.emplace_back();
+  }
+
+  return newVal;
+}
+
+bool FlowValue::contains(const FlowValue &value) const {
+  /* mismathced escape types don't contain each other */
+  if (is_escape != value.is_escape)
+    return false;
+  /* a flow of %b doesn't contain %a */
+  if (expr.val.id != value.expr.val.id)
+    return false;
+  /* a flow of **%a doesn't contain *%a */
+  if (indirect_level > value.indirect_level)
+    return false;
+
+  /* construct a new flow with matching indirection level
+   * ie -- flow of *%a containsFrom **%a */
+  const FlowValue &newFlow =
+      value.indirect_level > indirect_level
+          ? withAddedIndirections(value.indirect_level - indirect_level)
+          : *this;
+
+  return newFlow.fieldsMatchOrContain(value);
+}
+
+FlowValue FlowValue::specializeFields(const FlowValue &src,
+                                      const FlowValue &dst) const {
+  assert(src.fieldsMatchOrContain(dst));
+  assert(src.indirect_level == dst.indirect_level);
+
+  /* how many indirections to examine */
+  auto levelsDeep = std::min(src.indirect_level, dst.indirect_level) + 1;
+
+  auto newValue = FlowValue(expr, indirect_level, field_selects, is_escape);
+  for (int32_t i = 0; i < levelsDeep; i++) {
+    auto &srcSelects = src.field_selects[src.indirect_level - i];
+    auto &dstSelects = dst.field_selects[dst.indirect_level - i];
+    auto &newSelects = newValue.field_selects[newValue.indirect_level - i];
+
+    for (size_t j = 0; j < dstSelects.size(); j++) {
+      if (j < srcSelects.size()) {
+        assert(dstSelects[j] == srcSelects[j]);
+      } else {
+        /* if value has a field selector that from doesn't, add that selector in
+         * the appropriate spot to into */
+        newSelects.push_back(dstSelects[j]);
+      }
+    }
+  }
+
+  return newValue;
+}
+
 Flow::Flow(const FlowValue &from, const FlowValue &into)
     : from(from), into(into) {
   /* make sure flowing types are the same */
@@ -256,8 +332,15 @@ bool Flow::isEmpty() const {
   /* empty-ness of both values should match, as they should have the same types
    * flowing */
   assert(from.isEmpty() == into.isEmpty());
+  if (from.isEmpty())
+    return true;
 
-  return from.isEmpty();
+  // if into contains from, (eg **%a -> *%a), the flow is empty (implicit rules
+  // already implement the flow)
+  if (into.contains(from))
+    return true;
+
+  return false;
 }
 
 void Flow::print(std::ostream &output) const {
@@ -267,78 +350,32 @@ void Flow::print(std::ostream &output) const {
   output << "\n";
 }
 
-Flow Flow::specializeFieldsTo(const FlowValue &value) const {
-  assert(from.fieldsMatchOrContain(value));
-  assert(from.indirect_level == value.indirect_level);
-
-  /* how many indirections to examine */
-  auto levelsDeep = std::min(from.indirect_level, value.indirect_level) + 1;
-
-  auto newInto = FlowValue(into.expr, into.indirect_level, into.field_selects,
-                           into.is_escape);
-  for (int32_t i = 0; i < levelsDeep; i++) {
-    auto &valueSelects = value.field_selects[value.indirect_level - i];
-    auto &fromSelects = from.field_selects[from.indirect_level - i];
-    auto &intoSelects = newInto.field_selects[newInto.indirect_level - i];
-
-    for (size_t j = 0; j < valueSelects.size(); j++) {
-      if (j < fromSelects.size()) {
-        assert(valueSelects[j] == fromSelects[j]);
-      } else {
-        /* if value has a field selector that from doesn't, add that selector in
-         * the appropriate spot to into */
-        intoSelects.push_back(valueSelects[j]);
-      }
-    }
-  }
-
-  return Flow(value, newInto);
+bool Flow::containsFrom(const FlowValue &value) const {
+  return from.contains(value);
 }
 
-Flow Flow::indirectionsFor(const FlowValue &value) const {
-  assert(from.indirect_level <= value.indirect_level);
-
-  if (from.indirect_level == value.indirect_level)
-    return *this;
-
-  auto numToAdd = value.indirect_level - from.indirect_level;
-
-  auto newFrom = FlowValue(from.expr, from.indirect_level, from.field_selects,
-                           from.is_escape);
-  newFrom.indirect_level += numToAdd;
-  for (auto i = 0; i < numToAdd; i++)
-    newFrom.field_selects.emplace_back();
-
-  auto newInto = FlowValue(into.expr, into.indirect_level, into.field_selects,
-                           into.is_escape);
-  newInto.indirect_level += numToAdd;
-  for (auto i = 0; i < numToAdd; i++)
-    newInto.field_selects.emplace_back();
-
-  return Flow(newFrom, newInto);
+bool Flow::containsInto(const FlowValue &value) const {
+  return into.contains(value);
 }
 
-bool Flow::contains(const FlowValue &value) const {
-  /* a flow of %b doesn't contain %a */
-  if (from.expr.val.id != value.expr.val.id)
-    return false;
-  /* a flow of **%a doesn't contain *%a */
-  if (from.indirect_level > value.indirect_level)
-    return false;
+Flow Flow::specializeForFrom(const FlowValue &value) const {
+  assert(containsFrom(value));
+  // add indirections such that from's level matches value's
+  auto levelsToAdd = value.indirect_level - from.indirect_level;
+  auto newFrom = from.withAddedIndirections(levelsToAdd);
+  auto newInto = into.withAddedIndirections(levelsToAdd);
 
-  /* construct a new flow with matching indirection level
-   * ie -- flow of *%a contains **%a */
-  const Flow &newFlow = value.indirect_level > from.indirect_level
-                            ? indirectionsFor(value)
-                            : *this;
-
-  return newFlow.from.fieldsMatchOrContain(value);
+  return Flow(value, newInto.specializeFields(newFrom, value));
 }
 
-Flow Flow::specializedTo(const FlowValue &value) const {
-  assert(contains(value));
+Flow Flow::specializeForInto(const FlowValue &value) const {
+  assert(containsInto(value));
+  // add indirections such that into's level matches value's
+  auto levelsToAdd = value.indirect_level - into.indirect_level;
+  auto newFrom = from.withAddedIndirections(levelsToAdd);
+  auto newInto = into.withAddedIndirections(levelsToAdd);
 
-  return indirectionsFor(value).specializeFieldsTo(value);
+  return Flow(newFrom.specializeFields(newInto, value), value);
 }
 
 FuncFlowValue::FuncFlowValue(
@@ -479,8 +516,8 @@ void traceFlow(
     if (vectorContains(state.visitedFlows, flow))
       continue;
 
-    if (flow.contains(value)) {
-      auto specialized = flow.specializedTo(value);
+    if (flow.containsFrom(value)) {
+      auto specialized = flow.specializeForFrom(value);
       // new value to trace
       auto &newVal = specialized.into;
 
@@ -490,7 +527,7 @@ void traceFlow(
       func(newVal);
       /* trace the flow further, unless it is to an escaping location (no point
        * tracing it when it is already known to escape) */
-      if (newVal.is_escape == EscapeType::NONE) {
+      if (!EscapeTypeIsEscape(newVal.is_escape)) {
         // don't follow the same flow twice for the same value
         state.visitedFlows.push_back(flow);
         // trace the new from value
@@ -504,10 +541,10 @@ void traceFlow(
        * specializedFlowFunc */
       auto generalFlow = Flow(value, initValue);
       /* generalFlow may have field selects incompatible with flow.from */
-      if (!generalFlow.contains(flow.from))
+      if (!generalFlow.containsFrom(flow.from))
         continue;
 
-      auto specialFlow = generalFlow.specializedTo(flow.from);
+      auto specialFlow = generalFlow.specializeForFrom(flow.from);
       auto &specialVal = specialFlow.into;
 
       if (vectorContains(state.visitedSpecialFroms, specialVal))
@@ -515,6 +552,58 @@ void traceFlow(
 
       specializedFlowFunc(specialVal);
       state.visitedSpecialFroms.push_back(specialVal);
+    }
+  }
+}
+
+// trace a specific value backwards
+void traceValueBackwards(const FlowList &flows,
+                         const std::function<void(const FlowValue &)> &func,
+                         TraceFlowVisitedState &state, const FlowValue &value) {
+  if (vectorContains(state.visitedFroms, value))
+    return;
+  func(value);
+
+  for (auto &flow : flows) {
+    if (vectorContains(state.visitedFlows, flow))
+      continue;
+
+    // whether to further trace this flow
+    bool useFlow = false;
+
+    if (value.contains(flow.into)) {
+      useFlow = true;
+      // flow won't be transformed, so visiting it will always result in the
+      // same value
+      state.visitedFlows.push_back(flow);
+    } else if (flow.into.contains(value)) {
+      useFlow = true;
+    }
+
+    if (useFlow) {
+      // adjusted flow to trace (if useFlow)
+      const Flow &newFlow =
+          flow.into.contains(value) ? flow.specializeForInto(value) : flow;
+
+      auto &newValue = newFlow.from;
+      if (newValue == value)
+        continue;
+
+      traceValueBackwards(flows, func, state, newValue);
+    }
+  }
+
+  state.visitedFroms.push_back(value);
+}
+
+// find all escaping into's and pass them to traceValueBackwards
+void traceEscapesBackwards(const FlowList &flows,
+                           const std::function<void(const FlowValue &)> &func,
+                           TraceFlowVisitedState &state) {
+  for (auto &flow : flows) {
+    if (EscapeTypeIsEscape(flow.into.is_escape)) {
+      state.visitedFlows.clear();
+      traceValueBackwards(flows, func, state, flow.from);
     }
   }
 }
@@ -559,22 +648,6 @@ void visitAllocations(const BasicBlockList &blocks,
   }
 }
 
-bool operator==(const FlowValue &lhs, const FlowValue &rhs) {
-  return lhs.expr.val.id == rhs.expr.val.id &&
-         lhs.indirect_level == rhs.indirect_level &&
-         lhs.field_selects == rhs.field_selects;
-}
-
-bool operator!=(const FlowValue &lhs, const FlowValue &rhs) {
-  return !(lhs == rhs);
-}
-
-bool operator==(const Flow &lhs, const Flow &rhs) {
-  return lhs.from == rhs.from && lhs.into == rhs.into;
-}
-
-bool operator!=(const Flow &lhs, const Flow &rhs) { return !(lhs == rhs); }
-
 int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                              const EscapeAnalysisState &state) {
   // if the function has already been visited, skip it
@@ -611,16 +684,17 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
     }
   }
 
-  /* trace flows for each allocation and mark if they escape */
-  visitAllocations(instruct.body, [this, &flows](Allocation &alloc) {
-    /* trace flow of address of allocation */
-    std::vector<std::vector<int32_t>> selects;
-    selects.emplace_back();
-    auto value = FlowValue(alloc, 0, selects);
-
-    TraceFlowVisitedState trace_state;
-    markEscapingAllocations(flows, alloc, value, trace_state);
-  });
+  // mark escaping allocs in func body
+  markEscapingAllocations(flows, instruct.body);
+  // print debug info
+  if (print_escapes) {
+    visitAllocations(instruct.body, [this](Allocation &alloc) {
+      if (AllocationTypeIsHeap(alloc.allocType)) {
+        output << "%" << alloc.val.sourceName->getFullyScopedName()[0]
+               << " escapes\n";
+      }
+    });
+  }
 
   // calculate flows needed for function metadata
   // these are flows where the source is an argument and the dest is another
@@ -647,34 +721,24 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
   return 0;
 }
 
-void EscapeAnalysisPass::markEscapingAllocations(
-    const ir::FlowList &flows, Allocation &alloc, const FlowValue &srcValue,
-    TraceFlowVisitedState &trace_state) {
-  traceFlow(
-      srcValue, srcValue, flows,
-      [this, &alloc](const FlowValue &dst) {
-        /* if value is already marked escaping, don't mark again */
-        if (dst.is_escape != EscapeType::NONE &&
-            alloc.allocType != AllocationType::HEAP &&
-            alloc.allocType != AllocationType::ARG_HEAP) {
-          /* mark as heap allocated */
-          if (AllocationTypeIsArg(alloc.allocType)) {
-            alloc.allocType = AllocationType::ARG_HEAP;
-          } else {
-            alloc.allocType = AllocationType::HEAP;
+void EscapeAnalysisPass::markEscapingAllocations(const ir::FlowList &flows,
+                                                 const BasicBlockList &blocks) {
+  // trace flows from escapes backwards and mark any hit allocations as
+  // heap-alloc'd
+  TraceFlowVisitedState trace_state;
+  traceEscapesBackwards(
+      flows,
+      [&blocks](const FlowValue &value) {
+        if (value.indirect_level != 0)
+          return;
+
+        visitAllocations(blocks, [&value](Allocation &alloc) {
+          // don't mark allocation more than once
+          if (alloc.val.id == value.expr.val.id &&
+              !AllocationTypeIsHeap(alloc.allocType)) {
+            alloc.allocType = AllocationTypeToHeap(alloc.allocType);
           }
-          /* print debug info */
-          if (print_escapes) {
-            output << "%" << alloc.val.sourceName->getFullyScopedName()[0]
-                   << " escapes\n";
-          }
-        }
-      },
-      [this, &alloc, &flows, &trace_state](const FlowValue &special) {
-        /* if %a.field escapes, so does %a */
-        if (special.indirect_level == 0) {
-          markEscapingAllocations(flows, alloc, special, trace_state);
-        }
+        });
       },
       trace_state);
 }
@@ -702,8 +766,7 @@ void EscapeAnalysisPass::calculateFunctionFlowMetadata(
          * only add flow if it involves an arg->arg, arg->escape or arg->return
          * flow */
         if (argsContain(funcArgs, srcValue.expr) &&
-            (dstValue.is_escape == EscapeType::RETURN ||
-             dstValue.is_escape == EscapeType::OTHER ||
+            (EscapeTypeIsEscape(dstValue.is_escape) ||
              argsContain(funcArgs, dstValue.expr))) {
           auto flow = Flow(srcValue, dstValue);
           /* if flow doesn't have any indirections on source, add one to account
@@ -713,7 +776,7 @@ void EscapeAnalysisPass::calculateFunctionFlowMetadata(
             newSelects.emplace_back();
             auto newSrc = FlowValue(srcValue.expr, srcValue.indirect_level + 1,
                                     newSelects, srcValue.is_escape);
-            auto newFlow = flow.specializedTo(newSrc);
+            auto newFlow = flow.specializeForFrom(newSrc);
 
             functionFlows.emplace_back(FuncFlow::fromFlow(newFlow, funcArgs));
           } else {
@@ -855,17 +918,6 @@ int EscapeAnalysisPass::visitReturn(Return &instruct,
   if (!flow.isEmpty())
     state.curFlowList->push_back(flow);
 
-  return 0;
-}
-
-// no flow for literals that don't contain pointers
-int EscapeAnalysisPass::visitIntLiteral(IntLiteral &instruct,
-                                        const EscapeAnalysisState &state) {
-  return 0;
-}
-
-int EscapeAnalysisPass::visitBoolLiteral(BoolLiteral &instruct,
-                                         const EscapeAnalysisState &state) {
   return 0;
 }
 

@@ -381,7 +381,7 @@ LLVMCodegenPass::visitAllocation(Allocation &instruct,
         gep_index);
     auto size = builder.CreatePtrToInt(
         size_ptr, llvm::IntegerType::getInt64Ty(llvm_context));
-    /* call the gc allocation function. if the type contains pointers, use
+    /* call the gc allocation function. if the type containsFrom pointers, use
      * GC_malloc, otherwise GC_malloc_atomic.
      * bitcast the resulting *i8 to appropriate pointer type */
     std::vector<llvm::Value *> malloc_args;

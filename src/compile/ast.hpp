@@ -160,7 +160,7 @@ public:
   // valid (mut -> non mut is valid) if the expected type has a mut that this
   // type doesn't, invalid (non mut -> mut invalid)
   virtual bool equalToExpected(const Type &expected) const;
-  // check if a type is or contains a pointer
+  // check if a type is or containsFrom a pointer
   virtual bool containsPointer() const;
 
   virtual const Type *withoutMutability() const;

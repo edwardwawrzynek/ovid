@@ -35,6 +35,8 @@ typedef std::vector<std::unique_ptr<Instruction>> InstructionList;
 /* escape analysis structures */
 enum class EscapeType { NONE, RETURN, OTHER };
 
+bool EscapeTypeIsEscape(EscapeType type);
+
 class FlowValue {
 public:
   /* expression flowing */
@@ -69,10 +71,19 @@ public:
    */
   static FlowValue getFlowForDereference(Expression &expr);
 
-  /* check if the field selects match or are more general for this value, such
-   * that the passed value would flow with it
-   * indirection level should match, as should expr */
+  /* check if the field selects match or are more general than the passed value,
+   * such that the passed value would flow with this value indirection level
+   * should match, as should expr */
   bool fieldsMatchOrContain(const FlowValue &value) const;
+
+  /* check if this contains the passed flow value */
+  bool contains(const FlowValue &value) const;
+
+  /* return this with the given number of indirections added */
+  FlowValue withAddedIndirections(int32_t indirections) const;
+
+  /* apply the field transformation from src->dst onto this */
+  FlowValue specializeFields(const FlowValue &src, const FlowValue &dst) const;
 
   FlowValue(Expression &expr, int32_t indirect_level,
             const std::vector<std::vector<int32_t>> &field_selects,
@@ -124,20 +135,11 @@ public:
 
   /* return true if the given value flows through this flow
    * ie -- if it is contained in from */
-  bool contains(const FlowValue &value) const;
+  bool containsFrom(const FlowValue &value) const;
+  bool containsInto(const FlowValue &value) const;
   /* produce the most specialized flow for value contained in this flow */
-  Flow specializedTo(const FlowValue &value) const;
-
-private:
-  /* specialize the flow's field selects for the given value. indirection level
-   * + expr on from must match value. from must be a more general form of value
-   * (ie from.fieldsMatchOrContain(value) is true)
-   */
-  Flow specializeFieldsTo(const FlowValue &value) const;
-
-  /* add indirections to this flow to match the given value
-   * from.indirect_level must be <= value.indirect_level */
-  Flow indirectionsFor(const FlowValue &value) const;
+  Flow specializeForFrom(const FlowValue &value) const;
+  Flow specializeForInto(const FlowValue &value) const;
 };
 
 typedef std::vector<Flow> FlowList;
@@ -278,6 +280,8 @@ enum class AllocationType {
 };
 
 bool AllocationTypeIsArg(AllocationType type);
+bool AllocationTypeIsHeap(AllocationType type);
+AllocationType AllocationTypeToHeap(AllocationType type);
 
 class Allocation : public Expression {
 public:

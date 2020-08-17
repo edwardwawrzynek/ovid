@@ -1,0 +1,4 @@
+FUNCTION ovidc_test:test:
+FUNCTION ovidc_test:test2:
+%t1 escapes
+%t2 escapes

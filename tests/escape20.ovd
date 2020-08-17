@@ -1,0 +1,10 @@
+// __ovid_compiler_test
+//__mode: check_escape
+//__end_header
+
+fn test() -> **i32 {
+    val a = 42
+    val b = &a
+    val c = b
+    return &c
+}

@@ -11,12 +11,13 @@ native fn new_type1() -> Type1
 
 fn test(a *mut Type1) {
     a.field2 = a
+    a.field2 = a
 }
 
 fn test2() -> *Type1 {
     mut t = new_type1()
     test(&t)
 
-    return t.field2.field2
+    return t.field2.field2.field2
 }
 

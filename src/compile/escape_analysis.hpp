@@ -40,6 +40,16 @@ void traceFlow(
     const std::function<void(const FlowValue &)> &specializedFlowFunc,
     TraceFlowVisitedState &state);
 
+/*
+ * given a list of flows, call func on all from values which flow to an escaping
+ * value.
+ *
+ * Tracing works backwards from escaping routes to values
+ */
+void traceEscapesBackwards(const FlowList &flows,
+                           const std::function<void(const FlowValue &)> &func,
+                           TraceFlowVisitedState &state);
+
 // given a product type, produce an array of all of its types (including nested
 // product types)
 std::vector<const ast::Type *> flattenProductType(const ast::ProductType *type);
@@ -78,10 +88,6 @@ class EscapeAnalysisPass : public BaseIRVisitor<int, EscapeAnalysisState> {
 
   int visitFunctionDeclare(FunctionDeclare &instruct,
                            const EscapeAnalysisState &state) override;
-  int visitIntLiteral(IntLiteral &instruct,
-                      const EscapeAnalysisState &state) override;
-  int visitBoolLiteral(BoolLiteral &instruct,
-                       const EscapeAnalysisState &state) override;
   int visitTupleLiteral(TupleLiteral &instruct,
                         const EscapeAnalysisState &state) override;
   int visitFunctionCall(FunctionCall &instruct,
@@ -110,9 +116,8 @@ class EscapeAnalysisPass : public BaseIRVisitor<int, EscapeAnalysisState> {
       const ir::FlowList &flows, const FlowValue &srcValue,
       TraceFlowVisitedState &trace_state);
 
-  void markEscapingAllocations(const ir::FlowList &flows, Allocation &alloc,
-                               const FlowValue &srcValue,
-                               TraceFlowVisitedState &trace_state);
+  void markEscapingAllocations(const ir::FlowList &flows,
+                               const BasicBlockList &blocks);
 
 public:
   EscapeAnalysisPass(bool print_flows, bool print_escapes,

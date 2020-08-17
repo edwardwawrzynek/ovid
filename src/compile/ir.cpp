@@ -10,11 +10,34 @@ uint64_t next_id() { return ir_id++; }
 
 void reset_id() { ir_id = 0; }
 
+bool EscapeTypeIsEscape(EscapeType type) {
+  return type == EscapeType::OTHER || type == EscapeType::RETURN;
+}
+
 bool AllocationTypeIsArg(AllocationType type) {
   return type == AllocationType::UNRESOLVED_FUNC_ARG ||
          type == AllocationType::ARG ||
          type == AllocationType::ARG_COPY_TO_STACK ||
          type == AllocationType::ARG_HEAP;
+}
+
+bool AllocationTypeIsHeap(AllocationType type) {
+  return type == AllocationType::HEAP || type == AllocationType::ARG_HEAP;
+}
+
+AllocationType AllocationTypeToHeap(AllocationType type) {
+  switch (type) {
+  case AllocationType::STACK:
+  case AllocationType::HEAP:
+    return AllocationType::HEAP;
+  case AllocationType::UNRESOLVED_FUNC_ARG:
+  case AllocationType::ARG:
+  case AllocationType::ARG_COPY_TO_STACK:
+  case AllocationType::ARG_HEAP:
+    return AllocationType::ARG_HEAP;
+  default:
+    assert(false);
+  }
 }
 
 bool Expression::isAddressable() const { return false; }
