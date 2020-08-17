@@ -1,0 +1,42 @@
+// __ovid_compiler_test
+//__mode: type_check
+//__end_header
+
+module mod1 {
+    struct Type1 {
+        f1  i32
+    }
+
+    pub struct Type2 {
+        f1  i32
+        pub f2 i32
+    }
+
+    fn test1(a *Type1) {
+        a.f1
+    }
+
+    fn test2(a *Type2) {
+        a.f1
+        a.f2
+    }
+
+    module mod2 {
+        fn test3(a *Type2) {
+            a.f1
+            a.f2
+        }
+    }
+}
+
+fn test4(a *mod1:Type2) {
+    a.f1 //__error: "use of private field f1 on type ovidc_test:mod1:Type2"
+    a.f2
+}
+
+module mod3 {
+    fn test5(a *mod1:Type2) {
+        a.f1 //__error: "use of private field f1 on type ovidc_test:mod1:Type2"
+        a.f2
+    }
+}

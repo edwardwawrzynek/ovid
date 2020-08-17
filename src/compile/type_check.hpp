@@ -100,6 +100,8 @@ public:
 class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   ErrorManager &errorMan;
   std::vector<std::string> currentModule;
+  const std::vector<std::string> &package;
+  const ScopesRoot &scopes;
   TypePrinter type_printer;
 
   /* the current instruction list to be inserted into */
@@ -181,17 +183,20 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
 
 public:
   TypeCheck(ErrorManager &errorMan, const std::vector<std::string> &package,
-            ir::InstructionList *ir, ir::BasicBlockList *basicBlockList)
+            const ScopesRoot &scopes, ir::InstructionList *ir,
+            ir::BasicBlockList *basicBlockList)
       : BaseASTVisitor(
             TypeCheckResult(std::make_shared<ast::VoidType>(
                                 SourceLocation("", 0, 0, 0, 0, nullptr)),
                             nullptr)),
-        errorMan(errorMan), currentModule(package), type_printer(),
-        curInstructionList(ir), curBasicBlockList(basicBlockList){};
+        errorMan(errorMan), currentModule(package), package(package),
+        scopes(scopes), type_printer(), curInstructionList(ir),
+        curBasicBlockList(basicBlockList){};
 };
 
 ir::InstructionList typeCheckProduceIR(ErrorManager &errorMan,
                                        const std::vector<std::string> &package,
+                                       const ScopesRoot &scopes,
                                        const StatementList &ast);
 
 } // namespace ovid::ast

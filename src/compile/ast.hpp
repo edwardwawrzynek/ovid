@@ -294,6 +294,10 @@ public:
 
   // getNumFields and getTypeOfField are the internal representation of fields
   virtual std::shared_ptr<Type> getTypeOfField(int32_t field_index) const;
+  // check if the given field is pub
+  virtual bool fieldIsPublic(int32_t field_index) const;
+  // get the type's type alias entry (if present)
+  virtual const TypeAlias *getTypeAlias() const;
   virtual size_t getNumFields() const;
   // getNamedFieldIndex and getNumberedFieldIndex are the external
   // representation of fields
@@ -311,6 +315,8 @@ public:
 
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
   size_t getNumFields() const override;
+  bool fieldIsPublic(int32_t field_index) const override;
+  const TypeAlias *getTypeAlias() const override;
 
   int32_t getNamedFieldIndex(const std::string &field_name) const override;
   int32_t getNumberedFieldIndex(int32_t field) const override;
@@ -335,6 +341,8 @@ public:
 
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
   size_t getNumFields() const override;
+  bool fieldIsPublic(int32_t field_index) const override;
+  const TypeAlias *getTypeAlias() const override;
 
   int32_t getNamedFieldIndex(const std::string &field_name) const override;
   int32_t getNumberedFieldIndex(int32_t field) const override;

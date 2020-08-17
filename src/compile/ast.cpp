@@ -146,6 +146,10 @@ int32_t ProductType::getNumberedFieldIndex(int32_t field) const {
   assert(false);
 }
 
+bool ProductType::fieldIsPublic(int32_t field_index) const { assert(false); }
+
+const TypeAlias *ProductType::getTypeAlias() const { assert(false); }
+
 size_t TupleType::getNumFields() const { return types.size(); }
 
 std::shared_ptr<Type> TupleType::getTypeOfField(int32_t field_index) const {
@@ -164,6 +168,10 @@ int32_t TupleType::getNumberedFieldIndex(int32_t field) const {
 
   return field;
 }
+
+bool TupleType::fieldIsPublic(int32_t field_index) const { return true; }
+
+const TypeAlias *TupleType::getTypeAlias() const { return nullptr; }
 
 bool StructType::equalToExpected(const Type &expected) const {
   auto expectedStruct = dynamic_cast<const StructType *>(&expected);
@@ -196,6 +204,15 @@ int32_t StructType::getNamedFieldIndex(const std::string &field_name) const {
 int32_t StructType::getNumberedFieldIndex(int32_t field) const {
   /* no numbered fields on a struct */
   return -1;
+}
+
+bool StructType::fieldIsPublic(int32_t field_index) const {
+  assert(field_index < (int32_t)(field_types.size()) && field_index >= 0);
+  return fields_are_public[field_index];
+}
+
+const TypeAlias *StructType::getTypeAlias() const {
+  return type_alias.lock().get();
 }
 
 } // namespace ovid::ast

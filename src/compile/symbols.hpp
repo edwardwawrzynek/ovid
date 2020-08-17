@@ -148,19 +148,6 @@ public:
                                 const std::string &identifier,
                                 std::function<bool(const T &)> predicate);
 
-  // check if a symbol (identified by scope_name + identifier + predicate +
-  // is_symbol_pub) is accessible (not private) from the given curPackage and
-  // curModule
-  bool checkAccessible(const std::vector<std::string> &scope_name,
-                       const std::string &identifier,
-                       std::function<bool(const T &)> predicate,
-                       ScopeTable<T> *curPackage, ScopeTable<T> *curModule,
-                       bool is_symbol_pub);
-
-  bool checkAccessible(const std::vector<std::string> &scope_name,
-                       const std::string &identifier, ScopeTable<T> *curPackage,
-                       ScopeTable<T> *curModule, bool is_symbol_pub);
-
   // add a symbol, given scopes and a name
   void addSymbol(const std::vector<std::string> &scope_name,
                  const std::string &name, std::shared_ptr<T> symbol);
@@ -171,6 +158,8 @@ public:
   ScopeTable<T> *getParent() const;
   int getVersionInt() const;
   void setVersionInt(int64_t version);
+  bool getIsPublic() const;
+  bool getIsFuncScope() const;
 
   ScopeTable(bool is_public, ScopeTable<T> *parent, const std::string &name)
       : symbols(std::make_unique<SymbolTable<T>>()), scopes(),
@@ -266,36 +255,24 @@ void ScopeTable<T>::addSymbol(const std::string &name,
   getDirectScopeTable().addSymbol(name, symbol, this);
 }
 
+// check if the given symbol (with is_symbol_pub visibility) is visible to
+// curModule in curPackage
 template <class T>
-bool ScopeTable<T>::checkAccessible(const std::vector<std::string> &scope_name,
-                                    const std::string &identifier,
-                                    std::function<bool(const T &)> predicate,
-                                    ScopeTable<T> *curPackage,
-                                    ScopeTable<T> *curModule,
-                                    bool is_symbol_pub) {
-  // make sure symbol exists
-  auto sym = findSymbol(scope_name, identifier, predicate);
-  if (sym == nullptr)
-    return false;
+bool checkVisible(const T &sym, ScopeTable<T> *curPackage,
+                  ScopeTable<T> *curModule, bool is_symbol_pub) {
 
   // determine if the symbol is in curPackage
   bool is_in_package = false;
 
   // table directly containing the symbol
-  ScopeTable<T> *containingTable;
-  if (scope_name.empty()) {
-    containingTable = this;
-  } else {
-    // start searching from the containing table
-    containingTable = getScopeTable(scope_name);
-  }
+  ScopeTable<T> *containingTable = sym.parent_table;
   ScopeTable<T> *tmp = containingTable;
   while (tmp != nullptr) {
     if (tmp == curPackage) {
       is_in_package = true;
       break;
     }
-    tmp = tmp->parent;
+    tmp = tmp->getParent();
   }
 
   // check if current module is a descendant of containing table
@@ -306,13 +283,13 @@ bool ScopeTable<T>::checkAccessible(const std::vector<std::string> &scope_name,
       is_descendant = true;
       break;
     }
-    tmp = tmp->parent;
+    tmp = tmp->getParent();
   }
 
   // if the symbol is contained in a function scope, it is automatically
   // accessible (ActiveScopes make sure it isn't accessible outside the
   // function)
-  if (containingTable->is_func_scope)
+  if (containingTable->getIsFuncScope())
     return true;
 
   // if the current module is a descendant of symbol's module, symbol is
@@ -324,18 +301,7 @@ bool ScopeTable<T>::checkAccessible(const std::vector<std::string> &scope_name,
   if (is_in_package)
     return is_symbol_pub;
 
-  return is_symbol_pub && containingTable->is_public;
-}
-
-template <class T>
-bool ScopeTable<T>::checkAccessible(const std::vector<std::string> &scope_name,
-                                    const std::string &identifier,
-                                    ScopeTable<T> *curPackage,
-                                    ScopeTable<T> *curModule,
-                                    bool is_symbol_pub) {
-  return checkAccessible(
-      scope_name, identifier, [](const T &s) -> bool { return true; },
-      curPackage, curModule, is_symbol_pub);
+  return is_symbol_pub && containingTable->getIsPublic();
 }
 
 template <class T> std::string ScopeTable<T>::getName() const { return name; }
@@ -350,6 +316,11 @@ template <class T> int ScopeTable<T>::getVersionInt() const {
 
 template <class T> void ScopeTable<T>::setVersionInt(int64_t version) {
   version_int = version;
+}
+template <class T> bool ScopeTable<T>::getIsPublic() const { return is_public; }
+
+template <class T> bool ScopeTable<T>::getIsFuncScope() const {
+  return is_func_scope;
 }
 
 /* the active scopes and symbol tables
@@ -378,17 +349,6 @@ public:
   std::shared_ptr<T> findSymbol(const std::vector<std::string> &scope_names,
                                 const std::string &identifier,
                                 std::function<bool(const T &)> predicate);
-
-  // return a shared pointer to the ScopeTable in which the given symbol
-  // (scope_name + identifier + predicate) was found, or nullptr if not found
-  ScopeTable<T> *
-  findTableContainingSymbol(const std::vector<std::string> &scope_names,
-                            const std::string &identifier,
-                            std::function<bool(const T &)> predicate);
-
-  ScopeTable<T> *
-  findTableContainingSymbol(const std::vector<std::string> &scope_names,
-                            const std::string &identifier);
 
   // add a set of scope to the stack by a set of nested scope names based on a
   // root scope
@@ -497,30 +457,6 @@ void ActiveScope<T>::popComponentScopesByNameFromRoot(
     popScope(root->getScopeTable(mScopes));
     mScopes.pop_back();
   }
-}
-
-template <class T>
-ScopeTable<T> *ActiveScope<T>::findTableContainingSymbol(
-    const std::vector<std::string> &scope_names, const std::string &identifier,
-    std::function<bool(const T &)> predicate) {
-  // go through scopes, and return the scope containing the symbol
-  for (size_t sindex = scopes.size(); sindex--;) {
-    auto &scope = scopes[sindex];
-
-    auto found = scope->findSymbol(scope_names, identifier, predicate);
-    if (found != nullptr)
-      return scope;
-  }
-
-  return nullptr;
-}
-
-template <class T>
-ScopeTable<T> *ActiveScope<T>::findTableContainingSymbol(
-    const std::vector<std::string> &scope_names,
-    const std::string &identifier) {
-  return findTableContainingSymbol(scope_names, identifier,
-                                   [](const T &s) -> bool { return true; });
 }
 
 template <class T> ScopeTable<T> *ActiveScope<T>::getTopScope() {

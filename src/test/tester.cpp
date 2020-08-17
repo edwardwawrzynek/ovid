@@ -500,7 +500,8 @@ int TesterInstance::run() {
         failed = 1;
       } else {
         // generate ir
-        auto ir = ast::typeCheckProduceIR(errorMan, packageName, ast);
+        auto ir =
+            ast::typeCheckProduceIR(errorMan, packageName, root_scopes, ast);
 
         // run check_ir
         if (modes.count(TestMode::CheckIR) > 0) {

@@ -1145,30 +1145,39 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
   // internal field index
   int32_t field_index;
 
+  std::string field_string =
+      node.has_field_num ? std::to_string(node.field_num) : node.field;
+
   // lookup named or numbered field index
   if (!node.has_field_num) {
     field_index = recordType->getNamedFieldIndex(node.field);
-
-    if (field_index == -1) {
-      errorMan.logError(
-          string_format(
-              "type \x1b[1m%s\x1b[m does not have field \x1b[1m%s\x1b[m",
-              type_printer.getType(*recordType).c_str(), node.field.c_str()),
-          node.loc, ErrorType::TypeError);
-
-      return TypeCheckResult::nullResult();
-    }
   } else {
     field_index = recordType->getNumberedFieldIndex(node.field_num);
+  }
 
-    if (field_index == -1) {
+  if (field_index == -1) {
+    errorMan.logError(
+        string_format(
+            "type \x1b[1m%s\x1b[m does not have field \x1b[1m%s\x1b[m",
+            type_printer.getType(*recordType).c_str(), field_string.c_str()),
+        node.loc, ErrorType::TypeError);
+
+    return TypeCheckResult::nullResult();
+  }
+
+  // check visibility of field
+  auto fieldPublic = recordType->fieldIsPublic(field_index);
+  if (!fieldPublic) {
+    auto alias = recordType->getTypeAlias();
+    assert(alias != nullptr);
+
+    if (!checkVisible(*alias, scopes.types->getScopeTable(package),
+                      scopes.types->getScopeTable(currentModule), false)) {
       errorMan.logError(
           string_format(
-              "type \x1b[1m%s\x1b[m does not have field \x1b[1m%lu\x1b[m",
-              type_printer.getType(*recordType).c_str(), node.field_num),
+              "use of private field \x1b[1m%s\x1b[m on type \x1b[1m%s\x1b[m",
+              field_string.c_str(), type_printer.getType(*recordType).c_str()),
           node.loc, ErrorType::TypeError);
-
-      return TypeCheckResult::nullResult();
     }
   }
 
@@ -1248,11 +1257,12 @@ TypeCheck::doImplicitConversion(const TypeCheckResult &expression,
 
 ir::InstructionList typeCheckProduceIR(ErrorManager &errorMan,
                                        const std::vector<std::string> &package,
+                                       const ScopesRoot &scopes,
                                        const StatementList &ast) {
   ir::InstructionList ir;
   ir::BasicBlockList BBList;
 
-  auto typeCheck = TypeCheck(errorMan, package, &ir, &BBList);
+  auto typeCheck = TypeCheck(errorMan, package, scopes, &ir, &BBList);
   typeCheck.visitNodes(ast, TypeCheckState());
 
   return ir;

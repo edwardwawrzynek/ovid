@@ -1234,6 +1234,11 @@ Parser::parseStructStatement(const ParserState &state, bool is_public) {
       tokenizer.nextToken();
     // check for public field
     if (tokenizer.curToken.token == T_PUB) {
+      if (!is_public) {
+        errorMan.logError(
+            "pub field cannot be declared inside a non-pub struct",
+            tokenizer.curTokenLoc, ErrorType::TypeError);
+      }
       tokenizer.nextToken();
       field_publics.push_back(true);
     } else {

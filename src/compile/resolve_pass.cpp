@@ -150,18 +150,13 @@ int ResolvePass::visitIdentifier(Identifier &node,
                                  const ResolvePassState &state) {
   // find the symbol
   std::shared_ptr<Symbol> sym;
-  ScopeTable<Symbol> *containingTable;
   if (node.is_root_scope) {
     // only check root scope
     sym = scopes.names.getRootScope()->findSymbol(
         node.scope, node.id,
         [](const Symbol &s) -> bool { return s.resolve_pass_declared_yet; });
-    containingTable = scopes.names.getRootScope();
   } else {
     sym = scopes.names.findSymbol(
-        node.scope, node.id,
-        [](const Symbol &s) -> bool { return s.resolve_pass_declared_yet; });
-    containingTable = scopes.names.findTableContainingSymbol(
         node.scope, node.id,
         [](const Symbol &s) -> bool { return s.resolve_pass_declared_yet; });
   }
@@ -175,12 +170,8 @@ int ResolvePass::visitIdentifier(Identifier &node,
         node.loc, ErrorType::UndeclaredIdentifier);
   }
   // error on usage of inaccessible (private) symbol
-  else if (!containingTable->checkAccessible(
-               node.scope, node.id,
-               [](const Symbol &s) -> bool {
-                 return s.resolve_pass_declared_yet;
-               },
-               scopes.names.getRootScope()->getScopeTable(package),
+  else if (!checkVisible(
+               *sym, scopes.names.getRootScope()->getScopeTable(package),
                scopes.names.getRootScope()->getScopeTable(current_module),
                sym->is_public)) {
     errorMan.logError(
@@ -325,14 +316,10 @@ TypeResolver::visitUnresolvedType(std::shared_ptr<UnresolvedType> type,
                                   const TypeResolverState &state) {
   // lookup type in type tables
   std::shared_ptr<TypeAlias> sym;
-  ScopeTable<TypeAlias> *containingTable;
   if (type->is_root_scoped) {
     sym = scopes.types.getRootScope()->findSymbol(type->scopes, type->name);
-    containingTable = scopes.types.getRootScope();
   } else {
     sym = scopes.types.findSymbol(type->scopes, type->name);
-    containingTable =
-        scopes.types.findTableContainingSymbol(type->scopes, type->name);
   }
 
   auto scopedName = scopesAndNameToString(type->scopes, type->name, true);
@@ -345,9 +332,8 @@ TypeResolver::visitUnresolvedType(std::shared_ptr<UnresolvedType> type,
     return nullptr;
   }
   // check for use of private type
-  else if (!containingTable->checkAccessible(
-               type->scopes, type->name,
-               scopes.types.getRootScope()->getScopeTable(state.package),
+  else if (!checkVisible(
+               *sym, scopes.types.getRootScope()->getScopeTable(state.package),
                scopes.types.getRootScope()->getScopeTable(state.current_module),
                sym->is_public)) {
     errorMan.logError(string_format("use of private type `\x1b[1m%s\x1b[m`",
