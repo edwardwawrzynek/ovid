@@ -86,6 +86,7 @@ class ResolvePass : public BaseASTVisitor<int, ResolvePassState> {
   int visitIdentifier(Identifier &node, const ResolvePassState &state) override;
   int visitAssignment(Assignment &node, const ResolvePassState &state) override;
   int visitTuple(Tuple &node, const ResolvePassState &state) override;
+  int visitStructExpr(StructExpr &node, const ResolvePassState &state) override;
 
   int visitTypeAliasDecl(TypeAliasDecl &node,
                          const ResolvePassState &state) override;

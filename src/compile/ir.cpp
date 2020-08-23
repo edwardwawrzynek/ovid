@@ -109,11 +109,12 @@ TupleLiteral::TupleLiteral(
     std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), exprs(exprs) {
   // check that types of expressions match tuple types
-  auto tupleType = dynamic_cast<ast::TupleType *>(Expression::type.get());
-  assert(tupleType != nullptr);
-  assert(tupleType->types.size() == exprs.size());
-  for (size_t i = 0; i < tupleType->types.size(); i++) {
-    assert(exprs[i].get().type->equalToExpected(*tupleType->types[i]));
+  auto productType = dynamic_cast<ast::ProductType *>(Expression::type.get());
+  assert(productType != nullptr);
+  assert(productType->getNumFields() == exprs.size());
+  for (size_t i = 0; i < productType->getNumFields(); i++) {
+    assert(
+        exprs[i].get().type->equalToExpected(*productType->getTypeOfField(i)));
   }
 }
 

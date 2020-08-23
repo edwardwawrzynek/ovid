@@ -34,6 +34,7 @@ template <class T, class S> class BaseASTVisitor {
   virtual T visitFloatLiteral(FloatLiteral &node, const S &state);
   virtual T visitCharLiteral(CharLiteral &node, const S &state);
   virtual T visitTuple(Tuple &node, const S &state);
+  virtual T visitStructExpr(StructExpr &node, const S &state);
   virtual T visitTypeAliasDecl(TypeAliasDecl &node, const S &state);
   virtual T visitFieldAccess(FieldAccess &node, const S &state);
 
@@ -96,6 +97,8 @@ T BaseASTVisitor<T, S>::visitExpression(Expression &node, const S &state) {
     return visitTuple(dynamic_cast<Tuple &>(node), state);
   } else if (dynamic_cast<FieldAccess *>(&node) != nullptr) {
     return visitFieldAccess(dynamic_cast<FieldAccess &>(node), state);
+  } else if (dynamic_cast<StructExpr *>(&node) != nullptr) {
+    return visitStructExpr(dynamic_cast<StructExpr &>(node), state);
   }
   assert(false);
 }
@@ -204,6 +207,11 @@ T BaseASTVisitor<T, S>::visitCharLiteral(CharLiteral &node, const S &state) {
 template <class T, class S>
 T BaseASTVisitor<T, S>::visitNativeFunctionDecl(NativeFunctionDecl &node,
                                                 const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitStructExpr(StructExpr &node, const S &state) {
   return std::move(defaultValue);
 }
 

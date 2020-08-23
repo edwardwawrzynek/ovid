@@ -244,6 +244,21 @@ int ASTPrinter::visitTuple(Tuple &node, const ASTPrinterState &state) {
   return 0;
 }
 
+int ASTPrinter::visitStructExpr(StructExpr &node,
+                                const ASTPrinterState &state) {
+  state.printIndent(output);
+  printLoc(output, node.loc);
+  output << " StructExpr:\n";
+  typePrinter.visitType(*node.type, state.withIndent());
+  for (size_t i = 0; i < node.field_exprs.size(); i++) {
+    state.printIndent(output);
+    output << "  " << node.field_names[i] << ":\n";
+    visitNode(*node.field_exprs[i], state.withIndent());
+  }
+
+  return 0;
+}
+
 int ASTPrinter::visitTypeAliasDecl(TypeAliasDecl &node,
                                    const ASTPrinterState &state) {
   state.printIndent(output);

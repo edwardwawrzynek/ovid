@@ -1,0 +1,19 @@
+// __ovid_compiler_test
+//__mode: check_ast check_ir
+//__end_header
+
+struct Type1 {
+    field   i32
+}
+
+struct Type2 {
+    field1  i32
+    field2  *Type1
+}
+
+fn main() {
+    val t1 = Type1 {
+        field: 5
+    }
+    val t2 = Type2{field1: t1.field, field2: &t1 }
+}

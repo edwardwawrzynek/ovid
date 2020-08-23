@@ -1,0 +1,27 @@
+(5:1) TypeAliasDecl: Type1
+    StructType ovidc_test:Type1
+(9:1) TypeAliasDecl: Type2
+    StructType ovidc_test:Type2
+(14:1) FunctionDecl: main
+  retType:
+    VoidType
+  argNames:
+  argTypes:
+  body:
+    (15:5) VarDecl: t1
+        (15:14) StructExpr:
+            StructType ovidc_test:Type1
+          field:
+            (16:16) IntLiteral: 5
+    (18:5) VarDecl: t2
+        (18:14) StructExpr:
+            StructType ovidc_test:Type2
+          field1:
+            (18:28) FieldAccess field
+                (18:28) Identifier: t1
+          field2:
+            (18:46) FunctionCall
+              function:
+                (18:46) OperatorSymbol: &
+              args:
+                (18:47) Identifier: t1

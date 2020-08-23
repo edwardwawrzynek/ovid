@@ -347,6 +347,9 @@ public:
   int32_t getNamedFieldIndex(const std::string &field_name) const override;
   int32_t getNumberedFieldIndex(int32_t field) const override;
 
+  // a struct type has a public constructor if all fields are public
+  bool hasPublicConstructor() const;
+
   StructType(const SourceLocation &loc, TypeList field_types,
              std::vector<std::string> field_names,
              std::vector<bool> fields_are_public)
@@ -623,8 +626,26 @@ class Tuple : public Expression {
 public:
   ExpressionList expressions;
 
-  explicit Tuple(const SourceLocation &loc, ExpressionList expressions)
+  Tuple(const SourceLocation &loc, ExpressionList expressions)
       : Expression(loc), expressions(std::move(expressions)){};
+};
+
+class StructExpr : public Expression {
+public:
+  // UnresolvedType before resolve pass, StructType afterwards
+  std::shared_ptr<ast::Type> type;
+
+  std::vector<std::string> field_names;
+  ExpressionList field_exprs;
+
+  StructExpr(const SourceLocation &loc, std::vector<std::string> type_scope,
+             const std::string &type_id, bool type_is_root_scoped,
+             std::vector<std::string> field_names, ExpressionList field_exprs)
+      : Expression(loc),
+        type(std::make_shared<ast::UnresolvedType>(
+            loc, std::move(type_scope), type_id, type_is_root_scoped)),
+        field_names(std::move(field_names)),
+        field_exprs(std::move(field_exprs)){};
 };
 
 } // namespace ovid::ast

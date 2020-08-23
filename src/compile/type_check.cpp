@@ -115,6 +115,103 @@ TypeCheckResult TypeCheck::visitTuple(Tuple &node,
   return TypeCheckResult(resType, instrPointer);
 }
 
+TypeCheckResult TypeCheck::visitStructExpr(StructExpr &node,
+                                           const TypeCheckState &state) {
+  auto structType = std::dynamic_pointer_cast<StructType>(node.type);
+
+  if (structType == nullptr) {
+    errorMan.logError(
+        string_format(
+            "expected constructor type (\x1b[1m%s\x1b[m) to be a struct type",
+            type_printer.getType(*node.type).c_str()),
+        node.loc, ErrorType::TypeError);
+
+    return TypeCheckResult::nullResult();
+  }
+
+  // if the not all of the structure's fields are public and we are outside of
+  // the struct's module, it can't be constructed
+  if (!structType->hasPublicConstructor() &&
+      !checkVisible(*structType->getTypeAlias(),
+                    scopes.types->getScopeTable(package),
+                    scopes.types->getScopeTable(currentModule), false)) {
+    errorMan.logError(
+        string_format("use of private constructor on type \x1b[1m%s\x1b[m",
+                      type_printer.getType(*structType).c_str()),
+        node.loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+
+  // because expr's may be in any order, store both index + value
+  std::vector<std::pair<int32_t, std::reference_wrapper<ir::Expression>>>
+      unorder_exprs;
+
+  assert(node.field_exprs.size() == node.field_names.size());
+  for (size_t i = 0; i < node.field_exprs.size(); i++) {
+    auto field_index = structType->getNamedFieldIndex(node.field_names[i]);
+    if (field_index == -1) {
+      errorMan.logError(
+          string_format(
+              "type \x1b[1m%s\x1b[m does not have field \x1b[1m%s\x1b[m",
+              type_printer.getType(*structType).c_str(),
+              node.field_names[i].c_str()),
+          node.loc, ErrorType::TypeError);
+      return TypeCheckResult::nullResult();
+    }
+    auto field_type = structType->getTypeOfField(field_index);
+    auto expr = visitNode(*node.field_exprs[i], state.withTypeHint(field_type));
+
+    if (!expr.resultType->equalToExpected(*field_type)) {
+      errorMan.logError(
+          string_format("type of expression \x1b[1m%s\x1b[m doesn't match "
+                        "expected type \x1b[1m%s\x1b[m",
+                        type_printer.getType(*expr.resultType).c_str(),
+                        type_printer.getType(*field_type).c_str()),
+          node.field_exprs[i]->loc, ErrorType::TypeError);
+      return TypeCheckResult::nullResult();
+    }
+
+    unorder_exprs.emplace_back(field_index,
+                               std::reference_wrapper(*expr.resultInstruction));
+  }
+
+  bool missing_fields = false;
+  if (unorder_exprs.size() != structType->getNumFields()) {
+    errorMan.logError(string_format("struct expression doesn't initialize all "
+                                    "fields of type \x1b[1m%s\x1b[m",
+                                    type_printer.getType(*structType).c_str()),
+                      node.loc, ErrorType::TypeError);
+    missing_fields = true;
+  }
+
+  // construct properly ordered list of expressions
+  std::vector<std::reference_wrapper<ir::Expression>> exprs;
+  for (size_t i = 0; i < structType->getNumFields(); i++) {
+    auto expr = std::find_if(
+        unorder_exprs.begin(), unorder_exprs.end(),
+        [i](auto &entry) -> bool { return entry.first == (int32_t)i; });
+
+    if (expr == std::end(unorder_exprs)) {
+      errorMan.logError(
+          string_format("field \x1b[1m%s\x1b[m is not initialized",
+                        structType->field_names[i].c_str()),
+          node.loc, ErrorType::TypeError);
+    } else {
+      exprs.push_back(expr->second);
+    }
+  }
+
+  if (missing_fields)
+    return TypeCheckResult::nullResult();
+
+  auto instr = std::make_unique<ir::TupleLiteral>(node.loc, ir::Value(), exprs,
+                                                  structType);
+  auto instrPointer = instr.get();
+  curInstructionList->push_back(std::move(instr));
+
+  return TypeCheckResult(structType, instrPointer);
+}
+
 TypeCheckResult TypeCheck::visitIntLiteral(IntLiteral &node,
                                            const TypeCheckState &state) {
   std::shared_ptr<IntType> resType;

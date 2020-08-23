@@ -85,6 +85,7 @@ class ASTPrinter : public BaseASTVisitor<int, ASTPrinterState> {
   int visitCharLiteral(CharLiteral &node,
                        const ASTPrinterState &state) override;
   int visitTuple(Tuple &node, const ASTPrinterState &state) override;
+  int visitStructExpr(StructExpr &node, const ASTPrinterState &state) override;
   int visitTypeAliasDecl(TypeAliasDecl &node,
                          const ASTPrinterState &state) override;
   int visitFieldAccess(FieldAccess &node,

@@ -202,7 +202,7 @@ std::string scopesAndNameToString(const std::vector<std::string> &scopes,
   return scopesAndNameToString(scopes, name, true);
 }
 
-SourceLocation SourceLocation::through(const SourceLocation &endLoc) {
+SourceLocation SourceLocation::through(const SourceLocation &endLoc) const {
   assert(file == endLoc.file);
   assert(filename == endLoc.filename);
 
@@ -210,7 +210,7 @@ SourceLocation SourceLocation::through(const SourceLocation &endLoc) {
                         file);
 }
 
-SourceLocation SourceLocation::until(const SourceLocation &endLoc) {
+SourceLocation SourceLocation::until(const SourceLocation &endLoc) const {
   assert(file == endLoc.file);
   assert(filename == endLoc.filename);
 

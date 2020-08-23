@@ -137,6 +137,60 @@ Parser::parseFloatLiteral(const ParserState &state) {
   return res;
 }
 
+// structliteral ::= '{' (ident ':' expr ',')* ident ':' expr ','? '}'
+std::unique_ptr<ast::Expression> Parser::parseStructLiteral(
+    const ParserState &state, const SourceLocation &loc_start,
+    const std::string &ident, std::vector<std::string> ident_scope,
+    bool ident_is_root_scoped) {
+  // consume '}'
+  tokenizer.nextToken();
+
+  std::vector<std::string> field_names;
+  std::vector<std::unique_ptr<ast::Expression>> field_exprs;
+
+  while (tokenizer.curToken.token != T_RBRK) {
+    if (tokenizer.curToken.token != T_IDENT) {
+      return errorMan.logError("expected struct field name",
+                               tokenizer.curTokenLoc, ErrorType::ParseError);
+    }
+    auto name = tokenizer.curToken.ident;
+    tokenizer.nextToken();
+    if (tokenizer.curToken.token != T_COLON) {
+      return errorMan.logError("expected ':' after field name",
+                               tokenizer.curTokenLoc, ErrorType::ParseError);
+    }
+    tokenizer.nextToken();
+    auto expr = parseExpr(state);
+    if (expr == nullptr)
+      return nullptr;
+
+    while (tokenizer.curToken.token == T_SEMICOLON)
+      tokenizer.nextToken();
+
+    field_names.push_back(name);
+    field_exprs.push_back(std::move(expr));
+
+    if (tokenizer.curToken.token != T_COMMA) {
+      if (tokenizer.curToken.token != T_RBRK) {
+        return errorMan.logError("expected ',' or '}' after expression",
+                                 tokenizer.curTokenLoc, ErrorType::ParseError);
+      }
+    } else {
+      tokenizer.nextToken();
+    }
+
+    while (tokenizer.curToken.token == T_SEMICOLON)
+      tokenizer.nextToken();
+  }
+
+  auto pos = loc_start.through(tokenizer.curTokenLoc);
+  tokenizer.nextToken();
+
+  return std::make_unique<ast::StructExpr>(
+      pos, std::move(ident_scope), ident, ident_is_root_scoped,
+      std::move(field_names), std::move(field_exprs));
+}
+
 // identexpr ::= identifier (':' identifier)*
 std::unique_ptr<ast::Expression>
 Parser::parseIdentifier(const ParserState &state) {
@@ -169,6 +223,12 @@ Parser::parseIdentifier(const ParserState &state) {
       break;
   }
 
+  // special handling for structure literal
+  if (tokenizer.curToken.token == T_LBRK && state.struct_literals_allowed) {
+    return parseStructLiteral(state, pos, ident, std::move(varScopes),
+                              is_root_scoped);
+  }
+
   return std::make_unique<ast::Identifier>(
       pos.through(end), ident, std::move(varScopes), is_root_scoped);
 }
@@ -180,7 +240,7 @@ Parser::parseParenExpr(const ParserState &state) {
   auto pos = tokenizer.curTokenLoc;
 
   tokenizer.nextToken(); // skip '('
-  auto expr0 = parseExpr(state);
+  auto expr0 = parseExpr(state.allowStructLiterals());
   if (!expr0)
     return nullptr;
   /* check for right paren or comma, indicating tuple */
@@ -1062,7 +1122,7 @@ Parser::parseIfStatement(const ParserState &state) {
     }
     // 'if' and 'elsif' have a specified condition
     else {
-      condition = parseExpr(state);
+      condition = parseExpr(state.disallowStructLiterals());
     }
     conds.push_back(std::move(condition));
 
@@ -1168,7 +1228,7 @@ Parser::parseWhileStatement(const ParserState &state) {
   // consume 'while'
   tokenizer.nextToken();
 
-  auto cond = parseExpr(state);
+  auto cond = parseExpr(state.disallowStructLiterals());
   // expect opening brace
   if (tokenizer.curToken.token != T_LBRK) {
     return errorMan.logError("expected '{' to begin while statement body",
@@ -1505,6 +1565,16 @@ void Parser::removePushedPackageScope() {
   scopes.popComponentScopesByName(package);
   assert(scopes.names.getNumActiveScopes() == 1);
   assert(scopes.types.getNumActiveScopes() == 1);
+}
+
+ParserState ParserState::allowStructLiterals() const {
+  return ParserState(is_global_level, current_scope, current_type_scope,
+                     current_module, in_private_mod, true);
+}
+
+ParserState ParserState::disallowStructLiterals() const {
+  return ParserState(is_global_level, current_scope, current_type_scope,
+                     current_module, in_private_mod, false);
 }
 
 } // namespace ovid

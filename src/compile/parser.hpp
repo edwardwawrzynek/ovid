@@ -20,13 +20,25 @@ struct ParserState {
   // what module we are in
   std::vector<std::string> current_module;
 
+  // if a struct literal is allowed in the current position
+  // needed to resolve ambigouity with struct literals in front of blocks
+  // eg:
+  // if Type { field: 1} { /* ... */ }
+  // is ambiguous at parse time (without unbounded look ahead), so struct
+  // literals are disallowed in some positions
+  bool struct_literals_allowed;
+
+  ParserState allowStructLiterals() const;
+  ParserState disallowStructLiterals() const;
+
   ParserState(bool is_global_level, ScopeTable<Symbol> *current_scope,
               ScopeTable<TypeAlias> *current_type_scope,
               const std::vector<std::string> &current_module,
-              bool in_private_mod)
+              bool in_private_mod, bool struct_literals_allowed = true)
       : is_global_level(is_global_level), in_private_mod(in_private_mod),
         current_scope(current_scope), current_type_scope(current_type_scope),
-        current_module(current_module){};
+        current_module(current_module),
+        struct_literals_allowed(struct_literals_allowed){};
 };
 
 class Parser {
@@ -58,6 +70,12 @@ class Parser {
 
   std::unique_ptr<ast::FloatLiteral>
   parseFloatLiteral(const ParserState &state);
+
+  std::unique_ptr<ast::Expression>
+  parseStructLiteral(const ParserState &state, const SourceLocation &loc_start,
+                     const std::string &ident,
+                     std::vector<std::string> ident_scope,
+                     bool ident_is_root_scoped);
 
   std::unique_ptr<ast::Expression> parseIdentifier(const ParserState &state);
 

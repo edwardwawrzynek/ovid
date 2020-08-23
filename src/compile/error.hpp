@@ -36,9 +36,9 @@ struct SourceLocation {
         end_row(end_row), file(file){};
 
   // construct a source location beginning here, lasting until before endLoc
-  SourceLocation until(const SourceLocation &endLoc);
+  SourceLocation until(const SourceLocation &endLoc) const;
   // construct a source location beginning here, lasting through endLoc
-  SourceLocation through(const SourceLocation &endLoc);
+  SourceLocation through(const SourceLocation &endLoc) const;
 
   static SourceLocation nullLocation();
 };

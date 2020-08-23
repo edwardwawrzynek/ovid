@@ -1,0 +1,20 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+struct Type {
+    field   i32
+}
+
+pub fn main() -> i32 {
+    /* structs in disallowed positions require parens */
+    if (Type { field: 5 }).field != 5 {
+        return 255
+    }
+
+    while (Type { field: 5 }).field != 5 {
+        return 255
+    }
+
+    return 0
+}

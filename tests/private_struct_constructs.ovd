@@ -1,0 +1,24 @@
+// __ovid_compiler_test
+//__mode: type_check
+//__end_header
+
+module mod {
+    pub struct Type1 {
+        pub f1 i32
+        pub f2 i32
+    }
+
+    pub struct Type2 {
+        pub f1 i32
+            f2 i32
+    }
+}
+
+fn main() {
+    val a = mod:Type1 { f1: 5, f2: 6 }
+    val b = mod:Type2 { f1: 5, f2: 6 } //__error: "use of private constructor on type ovidc_test:mod:Type2"
+
+    val c = mod:Type1 { random_field: 7 } //__error: "type ovidc_test:mod:Type1 does not have field random_field"
+
+    val d = mod:Type1 { f1: 5 } //__error: "struct expression doesn't initialize all fields of type ovidc_test:mod:Type1" "field f2 is not initialized"
+}

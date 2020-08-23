@@ -215,6 +215,15 @@ const TypeAlias *StructType::getTypeAlias() const {
   return type_alias.lock().get();
 }
 
+bool StructType::hasPublicConstructor() const {
+  for (auto pub : fields_are_public) {
+    if (!pub)
+      return false;
+  }
+
+  return true;
+}
+
 } // namespace ovid::ast
 // namespace ovid::ast
 

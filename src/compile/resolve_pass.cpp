@@ -202,6 +202,19 @@ int ResolvePass::visitTuple(Tuple &node, const ResolvePassState &state) {
   return 0;
 }
 
+int ResolvePass::visitStructExpr(StructExpr &node,
+                                 const ResolvePassState &state) {
+  node.type = type_resolver.visitType(
+      node.type, TypeResolverState(package, current_module));
+
+  // resolve field_expr's
+  for (auto &expr : node.field_exprs) {
+    visitNode(*expr, state);
+  }
+
+  return 0;
+}
+
 int ResolvePass::visitTypeAliasDecl(TypeAliasDecl &node,
                                     const ResolvePassState &state) {
   // check for type shadowing
