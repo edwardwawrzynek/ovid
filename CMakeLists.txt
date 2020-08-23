@@ -2,81 +2,14 @@ cmake_minimum_required(VERSION 3.15.3)
 project(ovid)
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(src/compile src/test src/printers)
-set(SOURCES src/compile/parser.cpp src/compile/tokenizer.cpp src/compile/error.cpp src/compile/ast.cpp src/compile/resolve_pass.cpp src/compile/type_check.cpp src/compile/ir.cpp src/compile/escape_analysis.cpp src/compile/llvm_codegen.cpp src/compile/name_mangle.cpp src/printers/ast_printer.cpp src/printers/ir_printer.cpp)
-set(DRIVER src/compile/main.cpp)
-set(UNIT_TESTS src/test/misc_unit.cpp)
-set(TEST_FRAMEWORK src/test/tester.cpp)
+include(GNUInstallDirs)
 
-set(LIB src/lib/bootstrap.c)
-
-# AddressSanitizer
-# set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-# set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-
-##################################
-# Compiler options
-add_definitions(-D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS)
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-set(CCFLAGS -Wall -Wextra -pedantic -Wno-unused-parameter -g)
-
-##################################
-# LLVM stuff
-find_package(LLVM 10.0.0 REQUIRED)
-message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-
-if( NOT LLVM_FOUND )
-    message(FATAL_ERROR "LLVM package can't be found. Set CMAKE_PREFIX_PATH variable to LLVM's installation prefix.")
+# Set options for gcc and clang
+if(CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
+    set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Wno-unused-parameter")
+    set(CMAKE_CXX_FLAGS_DEBUG   "-O0 -g3")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 endif()
 
-include_directories( ${LLVM_INCLUDE_DIRS} ".")
-link_directories( ${LLVM_LIBRARY_DIRS} )
-
-llvm_map_components_to_libnames(REQ_LLVM_LIBRARIES native passes)
-
-##################################
-# Download and install GoogleTest
-
-include(ExternalProject)
-ExternalProject_Add(gtest
-        URL https://github.com/google/googletest/archive/release-1.10.0.zip
-        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
-        INSTALL_COMMAND ""
-        )
-ExternalProject_Get_Property(gtest source_dir binary_dir)
-
-################
-# Unit test files
-add_executable(runUnitTests ${SOURCES} ${UNIT_TESTS})
-
-add_dependencies(runUnitTests gtest)
-include_directories(${source_dir}/googletest/include)
-target_link_libraries(runUnitTests ${binary_dir}/lib/libgtest.a ${binary_dir}/lib/libgtest_main.a pthread)
-
-target_link_libraries(runUnitTests ${REQ_LLVM_LIBRARIES})
-
-target_compile_options(runUnitTests PRIVATE ${CCFLAGS})
-
-enable_testing()
-add_test(NAME    runUnitTests
-        COMMAND runUnitTests)
-
-##################################
-# custom test framework
-
-add_executable(runTests ${SOURCES} ${TEST_FRAMEWORK})
-target_compile_options(runTests PRIVATE ${CCFLAGS})
-target_link_libraries(runTests ${REQ_LLVM_LIBRARIES})
-add_test(NAME runTests
-        COMMAND runTests)
-
-##################################
-# Main build
-# Main executable
-add_executable(ovidc ${SOURCES} ${DRIVER})
-target_compile_options(ovidc PRIVATE ${CCFLAGS})
-target_link_libraries(ovidc ${REQ_LLVM_LIBRARIES})
-
-##################################
-# Runtime library
-add_library(ovidruntime STATIC ${LIB})
+add_subdirectory(src)
+add_subdirectory(runtime)

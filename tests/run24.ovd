@@ -1,0 +1,25 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+struct Type1 {
+    field   i32
+}
+
+struct Type2 {
+    field   *mut Type1
+}
+
+fn type2(a *mut Type1) -> *mut Type2 {
+    mut t2 = Type2 { field: a }
+    return &t2
+}
+
+pub fn main() -> i32 {
+    mut t1 = Type1 { field: 1 }
+    val t2 = type2(&t1)
+
+    t2.field.field -= 1
+
+    return t2.field.field
+}

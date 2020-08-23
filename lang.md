@@ -1,4 +1,4 @@
-# Ovid Reference
+# Ovid Language
 
 Ovid is a compiled programming language. It has a strong, static type system. It takes inspiration from Rust, C, and Go.
 
@@ -16,52 +16,43 @@ Single line comments can be denoted with `//`. Multi-line comments are oppened w
 ```
 
 ## Builtin Types
-### Integral Types
-- `i8`, `i16`, `i32`, `i64` - signed integral types of various bit widths
-- `u8`, `u16`, `u32`, `u64` - unsigned integral types
-- `usize`, `isize` (TODO) - integral types capable of representing the size of an object in memory (useful for list indexes, etc -- anything bounded by pointer size). Equivalent to `size_t` in c.
 
-Integral literals can be written in a few ways:
-- Implicit base 10: `42`, `-123`
-- Explicit base specifier: `0b01010110`, `0xf5ea`, `0o754`
-Intgeral literals default to `i32`.
+| Type | Description | Example Values |
+|-|-|-|
+| `i8, i16, i32, i64` | Signed 8 bit, 16 bit, 32 bit, and 64 bit integers   | `42`, `-123`, `0xFF34`, `0b11001010` |
+| `u8, u16, u32, u64` | Unsigned 8 bit, 16 bit, 32 bit, and 64 bit integers | `123`, `'A'`, `'\n'`, `0xfefa`       |
+| `f32, f64`          | 32 and 64 bit floating point values                 | `1.23`, `-0.4`, `1.2e-12`            |
+| `bool`              | Boolean Value                                       | `true`, `false`                      |
+| `void`              | Unit type                                           |                                      |
 
-### Floating Point types
-- `f32`, `f64` - 32 and 64 bit floating point numbers (equivalent to `float` and `double` in c)
+## Function Declarations
+Most ovid code must reside inside a function. Functions are declared with the `fn` keyword:
 
-Floating point literals require a decimal point:
-- `12.3`, `-1.0`
-Floating point literals default to `f64`
-
-### Boolean Type
-- `bool`
-
-Boolean literals:
-- `true`, `false`
-
-## Functions
-All ovid code (expect globals) must be located inside a function.
-
-### Declaration
-Functions are declared with the `fn` keywork, followed by function name, arguments, return type, and body:
 ```ovid
-// declare a function sum that takes two arguments of types i32, and returns an i32
-fn sum(a i32, b i32) -> i32 { /* ... body ... */ }
-```
-If a function doesn't return a value, it has the return type `void`:
-```ovid
-fn foo(a i32) -> void { /* ... */ }
-```
-If a function returns void, the return type can be omitted. The previous example could be rewritten as:
-```ovid
-fn foo(a i32) { /* ... */ }
-```
-
-If function can use the `return` keywork inside it's body to return a value:
-```ovid
-fn get_42() -> i32 {
-	return 42
+fn func() {
+    /* body */
 }
+```
+
+Functions can take named arguments:
+```ovid
+fn print_number (num i32) {
+    /* body */
+}
+```
+
+Functions can return values with the `return` keyword:
+```ovid
+fn sum(arg0 i32, arg1 i32) -> i32 {
+    return arg0 + arg1
+}
+```
+
+If a function omits its return type, it implicitly returns `void`:
+```ovid
+// these two declarations are equivalent
+fn func() {}
+fn func() -> void {}
 ```
 
 ### Calling Functions
@@ -74,6 +65,7 @@ sum(1, sum(sum(2, 3), 4))
 ```
 
 A few builtin functions may be called using prefix and infix notation:
+
 Identifier 	| Function				| Notation 	| Precedence 	| Associativity
 -		| -					| -		| -		| -
 `!`		| Logical Negation			| Prefix	| 1		| right-to-left
@@ -193,7 +185,7 @@ fn add_points(p0 (f64, f64), p1 (f64, f64)) -> (f64, f64) {
 }
 ```
 
-### Destructuring (TODO)
+### Destructuring
 Tuples can be destructured during variable declaration and assignment:
 ```ovid
 fn foo1() -> (bool, bool) { /* ... */ }
@@ -208,7 +200,7 @@ fn bar() {
 ```
 
 ## Pointer Types
-A pointer to type `T` is written `*T`. 
+A pointer to type `T` is written `*T` (immutable pointer) or `*mut T` (mutable pointer). 
 
 `*T` does not allow mutation of the contents of `T`. `*mut T` does allow mutation of the contents of `T`.
 
@@ -239,7 +231,7 @@ fn foo() -> *mut i32 {
 
 Ovid does not have a null pointer, so pointers are always safe to dereference.
 
-### Automatic field dereferencing
+### Automatic field dereference
 
 If the field selection operator (`.`) is used on a pointer to a tuple type, the pointer is implicitly dereferenced.
 
@@ -253,5 +245,35 @@ is equivalent to the more verbose:
 ```ovid
 fn foo2(a *(i32, i32)) -> i32 {
    return (*a).0
+}
+```
+
+## Struct's
+
+Structs allow for multiple types to be combined into one.
+
+Struct types are declared with the `struct` keyword:
+```ovid
+struct User {
+    id              u64
+    sign_in_count   i32
+    active          bool
+}
+```
+
+Struct's can be created and manipulated:
+```ovid
+
+fn new_user() -> User {
+    return User { 
+        id: new_id(),
+        sign_in_count: 0,
+        active: false
+    }
+}
+
+fn user_login(user *mut User) {
+    user.sign_in_count += 1
+    user.active = true
 }
 ```
