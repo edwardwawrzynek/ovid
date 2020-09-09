@@ -186,7 +186,7 @@ static std::map<std::string, TokenType> keywordMap = {
     {"module", T_MODULE}, {"import", T_IMPORT}, {"return", T_RETURN},
     {"pub", T_PUB},       {"type", T_TYPE},     {"if", T_IF},
     {"elsif", T_ELSIF},   {"else", T_ELSE},     {"native", T_NATIVE},
-    {"while", T_WHILE},   {"struct", T_STRUCT}};
+    {"while", T_WHILE},   {"struct", T_STRUCT}, {"impl", T_IMPL}};
 
 /* scan and read the next token */
 void Tokenizer::nextToken() {

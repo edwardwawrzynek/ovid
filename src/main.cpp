@@ -14,6 +14,8 @@ extern "C" {
 #include <getopt.h>
 }
 
+namespace ovid {
+
 class DriverArgs {
 public:
   /* intermediate forms to emit on command line */
@@ -23,7 +25,7 @@ public:
   bool dump_llvm;
 
   // object, asm, or llvm output
-  ovid::ir::CodegenOutputType codegen_out;
+  ir::CodegenOutputType codegen_out;
   // llvm optimization level
   llvm::PassBuilder::OptimizationLevel opt_level;
   // llvm relocation model
@@ -40,15 +42,15 @@ public:
 
   DriverArgs()
       : dump_ast(false), dump_ir(false), dump_escape_analysis(false),
-        dump_llvm(false), codegen_out(ovid::ir::CodegenOutputType::OBJ),
+        dump_llvm(false), codegen_out(ir::CodegenOutputType::OBJ),
         opt_level(llvm::PassBuilder::O2), reloc_model(llvm::Reloc::PIC_),
         code_model(llvm::CodeModel::Small), out_file("ovidc.out"), in_files(),
         package_name(), package_version(-1), do_main(false){};
 };
 
-void usage(int argc, char **argv) {
+void usage() {
   std::cout
-      << "Usage: " << std::string(argv[0])
+      << "Usage: " << "ovidc"
       << " [OPTIONS] file...\n"
          "The Ovid Language Compiler Backend\n"
          "Options:\n"
@@ -116,13 +118,13 @@ DriverArgs parseCLIArgs(int argc, char **argv) {
       res.out_file = std::string(optarg);
       break;
     case 'c':
-      res.codegen_out = ovid::ir::CodegenOutputType::OBJ;
+      res.codegen_out = ir::CodegenOutputType::OBJ;
       break;
     case 'S':
-      res.codegen_out = ovid::ir::CodegenOutputType::ASM;
+      res.codegen_out = ir::CodegenOutputType::ASM;
       break;
     case 3:
-      res.codegen_out = ovid::ir::CodegenOutputType::LLVM_IR;
+      res.codegen_out = ir::CodegenOutputType::LLVM_IR;
       break;
     case 'O':
       if (!strcmp(optarg, "0")) {
@@ -208,7 +210,7 @@ DriverArgs parseCLIArgs(int argc, char **argv) {
       break;
     case 'h':
     default:
-      usage(argc, argv);
+      usage();
     }
   }
 
@@ -219,42 +221,66 @@ DriverArgs parseCLIArgs(int argc, char **argv) {
   return res;
 }
 
-int main(int argc, char **argv) {
-  auto args = parseCLIArgs(argc, argv);
-  // TODO: support multiple input files
-  if (args.in_files.empty() || args.in_files.size() > 1) {
-    usage(argc, argv);
+class CLIDriver {
+  PrintingErrorManager errorMan;
+  DriverArgs args;
+  ScopesRoot root_scopes;
+  
+  ast::StatementList parseFiles();
+  
+public:
+  CLIDriver(int argc, char **argv): errorMan(), args(parseCLIArgs(argc, argv)), root_scopes() {};
+  
+  int run();
+};
+
+ast::StatementList CLIDriver::parseFiles() {
+  ast::StatementList ast;
+  
+  auto scopes = ActiveScopes(args.package_name, args.package_version,
+                                   root_scopes.names.get(), root_scopes.types.get());
+  for(auto &path: args.in_files) {
+    // open file
+    auto file = std::fstream(path);
+    // feed file to tokenizer
+    auto lexer = Tokenizer(path, &file, errorMan);
+    // parse file
+    auto parser = Parser(lexer, errorMan, scopes, args.package_name);
+    auto file_ast = parser.parseProgram();
+    parser.removePushedPackageScope();
+    // add file's ast to whole program ast
+    for(auto& stat: file_ast) {
+      ast.push_back(std::move(stat));
+    }
   }
-
-  auto filein = std::fstream(args.in_files[0]);
-
-  auto errorMan = ovid::PrintingErrorManager();
-  ovid::ir::reset_id();
-
-  auto lexer = ovid::Tokenizer(args.in_files[0], &filein, errorMan);
-
-  auto root_scopes = ovid::ScopesRoot();
-  auto scopes =
-      ovid::ActiveScopes(args.package_name, args.package_version,
-                         root_scopes.names.get(), root_scopes.types.get());
-
-  auto parser = ovid::Parser(lexer, errorMan, scopes, args.package_name);
-
-  auto ast = parser.parseProgram();
-  parser.removePushedPackageScope();
-
+  
+  // run resolve pass
   auto resolvePass =
-      ovid::ast::ResolvePass(scopes, errorMan, args.package_name);
-  resolvePass.visitNodes(ast, ovid::ast::ResolvePassState());
+      ast::ResolvePass(scopes, errorMan, args.package_name);
+  resolvePass.visitNodes(ast, ast::ResolvePassState());
   resolvePass.removePushedPackageScope();
+  
+  return ast;
+}
+
+int CLIDriver::run() {
+  ir::reset_id();
+  ast::reset_id();
+  
+  if(args.in_files.empty()) {
+    usage();
+    return 1;
+  }
+  
+  auto ast = parseFiles();
 
   if (args.dump_ast) {
     std::cout << "---- AST ----\n";
-    auto astPrinter = ovid::ast::ASTPrinter(std::cout);
-    astPrinter.visitNodes(ast, ovid::ast::ASTPrinterState());
+    auto astPrinter = ast::ASTPrinter(std::cout);
+    astPrinter.visitNodes(ast, ast::ASTPrinterState());
   }
 
-  auto ir = ovid::ast::typeCheckProduceIR(errorMan, args.package_name,
+  auto ir = ast::typeCheckProduceIR(errorMan, args.package_name,
                                           root_scopes, ast);
 
   if (errorMan.criticalErrorOccurred()) {
@@ -264,21 +290,21 @@ int main(int argc, char **argv) {
 
   if (args.dump_ir) {
     std::cout << "\n---- IR ----\n";
-    auto irPrinter = ovid::ir::IRPrinter(std::cout);
-    irPrinter.visitInstructions(ir, ovid::ast::ASTPrinterState());
+    auto irPrinter = ir::IRPrinter(std::cout);
+    irPrinter.visitInstructions(ir, ast::ASTPrinterState());
   }
 
   // run escape analysis
   if (args.dump_escape_analysis) {
     std::cout << "\n---- ESCAPE ANALYSIS ----\n";
-    ovid::ir::runEscapeAnalysis(ir, true, true, true, std::cout);
+    ir::runEscapeAnalysis(ir, true, true, true, std::cout);
   } else {
-    ovid::ir::runEscapeAnalysis(ir, false, false, false, std::cout);
+    ir::runEscapeAnalysis(ir, false, false, false, std::cout);
   }
 
   // generate llvm
-  auto codegen = ovid::ir::LLVMCodegenPass(args.in_files[0], errorMan);
-  codegen.visitInstructions(ir, ovid::ir::LLVMCodegenPassState());
+  auto codegen = ir::LLVMCodegenPass(args.in_files[0], errorMan);
+  codegen.visitInstructions(ir, ir::LLVMCodegenPassState());
 
   if (args.dump_llvm) {
     std::cout << "\n---- LLVM IR ----\n";
@@ -298,4 +324,12 @@ int main(int argc, char **argv) {
   } else {
     return 0;
   }
+}
+
+}
+
+int main(int argc, char **argv) {
+  auto driver = ovid::CLIDriver(argc, argv);
+  
+  return driver.run();
 }

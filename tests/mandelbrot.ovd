@@ -2,6 +2,8 @@
 //__mode: run
 //__end_header
 
+/** A basic ascii mandelbrot set renderer **/
+
 native fn std:bootstrap:print_num(num i64) -> void
 native fn std:bootstrap:print_char(c u8) -> void
 native fn std:bootstrap:print_float(f f64) -> void
@@ -9,48 +11,58 @@ native fn std:bootstrap:assert(cond bool) -> void
 native fn std:bootstrap:i32_to_f64(num i32) -> f64
 native fn fabs(num f64) -> f64
 
-/** A basic ascii mandelbrot set renderer **/
+// a point on the complex plane
+struct Complex {
+    real    f64
+    imag    f64
+}
 
-/// a point on the complex plane
-type Complex = (f64, f64)
+// terminal size (width, height) in characters
+struct TermSize {
+    width   i32
+    height  i32
+}
 
-/// terminal size (width, height) in characters
-type TermSize = (i32, i32)
-
-/// a subset of the complex plane (upper_left, lower_right)
+// a subset of the complex plane (upper_left, lower_right)
 type ComplexPlaneSubset = (Complex, Complex)
 
-/// square a complex number
+// square a complex number
 fn complex_square(num Complex) -> Complex {
-    return (num.0 * num.0 - num.1 * num.1, 2.0 * num.0 * num.1)
+    return Complex {
+        real: num.real * num.real - num.imag * num.imag,
+        imag: 2.0 * num.real * num.imag
+    }
 }
 
-/// add two complex numbers
+// add two complex numbers
 fn complex_add(a Complex, b Complex) -> Complex {
-    return (a.0 + b.0, a.1 + b.1)
+    return Complex {
+        real: a.real + b.real,
+        imag: a.imag + b.imag
+    }
 }
 
-/// return the squared magnitude of a complex number
+// return the squared magnitude of a complex number
 fn complex_mag_sq(num Complex) -> f64 {
-    return num.0 * num.0 + num.1 * num.1
+    return num.real * num.real + num.imag * num.imag
 }
 
-/// determine if the given point is part of the julia set
-/// z is the point, c is the julia constant, max_iters is the maximum number of iterations to run, and escape_radius_sq is the squared escape radius
+// determine if the given point is part of the julia set
+// z is the point, c is the julia constant, max_iters is the maximum number of iterations to run, and escape_radius_sq is the squared escape radius
 fn run(z Complex, c Complex, max_iters i32, escape_radius_sq f64) -> bool {
     mut iter = 0
     mut value = z
 
     while iter < max_iters {
         value = complex_add(complex_square(value), c)
-        /// if magnitude of value escaped radius, not part of set
+        // if magnitude of value escaped radius, not part of set
         if complex_mag_sq(value) > escape_radius_sq {
             return false
         }
 
         iter += 1
     }
-    /// did not escape in given iterations, must be part of set
+    // did not escape in given iterations, must be part of set
     return true
 }
 
@@ -59,34 +71,34 @@ fn range_to_steps(range ComplexPlaneSubset, size TermSize) -> (f64, f64) {
     val p1 = range.1
 
     return (
-        (fabs(p1.0 - p0.0) / std:bootstrap:i32_to_f64(size.0)),
-        (fabs(p1.1 - p0.1) / std:bootstrap:i32_to_f64(size.1))
+        (fabs(p1.real - p0.real) / std:bootstrap:i32_to_f64(size.width)),
+        (fabs(p1.imag - p0.imag) / std:bootstrap:i32_to_f64(size.height))
     )
 }
 
 pub fn main() -> i32 {
-    /// width and height of ascii output (in characters)
-    val term_size = (80, 24)
-    /// range of fractal to display (in the complex plane)
+    // width and height of ascii output (in characters)
+    val term_size = TermSize { width: 80, height: 24 }
+    // range of fractal to display (in the complex plane)
     val range = (
-        (-1.5, -1.0),
-        (1.0, 1.0)
+        Complex { real: -1.5, imag: -1.0 },
+        Complex { real: 1.0, imag: 1.0 }
     )
-    /// max iterations to run for each point
+    // max iterations to run for each point
     val max_iters = 50
-    /// squared escape radius
+    // squared escape radius
     val escape_radius_sq = 4.0
 
     val incs = range_to_steps(range, term_size)
     val x_inc = incs.0
     val y_inc = incs.1
 
-    mut y = (range.0).1
-    while y < (range.1).1 {
-        mut x = (range.0).0
+    mut y = (range.0).imag
+    while y < (range.1).imag {
+        mut x = (range.0).real
 
-        while x < (range.1).0 {
-            if run((0.0, 0.0), (x, y), max_iters, escape_radius_sq) {
+        while x < (range.1).real {
+            if run(Complex { real: 0.0, imag: 0.0 }, Complex { real: x, imag: y }, max_iters, escape_radius_sq) {
                 std:bootstrap:print_char('*')
             } else {
                 std:bootstrap:print_char(' ')

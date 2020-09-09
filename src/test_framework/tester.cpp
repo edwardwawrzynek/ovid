@@ -204,12 +204,12 @@ void TesterInstance::readInErrors() {
   // read errors
   while (readToComment()) {
     auto desc = readToken();
-    if (desc[0] == '/')
-      continue;
 
-    if (desc != "__error:") {
+    if (desc.size() >= 2 && desc[0] == '_' && desc[1] == '_' && desc != "__error:") {
       doError("invalid comment annotation type (expected __error: __)");
       return;
+    } else if (desc != "__error:") {
+      continue;
     }
     std::string token;
     while (!(token = readToken()).empty()) {
@@ -481,6 +481,7 @@ int TesterInstance::run() {
   /* setup compilation */
   auto errorMan = ovid::TestErrorManager();
   ir::reset_id();
+  ast::reset_id();
 
   ScopesRoot root_scopes;
 

@@ -1,0 +1,29 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+struct Type {
+    a   i32
+}
+
+fn f(a Type) -> i32 {
+    return a.a
+}
+
+fn test() {
+    f(Type { a : 5 })
+    (Type { a : 5 })
+    /* normally, struct literals are disallowed in if/while conditional expression positions
+     * inside parens or function calls, they should be fine */
+    if f(Type { a : 5}) == 5 {}
+    elsif f(Type { a : 5}) == 5 {}
+    else {}
+
+    while f(Type { a : 5}) == 5 {}
+
+    if (Type { a : 5}).a == 5 {}
+    elsif (Type { a : 5}).a == 5 {}
+    else {}
+
+    while (Type { a : 5}).a == 5 {}
+ }

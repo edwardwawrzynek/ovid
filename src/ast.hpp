@@ -124,11 +124,17 @@ public:
 namespace ovid::ast {
 class Expression;
 class Statement;
+class TypeConstructor;
 class Type;
 
 typedef std::vector<std::unique_ptr<Expression>> ExpressionList;
 typedef std::vector<std::unique_ptr<Statement>> StatementList;
 typedef std::vector<std::shared_ptr<Type>> TypeList;
+typedef std::vector<std::unique_ptr<TypeConstructor>> TypeConstructorList;
+
+/* id generation for type parameters */
+uint64_t next_id();
+void reset_id();
 
 /* a scoped block, containing statements as well as a variable symbol table
  * generally used as the container for statement blocks in the ast
@@ -148,12 +154,41 @@ public:
   void addStatement(std::unique_ptr<Statement> statement);
 };
 
-/* ast types */
-class Type {
+// forward decl
+class TypeParameter;
 
+/* ast types */
+/* a type constructor (ie function that produces a concrete type) */
+class TypeConstructor: public std::enable_shared_from_this<TypeConstructor> {
 public:
   SourceLocation loc;
-  virtual ~Type() = default;
+  virtual ~TypeConstructor() = default;
+
+  explicit TypeConstructor(const SourceLocation &loc): loc(loc) {};
+
+  // apply the type constructor with the given type arguments
+  std::shared_ptr<Type> construct(const TypeList& args);
+
+  // if the type constructor is trivial (ie -- no arguments), apply it
+  // returns nullptr if type constructor isn't trivial
+  std::shared_ptr<Type> trivialConstruct();
+};
+
+/* a type constructor (TypeParameter, TypeParameter, ...) -> Type */
+class GenericTypeConstructor: public TypeConstructor {
+public:
+  // parameters
+  std::vector<std::shared_ptr<TypeParameter>> params;
+  // concrete type (with TypeParameter's)
+  std::shared_ptr<Type> type;
+
+  GenericTypeConstructor(const SourceLocation& loc, std::vector<std::shared_ptr<TypeParameter>> params, std::shared_ptr<Type> type): TypeConstructor(loc), params(std::move(params)), type(std::move(type)) {};
+};
+
+/* a concrete type -- a type that can be created */
+class Type: public TypeConstructor {
+
+public:
 
   // check if a type is equivalent to the given expected type
   // if this type has a mut (anywhere in the chain) that isn't in expected,
@@ -166,10 +201,21 @@ public:
   virtual const Type *withoutMutability() const;
   virtual Type *withoutMutability();
 
-  explicit Type(const SourceLocation &loc) : loc(loc){};
+  explicit Type(const SourceLocation &loc): TypeConstructor(loc) {};
 };
 
-/* an unresolved type
+/* a generic type parameter
+ * eg -- the 'T' in 'Type<T>' */
+class TypeParameter: public Type {
+public:
+  std::string name;
+  // Because TypeParameters always exist in GenericTypeConstructors, id is used for equality checks to replace type parameters when GenericTypeConstructors are turned into conrete types
+  uint64_t id;
+
+  TypeParameter(const SourceLocation &loc, const std::string& name): Type(loc), name(name), id(next_id()) {};
+};
+
+/* an unresolved type (ie use of a type alias)
  * not inferred, just not yet resolved by ResolvePass */
 class UnresolvedType : public Type {
 public:

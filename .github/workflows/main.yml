@@ -31,14 +31,10 @@ jobs:
       run: sudo apt install llvm-10 llvm-10-dev libgc-dev
       
     # Build and test cmake project
-    - name: Build CMake
-      uses: ashutoshvarma/action-cmake-build@v1
-      with:
-        run-test: true
-        install-build: true
-        ctest-options: -V
-        build-type: Debug
-        cc: gcc-9
-        cxx: g++-9
-      env:
-        OVIDC_TESTSUITE_PATH: ../ovid/tests
+    - name: Build
+      run: mkdir build && cd build && cmake -DENABLE_TESTING=ON .. && cmake --build . && sudo cmake --install .
+      working-directory: ${{ runner.workspace }}/ovid
+
+    - name: Ovidc Test Framework
+      run: cd build && ./runUnitTests && OVIDC_TESTSUITE_PATH=`pwd`/../tests ./runTests
+      working-directory: ${{ runner.workspace }}/ovid

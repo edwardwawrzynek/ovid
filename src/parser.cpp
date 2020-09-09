@@ -381,7 +381,7 @@ Parser::parseFunctionCall(const ParserState &state,
     if (tokenizer.curToken.token == T_RPAREN)
       break;
 
-    auto expr = parseExpr(state);
+    auto expr = parseExpr(state.allowStructLiterals());
     if (!expr)
       return nullptr;
     args.push_back(std::move(expr));
