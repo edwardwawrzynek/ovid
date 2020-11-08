@@ -22,13 +22,13 @@ target_link_libraries(runUnitTests ${binary_dir}/lib/libgtest.a ${binary_dir}/li
 target_link_libraries(runUnitTests ${REQ_LLVM_LIBRARIES})
 
 enable_testing()
-add_test(NAME    runUnitTests
-         COMMAND runUnitTests)
+add_test(NAME runUnitTests
+        COMMAND runUnitTests)
 
 # Custom Test Framework
 add_executable(runTests ${TEST_FRAMEWORK})
 target_link_libraries(runTests ovidc_core ${REQ_LLVM_LIBRARIES})
 add_test(NAME runTests
-         COMMAND runTests)
+        COMMAND runTests)
 
 install(TARGETS runTests runUnitTests DESTINATION ${CMAKE_BINARY_DIR})

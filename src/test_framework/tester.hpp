@@ -14,16 +14,10 @@
  *
  * Each program in the test framework must star with the header:
  * //__ovid_compiler_test
- * //__mode: xxx (one of compile, run, run_check_output)
+ * //__mode: xxx (TestMode)
  * //__ignore_errors: x y z ... (a list of error types, such as :ParseError,
  * etc)
  *
- * Modes:
- * compile - just compile the program. If the compiler aborts, test fails. If
- * the compiler raises an error not in the __ignore_errors list, and that error
- * isn't expected (see below), test fails run - same as compile, but makes sure
- * program runs without aborting run_check_output - same as run, but makes sure
- * program output matches output specified in file TODO
  *
  * Expecting errors:
  * tests can be annotated to indicate expected errors, such as:

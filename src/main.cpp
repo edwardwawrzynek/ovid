@@ -50,7 +50,8 @@ public:
 
 void usage() {
   std::cout
-      << "Usage: " << "ovidc"
+      << "Usage: "
+      << "ovidc"
       << " [OPTIONS] file...\n"
          "The Ovid Language Compiler Backend\n"
          "Options:\n"
@@ -225,21 +226,22 @@ class CLIDriver {
   PrintingErrorManager errorMan;
   DriverArgs args;
   ScopesRoot root_scopes;
-  
+
   ast::StatementList parseFiles();
-  
+
 public:
-  CLIDriver(int argc, char **argv): errorMan(), args(parseCLIArgs(argc, argv)), root_scopes() {};
-  
+  CLIDriver(int argc, char **argv)
+      : errorMan(), args(parseCLIArgs(argc, argv)), root_scopes(){};
+
   int run();
 };
 
 ast::StatementList CLIDriver::parseFiles() {
   ast::StatementList ast;
-  
+
   auto scopes = ActiveScopes(args.package_name, args.package_version,
-                                   root_scopes.names.get(), root_scopes.types.get());
-  for(auto &path: args.in_files) {
+                             root_scopes.names.get(), root_scopes.types.get());
+  for (auto &path : args.in_files) {
     // open file
     auto file = std::fstream(path);
     // feed file to tokenizer
@@ -249,29 +251,28 @@ ast::StatementList CLIDriver::parseFiles() {
     auto file_ast = parser.parseProgram();
     parser.removePushedPackageScope();
     // add file's ast to whole program ast
-    for(auto& stat: file_ast) {
+    for (auto &stat : file_ast) {
       ast.push_back(std::move(stat));
     }
   }
-  
+
   // run resolve pass
-  auto resolvePass =
-      ast::ResolvePass(scopes, errorMan, args.package_name);
+  auto resolvePass = ast::ResolvePass(scopes, errorMan, args.package_name);
   resolvePass.visitNodes(ast, ast::ResolvePassState());
   resolvePass.removePushedPackageScope();
-  
+
   return ast;
 }
 
 int CLIDriver::run() {
   ir::reset_id();
   ast::reset_id();
-  
-  if(args.in_files.empty()) {
+
+  if (args.in_files.empty()) {
     usage();
     return 1;
   }
-  
+
   auto ast = parseFiles();
 
   if (args.dump_ast) {
@@ -280,8 +281,8 @@ int CLIDriver::run() {
     astPrinter.visitNodes(ast, ast::ASTPrinterState());
   }
 
-  auto ir = ast::typeCheckProduceIR(errorMan, args.package_name,
-                                          root_scopes, ast);
+  auto ir =
+      ast::typeCheckProduceIR(errorMan, args.package_name, root_scopes, ast);
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31mtype checking failed";
@@ -326,10 +327,10 @@ int CLIDriver::run() {
   }
 }
 
-}
+} // namespace ovid
 
 int main(int argc, char **argv) {
   auto driver = ovid::CLIDriver(argc, argv);
-  
+
   return driver.run();
 }

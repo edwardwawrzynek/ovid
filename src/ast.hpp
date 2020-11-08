@@ -159,15 +159,15 @@ class TypeParameter;
 
 /* ast types */
 /* a type constructor (ie function that produces a concrete type) */
-class TypeConstructor: public std::enable_shared_from_this<TypeConstructor> {
+class TypeConstructor : public std::enable_shared_from_this<TypeConstructor> {
 public:
   SourceLocation loc;
   virtual ~TypeConstructor() = default;
 
-  explicit TypeConstructor(const SourceLocation &loc): loc(loc) {};
+  explicit TypeConstructor(const SourceLocation &loc) : loc(loc){};
 
   // apply the type constructor with the given type arguments
-  std::shared_ptr<Type> construct(const TypeList& args);
+  std::shared_ptr<Type> construct(const TypeList &args);
 
   // if the type constructor is trivial (ie -- no arguments), apply it
   // returns nullptr if type constructor isn't trivial
@@ -175,21 +175,24 @@ public:
 };
 
 /* a type constructor (TypeParameter, TypeParameter, ...) -> Type */
-class GenericTypeConstructor: public TypeConstructor {
+class GenericTypeConstructor : public TypeConstructor {
 public:
   // parameters
   std::vector<std::shared_ptr<TypeParameter>> params;
   // concrete type (with TypeParameter's)
   std::shared_ptr<Type> type;
 
-  GenericTypeConstructor(const SourceLocation& loc, std::vector<std::shared_ptr<TypeParameter>> params, std::shared_ptr<Type> type): TypeConstructor(loc), params(std::move(params)), type(std::move(type)) {};
+  GenericTypeConstructor(const SourceLocation &loc,
+                         std::vector<std::shared_ptr<TypeParameter>> params,
+                         std::shared_ptr<Type> type)
+      : TypeConstructor(loc), params(std::move(params)),
+        type(std::move(type)){};
 };
 
 /* a concrete type -- a type that can be created */
-class Type: public TypeConstructor {
+class Type : public TypeConstructor {
 
 public:
-
   // check if a type is equivalent to the given expected type
   // if this type has a mut (anywhere in the chain) that isn't in expected,
   // valid (mut -> non mut is valid) if the expected type has a mut that this
@@ -201,18 +204,21 @@ public:
   virtual const Type *withoutMutability() const;
   virtual Type *withoutMutability();
 
-  explicit Type(const SourceLocation &loc): TypeConstructor(loc) {};
+  explicit Type(const SourceLocation &loc) : TypeConstructor(loc){};
 };
 
 /* a generic type parameter
  * eg -- the 'T' in 'Type<T>' */
-class TypeParameter: public Type {
+class TypeParameter : public Type {
 public:
   std::string name;
-  // Because TypeParameters always exist in GenericTypeConstructors, id is used for equality checks to replace type parameters when GenericTypeConstructors are turned into conrete types
+  // Because TypeParameters always exist in GenericTypeConstructors, id is used
+  // for equality checks to replace type parameters when GenericTypeConstructors
+  // are turned into conrete types
   uint64_t id;
 
-  TypeParameter(const SourceLocation &loc, const std::string& name): Type(loc), name(name), id(next_id()) {};
+  TypeParameter(const SourceLocation &loc, const std::string &name)
+      : Type(loc), name(name), id(next_id()){};
 };
 
 /* an unresolved type (ie use of a type alias)

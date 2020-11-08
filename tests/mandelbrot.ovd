@@ -1,5 +1,5 @@
 // __ovid_compiler_test
-//__mode: run
+//__mode: run_check_output
 //__end_header
 
 /** A basic ascii mandelbrot set renderer **/
@@ -101,7 +101,7 @@ pub fn main() -> i32 {
             if run(Complex { real: 0.0, imag: 0.0 }, Complex { real: x, imag: y }, max_iters, escape_radius_sq) {
                 std:bootstrap:print_char('*')
             } else {
-                std:bootstrap:print_char(' ')
+                std:bootstrap:print_char('.')
             }
             x += x_inc
         }

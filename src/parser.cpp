@@ -233,6 +233,7 @@ Parser::parseIdentifier(const ParserState &state) {
       pos.through(end), ident, std::move(varScopes), is_root_scoped);
 }
 
+// parenexpr ::= '(' ')'
 // parenexpr ::= '(' expr ')'
 // tupleexpr ::= '(' (expr ',')+ expr ')'
 std::unique_ptr<ast::Expression>
@@ -240,6 +241,15 @@ Parser::parseParenExpr(const ParserState &state) {
   auto pos = tokenizer.curTokenLoc;
 
   tokenizer.nextToken(); // skip '('
+  // if next token is ')', then the expression is the unit tuple
+  if (tokenizer.curToken.token == T_RPAREN) {
+    auto endPos = tokenizer.curTokenLoc;
+    tokenizer.nextToken();
+    return std::make_unique<ast::Tuple>(pos.through(endPos),
+                                        ast::ExpressionList());
+  }
+
+  // not unit tuple, so consume first expression
   auto expr0 = parseExpr(state.allowStructLiterals());
   if (!expr0)
     return nullptr;
@@ -612,19 +622,18 @@ std::shared_ptr<ast::Type> Parser::parseType(const ParserState &state,
     tokenizer.nextToken();
     ast::TypeList types;
 
-    while (true) {
+    while (tokenizer.curToken.token != T_RPAREN) {
       types.push_back(parseType(state));
-      if (tokenizer.curToken.token == T_RPAREN) {
-        tokenizer.nextToken();
-        break;
-      }
       if (tokenizer.curToken.token != T_COMMA &&
           tokenizer.curToken.token != T_RPAREN) {
         return errorMan.logError("expected ) or , in type expression",
                                  tokenizer.curTokenLoc, ErrorType::ParseError);
       }
-      tokenizer.nextToken();
+
+      if (tokenizer.curToken.token == T_COMMA)
+        tokenizer.nextToken();
     }
+    tokenizer.nextToken();
 
     if (types.size() == 1) {
       return types[0];
@@ -632,6 +641,7 @@ std::shared_ptr<ast::Type> Parser::parseType(const ParserState &state,
       return std::make_shared<ast::TupleType>(pos, std::move(types));
     }
   }
+
   if (tokenizer.curToken.token != T_IDENT &&
       tokenizer.curToken.token != T_DOUBLE_COLON) {
     return errorMan.logError("Expected a type expression",

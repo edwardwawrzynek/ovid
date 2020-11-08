@@ -205,7 +205,8 @@ void TesterInstance::readInErrors() {
   while (readToComment()) {
     auto desc = readToken();
 
-    if (desc.size() >= 2 && desc[0] == '_' && desc[1] == '_' && desc != "__error:") {
+    if (desc.size() >= 2 && desc[0] == '_' && desc[1] == '_' &&
+        desc != "__error:") {
       doError("invalid comment annotation type (expected __error: __)");
       return;
     } else if (desc != "__error:") {
@@ -411,6 +412,7 @@ int TesterInstance::runCheckEscape(ErrorManager &errorMan,
     doError(
         string_format("failed to open file %s, expected by mode check_escape",
                       escape_filename.c_str()));
+    return 1;
   }
   std::string expected_escape(std::istreambuf_iterator<char>(escape_file), {});
 
@@ -460,11 +462,44 @@ int TesterInstance::runLLVMCodegen(ErrorManager &errorMan,
         return 1;
       }
       /* execute code */
-      int run_res = system("./ovidc_test_out_tmp");
+      int run_res = system("./ovidc_test_out_tmp > ovidc_test_output_tmp");
       if (run_res != 0) {
         std::cout << "\x1b[1;31mrunning output returned non 0 result code "
                   << run_res << "\x1b[m\n";
         return 1;
+      }
+
+      if (modes.count(TestMode::RunCheckOutput) > 0) {
+        // open expected output file
+        auto expected_out_filename = filename + ".expect.out";
+        auto expected_out_file = std::ifstream(expected_out_filename);
+        if (!expected_out_file.is_open()) {
+          doError(string_format(
+              "failed to open file %s, expected by mode run_check_output",
+              expected_out_filename.c_str()));
+          return 1;
+        }
+        std::string expected_out(
+            std::istreambuf_iterator<char>(expected_out_file), {});
+        // read generated output
+        auto generated_out_file = std::ifstream("ovidc_test_output_tmp");
+        if (!generated_out_file.is_open()) {
+          doError("failed to open file ovidc_test_output_tmp");
+          return 1;
+        }
+        std::string generated_out(
+            std::istreambuf_iterator<char>(generated_out_file), {});
+
+        if (expected_out != generated_out) {
+          std::cout << "run_check_output " << filename
+                    << ": output don't match expected output in file "
+                    << expected_out_filename << "\n";
+          std::cout << "------------ expected output ------------\n"
+                    << expected_out << "\n";
+          std::cout << "------------  real output  ------------\n"
+                    << generated_out << "\n";
+          return 1;
+        }
       }
     }
   }

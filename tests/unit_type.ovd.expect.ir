@@ -1,0 +1,13 @@
+(11:5)	%ovidc_test:main = FUNCTIONDECLARE () -> i32 {
+    (11:5)	BASICBLOCK @0 {
+        (12:13)	%1 = TUPLELITERAL ()
+        (12:5)	%u = ALLOCATION ()
+        (12:5)	STORE %u <- %1
+        (14:16)	%3 = ADDRESS *() %u
+        (13:13)	%4 = TUPLELITERAL ovidc_test:Test %3
+        (13:5)	%t = ALLOCATION ovidc_test:Test
+        (13:5)	STORE %t <- %4
+        (17:12)	%6 = INTLITERAL i32 0
+        (17:5)	RETURN %6
+    }
+}

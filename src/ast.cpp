@@ -4,19 +4,15 @@ namespace ovid::ast {
 
 static uint64_t ast_id = 0;
 /* id generation for type parameters */
-uint64_t next_id() {
-  return ast_id++;
-}
+uint64_t next_id() { return ast_id++; }
 
-void reset_id() {
-  ast_id = 0;
-}
+void reset_id() { ast_id = 0; }
 
 std::shared_ptr<Type> TypeConstructor::construct(const TypeList &args) {
-  if(args.empty()) {
+  if (args.empty()) {
     return trivialConstruct();
   }
-   assert(false);
+  assert(false);
 }
 
 std::shared_ptr<Type> TypeConstructor::trivialConstruct() {

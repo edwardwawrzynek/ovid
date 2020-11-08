@@ -1,0 +1,18 @@
+// __ovid_compiler_test
+//__mode: check_ir compile
+//__end_header
+
+type Unit = ()
+
+struct Test {
+    field *()
+}
+
+pub fn main() -> i32 {
+    val u = ()
+    val t = Test {
+        field: &u
+    }
+
+    return 0
+}
