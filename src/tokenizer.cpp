@@ -422,7 +422,7 @@ Token Tokenizer::peekNextToken() {
   return res;
 }
 
-Tokenizer::Tokenizer(const std::string &filename, std::istream *file,
+Tokenizer::Tokenizer(const std::string *filename, std::istream *file,
                      ErrorManager &errorMan)
     : putback_char('\0'), comment_nesting_level(0), line(1), pos_in_line(0),
       pline(1), ppos_in_line(0), file(file), errorMan(errorMan), curToken(),

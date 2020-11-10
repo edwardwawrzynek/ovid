@@ -215,13 +215,13 @@ void TesterInstance::readInErrors() {
     std::string token;
     while (!(token = readToken()).empty()) {
       if (token[0] == ':') {
-        expectedErrors.emplace_back(
-            TestErrorRecord(errorStringSpecifierToErrorType(token), "",
-                            SourceLocation(filename, line, 0, line, 0, &file)));
+        expectedErrors.emplace_back(TestErrorRecord(
+            errorStringSpecifierToErrorType(token), "",
+            SourceLocation(&filename, line, 0, line, 0, &file)));
       } else {
-        expectedErrors.emplace_back(
-            TestErrorRecord(ErrorType::NONE, token,
-                            SourceLocation(filename, line, 0, line, 0, &file)));
+        expectedErrors.emplace_back(TestErrorRecord(
+            ErrorType::NONE, token,
+            SourceLocation(&filename, line, 0, line, 0, &file)));
       }
       foundExpected.push_back(false);
     }
@@ -321,7 +321,7 @@ int TesterInstance::readToComment() {
 int TesterInstance::runParse(ErrorManager &errorMan, ast::StatementList &astRes,
                              const ScopesRoot &scopes_root) {
   // Parse
-  auto lexer = Tokenizer(filename, &file, errorMan);
+  auto lexer = Tokenizer(&filename, &file, errorMan);
   auto scopes = ActiveScopes(packageName, -1, scopes_root.names.get(),
                              scopes_root.types.get());
   auto parser = Parser(lexer, errorMan, scopes, packageName);

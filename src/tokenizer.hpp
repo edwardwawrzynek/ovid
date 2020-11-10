@@ -97,7 +97,7 @@ class Tokenizer {
   ErrorManager &errorMan;
 
 public:
-  Tokenizer(const std::string &filename, std::istream *file,
+  Tokenizer(const std::string *filename, std::istream *file,
             ErrorManager &errorMan);
 
   /* scan and read the next token */

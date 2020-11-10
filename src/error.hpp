@@ -22,15 +22,15 @@ std::string string_format(const std::string &format, Args... args) {
   return std::string(buf.get(), buf.get() + size - 1);
 }
 
-/* location in source code */
+/* a location in source code */
 struct SourceLocation {
-  std::string filename;
+  const std::string *filename;
   uint64_t col, row;         // start of error
   uint64_t end_col, end_row; // end of error (inclusive)
   std::istream *file; /* file may be null (if input isn't from a file, or is non
                          seekable (like stdin) */
 
-  SourceLocation(const std::string &filename, uint64_t row, uint64_t col,
+  SourceLocation(const std::string *filename, uint64_t row, uint64_t col,
                  uint64_t end_row, uint64_t end_col, std::istream *file)
       : filename(filename), col(col), row(row), end_col(end_col),
         end_row(end_row), file(file){};

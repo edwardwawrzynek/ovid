@@ -189,7 +189,7 @@ public:
             ir::BasicBlockList *basicBlockList)
       : BaseASTVisitor(
             TypeCheckResult(std::make_shared<ast::VoidType>(
-                                SourceLocation("", 0, 0, 0, 0, nullptr)),
+                                SourceLocation(nullptr, 0, 0, 0, 0, nullptr)),
                             nullptr)),
         errorMan(errorMan), currentModule(package), package(package),
         scopes(scopes), type_printer(), curInstructionList(ir),

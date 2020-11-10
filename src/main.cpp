@@ -226,12 +226,15 @@ class CLIDriver {
   PrintingErrorManager errorMan;
   DriverArgs args;
   ScopesRoot root_scopes;
+  std::vector<std::fstream> files;
 
   ast::StatementList parseFiles();
 
 public:
   CLIDriver(int argc, char **argv)
-      : errorMan(), args(parseCLIArgs(argc, argv)), root_scopes(){};
+      : errorMan(), args(parseCLIArgs(argc, argv)), root_scopes() {
+    files.reserve(args.in_files.size());
+  };
 
   int run();
 };
@@ -243,9 +246,10 @@ ast::StatementList CLIDriver::parseFiles() {
                              root_scopes.names.get(), root_scopes.types.get());
   for (auto &path : args.in_files) {
     // open file
-    auto file = std::fstream(path);
+    files.emplace_back(path);
+    auto file = &files[files.size() - 1];
     // feed file to tokenizer
-    auto lexer = Tokenizer(path, &file, errorMan);
+    auto lexer = Tokenizer(&path, file, errorMan);
     // parse file
     auto parser = Parser(lexer, errorMan, scopes, args.package_name);
     auto file_ast = parser.parseProgram();

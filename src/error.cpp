@@ -29,8 +29,11 @@ std::nullptr_t PrintingErrorManager::logError(const std::string &msg,
   if (printType == ErrorPrintLevel::Error)
     didCriticalError = true;
 
-  std::cout << "\x1b[1m" << location.filename << ":" << location.row << ":"
-            << location.col << ": ";
+  std::cout << "\x1b[1m";
+  if (location.filename != nullptr) {
+    std::cout << *location.filename;
+  }
+  std::cout << ":" << location.row << ":" << location.col << ": ";
 
   std::string color_code;
   if (printType == ErrorPrintLevel::Error)
@@ -218,7 +221,7 @@ SourceLocation SourceLocation::until(const SourceLocation &endLoc) const {
 }
 
 SourceLocation SourceLocation::nullLocation() {
-  return SourceLocation("", 0, 0, 0, 0, nullptr);
+  return SourceLocation(nullptr, 0, 0, 0, 0, nullptr);
 }
 
 } // namespace ovid
