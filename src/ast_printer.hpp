@@ -23,14 +23,11 @@ public:
   ASTPrinterState() : indent_level(0){};
 };
 
-class ASTTypePrinter : public BaseTypeVisitor<int, ASTPrinterState> {
-
+class ASTTypePrinter : public BaseTypeConstructorVisitor<int, ASTPrinterState> {
   std::ostream &output;
 
   int visitUnresolvedType(UnresolvedType &type,
                           const ASTPrinterState &state) override;
-  int visitResolvedAlias(ResolvedAlias &type,
-                         const ASTPrinterState &state) override;
 
   int visitVoidType(VoidType &type, const ASTPrinterState &state) override;
   int visitBoolType(BoolType &type, const ASTPrinterState &state) override;
@@ -49,9 +46,14 @@ class ASTTypePrinter : public BaseTypeVisitor<int, ASTPrinterState> {
   int visitTupleType(TupleType &type, const ASTPrinterState &state) override;
   int visitStructType(StructType &type, const ASTPrinterState &state) override;
 
+  int visitFormalTypeParameter(FormalTypeParameter &type,
+                               const ASTPrinterState &state) override;
+  int visitGenericTypeConstructor(GenericTypeConstructor &type,
+                                  const ASTPrinterState &state) override;
+
 public:
   explicit ASTTypePrinter(std::ostream &output)
-      : BaseTypeVisitor(0), output(output){};
+      : BaseTypeConstructorVisitor(0), output(output){};
 };
 
 class ASTPrinter : public BaseASTVisitor<int, ASTPrinterState> {

@@ -138,10 +138,10 @@ Parser::parseFloatLiteral(const ParserState &state) {
 }
 
 // structliteral ::= '{' (ident ':' expr ',')* ident ':' expr ','? '}'
-std::unique_ptr<ast::Expression> Parser::parseStructLiteral(
-    const ParserState &state, const SourceLocation &loc_start,
-    const std::string &ident, std::vector<std::string> ident_scope,
-    bool ident_is_root_scoped) {
+std::unique_ptr<ast::Expression>
+Parser::parseStructLiteral(const ParserState &state,
+                           const SourceLocation &loc_start,
+                           std::shared_ptr<ast::UnresolvedType> type_expr) {
   // consume '}'
   tokenizer.nextToken();
 
@@ -186,9 +186,9 @@ std::unique_ptr<ast::Expression> Parser::parseStructLiteral(
   auto pos = loc_start.through(tokenizer.curTokenLoc);
   tokenizer.nextToken();
 
-  return std::make_unique<ast::StructExpr>(
-      pos, std::move(ident_scope), ident, ident_is_root_scoped,
-      std::move(field_names), std::move(field_exprs));
+  return std::make_unique<ast::StructExpr>(pos, std::move(type_expr),
+                                           std::move(field_names),
+                                           std::move(field_exprs));
 }
 
 // identexpr ::= identifier (':' identifier)*
@@ -224,9 +224,19 @@ Parser::parseIdentifier(const ParserState &state) {
   }
 
   // special handling for structure literal
-  if (tokenizer.curToken.token == T_LBRK && state.struct_literals_allowed) {
-    return parseStructLiteral(state, pos, ident, std::move(varScopes),
-                              is_root_scoped);
+  // either an opening bracket or angled bracket (generic) indicate a struct
+  if ((tokenizer.curToken.token == T_LBRK ||
+       tokenizer.curToken.token == T_LESS) &&
+      state.struct_literals_allowed) {
+    ast::TypeList type_params;
+    if (tokenizer.curToken.token == T_LESS) {
+      type_params = parseTypeParameterList(state);
+    }
+    // construct struct type expression
+    auto type_expr = std::make_shared<ast::UnresolvedType>(
+        pos.through(end), varScopes, ident, is_root_scoped,
+        std::move(type_params));
+    return parseStructLiteral(state, pos.through(end), std::move(type_expr));
   }
 
   return std::make_unique<ast::Identifier>(
@@ -597,7 +607,6 @@ std::shared_ptr<ast::Type> Parser::parseType(const ParserState &state) {
 
 std::shared_ptr<ast::Type> Parser::parseType(const ParserState &state,
                                              bool is_root_of_type) {
-
   auto pos = tokenizer.curTokenLoc;
   // mut type
   if (tokenizer.curToken.token == T_MUT) {
@@ -682,8 +691,15 @@ std::shared_ptr<ast::Type> Parser::parseType(const ParserState &state,
     return builtinTypes[tokenizer.curToken.ident](pos.through(endPos));
   }
 
-  return std::make_unique<ast::UnresolvedType>(pos.through(endPos), type_scopes,
-                                               name, is_root_scoped);
+  // parse type parameters
+  ast::TypeList type_params;
+  if (tokenizer.curToken.token == T_LESS) {
+    type_params = parseTypeParameterList(state);
+  }
+
+  return std::make_shared<ast::UnresolvedType>(pos.through(endPos), type_scopes,
+                                               name, is_root_scoped,
+                                               std::move(type_params));
 }
 
 // typealias ::= 'type' ident '=' typeExpr
@@ -704,20 +720,27 @@ Parser::parseTypeAliasDecl(const ParserState &state, bool is_public) {
   }
   auto name = tokenizer.curToken.ident;
   expectUpperCamelCase(name, tokenizer.curTokenLoc);
-
   auto endNamePos = tokenizer.curTokenLoc;
-
   tokenizer.nextToken();
+
+  // check for '<' (generic type parameter list)
+  ast::FormalTypeParameterList type_parameters;
+  if (tokenizer.curToken.token == T_LESS) {
+    type_parameters = parseFormalTypeParameterList(state);
+  }
+
   if (tokenizer.curToken.token != T_ASSIGN) {
     return errorMan.logError("expected '=' after type name",
                              tokenizer.curTokenLoc, ErrorType::ParseError);
   }
   tokenizer.nextToken();
   auto type = parseType(state);
+  auto typeConstruct = std::make_shared<ast::GenericTypeConstructor>(
+      type->loc, std::move(type_parameters), std::move(type));
 
   // add symbol with reference to type to type table
   auto sym = std::make_shared<TypeAlias>(pos.through(endNamePos),
-                                         std::move(type), is_public);
+                                         std::move(typeConstruct), is_public);
   addTypeAlias(state, name, sym);
 
   return std::make_unique<ast::TypeAliasDecl>(pos.through(endNamePos), name,
@@ -725,8 +748,8 @@ Parser::parseTypeAliasDecl(const ParserState &state, bool is_public) {
 }
 
 // add a type alias to the type table and check for duplicate definition
-void Parser::addTypeAlias(const ParserState &state, std::string name,
-                          std::shared_ptr<TypeAlias> alias) {
+void Parser::addTypeAlias(const ParserState &state, const std::string &name,
+                          const std::shared_ptr<TypeAlias> &alias) {
   auto existing =
       state.current_type_scope->getDirectScopeTable().findSymbol(name);
   if (existing) {
@@ -1269,6 +1292,66 @@ Parser::parseWhileStatement(const ParserState &state) {
                                                std::move(body));
 }
 
+// formaltypeparams ::= '<' (ident ',')* ident? '>'
+ast::FormalTypeParameterList
+Parser::parseFormalTypeParameterList(const ParserState &state) {
+  ast::FormalTypeParameterList res;
+  // consume '<'
+  tokenizer.nextToken();
+  while (tokenizer.curToken.token != T_GREATER) {
+    if (tokenizer.curToken.token != T_IDENT) {
+      errorMan.logError(
+          "expected type parameter name or '>' to end type parameter list",
+          tokenizer.curTokenLoc, ErrorType::ParseError);
+      return res;
+    }
+    // type params should be upper camel case
+    expectUpperCamelCase(tokenizer.curToken.ident, tokenizer.curTokenLoc);
+    res.push_back(std::make_shared<ast::FormalTypeParameter>(
+        tokenizer.curTokenLoc, tokenizer.curToken.ident));
+    tokenizer.nextToken();
+
+    if (tokenizer.curToken.token == T_GREATER)
+      break;
+    if (tokenizer.curToken.token != T_COMMA) {
+      errorMan.logError("expected ',' or '>' in type parameter list",
+                        tokenizer.curTokenLoc, ErrorType::ParseError);
+      return res;
+    }
+    tokenizer.nextToken();
+  }
+  // consume '>'
+  tokenizer.nextToken();
+
+  return res;
+}
+
+// typeparams ::= '<' (type ',')* type? '>'
+ast::TypeList Parser::parseTypeParameterList(const ParserState &state) {
+  ast::TypeList res;
+  // consume '<'
+  tokenizer.nextToken();
+  while (tokenizer.curToken.token != T_GREATER) {
+    auto type = parseType(state);
+    if (type == nullptr)
+      break;
+    res.push_back(std::move(type));
+
+    if (tokenizer.curToken.token == T_GREATER)
+      break;
+    if (tokenizer.curToken.token != T_COMMA) {
+      errorMan.logError("expected ',' or '>' in type parameter list",
+                        tokenizer.curTokenLoc, ErrorType::ParseError);
+      return res;
+    }
+    tokenizer.nextToken();
+  }
+  // consume '>'
+  tokenizer.nextToken();
+
+  return res;
+}
+
 std::unique_ptr<ast::TypeAliasDecl>
 Parser::parseStructStatement(const ParserState &state, bool is_public) {
   auto startPos = tokenizer.curTokenLoc;
@@ -1288,6 +1371,11 @@ Parser::parseStructStatement(const ParserState &state, bool is_public) {
   auto name = tokenizer.curToken.ident;
   expectUpperCamelCase(name, tokenizer.curTokenLoc);
   tokenizer.nextToken();
+  // check for opening arrow (generics)
+  ast::FormalTypeParameterList type_parameters;
+  if (tokenizer.curToken.token == T_LESS) {
+    type_parameters = parseFormalTypeParameterList(state);
+  }
   // expect opening brace
   if (tokenizer.curToken.token != T_LBRK) {
     return errorMan.logError("expected '{' to begin struct body",
@@ -1337,11 +1425,17 @@ Parser::parseStructStatement(const ParserState &state, bool is_public) {
   auto type = std::make_shared<ast::StructType>(pos, std::move(field_types),
                                                 std::move(field_names),
                                                 std::move(field_publics));
-  auto alias = std::make_shared<TypeAlias>(pos, type, is_public);
-  type->type_alias = alias;
+  // needed to set type_alias
+  auto typePtr = type.get();
+
+  auto typeConstruct = std::make_shared<ast::GenericTypeConstructor>(
+      pos, std::move(type_parameters), std::move(type));
+  auto alias =
+      std::make_shared<TypeAlias>(pos, std::move(typeConstruct), is_public);
+  // StructType needs to know it's alias for name mangling, etc
+  typePtr->type_alias = alias;
 
   addTypeAlias(state, name, alias);
-
   return std::make_unique<ast::TypeAliasDecl>(pos, name, alias);
 }
 

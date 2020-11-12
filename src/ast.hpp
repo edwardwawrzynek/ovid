@@ -11,8 +11,9 @@
 
 // forward declare
 namespace ovid::ast {
+class TypeConstructor;
 class Type;
-}
+} // namespace ovid::ast
 
 namespace ovid::ir {
 class Expression;
@@ -67,7 +68,8 @@ struct TypeAlias {
 public:
   // declaration or import location
   SourceLocation decl_loc;
-  std::shared_ptr<ast::Type> type;
+  // aliased type/constructor
+  std::shared_ptr<ast::TypeConstructor> type;
   // if the type is marked pub
   bool is_public;
 
@@ -83,8 +85,8 @@ public:
       : decl_loc(decl_loc), type(), is_public(false), inner_resolved(false),
         name(), parent_table(nullptr){};
 
-  TypeAlias(const SourceLocation &decl_loc, std::shared_ptr<ast::Type> type,
-            bool is_public)
+  TypeAlias(const SourceLocation &decl_loc,
+            std::shared_ptr<ast::TypeConstructor> type, bool is_public)
       : decl_loc(decl_loc), type(std::move(type)), is_public(is_public),
         inner_resolved(false), name(), parent_table(nullptr){};
 
@@ -126,11 +128,14 @@ class Expression;
 class Statement;
 class TypeConstructor;
 class Type;
+class FormalTypeParameter;
 
 typedef std::vector<std::unique_ptr<Expression>> ExpressionList;
 typedef std::vector<std::unique_ptr<Statement>> StatementList;
 typedef std::vector<std::shared_ptr<Type>> TypeList;
 typedef std::vector<std::unique_ptr<TypeConstructor>> TypeConstructorList;
+typedef std::vector<std::shared_ptr<FormalTypeParameter>>
+    FormalTypeParameterList;
 
 /* id generation for type parameters */
 uint64_t next_id();
@@ -154,9 +159,6 @@ public:
   void addStatement(std::unique_ptr<Statement> statement);
 };
 
-// forward decl
-class TypeParameter;
-
 /* ast types */
 /* a type constructor (ie function that produces a concrete type) */
 class TypeConstructor : public std::enable_shared_from_this<TypeConstructor> {
@@ -166,24 +168,33 @@ public:
 
   explicit TypeConstructor(const SourceLocation &loc) : loc(loc){};
 
+  // get the number of arguments that the type constructor expects
+  virtual size_t numTypeParams() const;
+
   // apply the type constructor with the given type arguments
-  std::shared_ptr<Type> construct(const TypeList &args);
+  // return nullptr if construction is invalid
+  virtual std::shared_ptr<Type> construct(const TypeList &args);
 
   // if the type constructor is trivial (ie -- no arguments), apply it
   // returns nullptr if type constructor isn't trivial
-  std::shared_ptr<Type> trivialConstruct();
+  virtual std::shared_ptr<Type> trivialConstruct();
 };
 
-/* a type constructor (TypeParameter, TypeParameter, ...) -> Type */
+/* a type constructor (FormalTypeParameter, FormalTypeParameter, ...) -> Type */
 class GenericTypeConstructor : public TypeConstructor {
 public:
   // parameters
-  std::vector<std::shared_ptr<TypeParameter>> params;
-  // concrete type (with TypeParameter's)
+  FormalTypeParameterList params;
+  // concrete type (with FormalTypeParameter's)
   std::shared_ptr<Type> type;
 
+  size_t numTypeParams() const override;
+
+  std::shared_ptr<Type> construct(const TypeList &args) override;
+  std::shared_ptr<Type> trivialConstruct() override;
+
   GenericTypeConstructor(const SourceLocation &loc,
-                         std::vector<std::shared_ptr<TypeParameter>> params,
+                         FormalTypeParameterList params,
                          std::shared_ptr<Type> type)
       : TypeConstructor(loc), params(std::move(params)),
         type(std::move(type)){};
@@ -204,20 +215,22 @@ public:
   virtual const Type *withoutMutability() const;
   virtual Type *withoutMutability();
 
+  size_t numTypeParams() const override;
+
   explicit Type(const SourceLocation &loc) : TypeConstructor(loc){};
 };
 
 /* a generic type parameter
  * eg -- the 'T' in 'Type<T>' */
-class TypeParameter : public Type {
+class FormalTypeParameter : public Type {
 public:
   std::string name;
   // Because TypeParameters always exist in GenericTypeConstructors, id is used
   // for equality checks to replace type parameters when GenericTypeConstructors
-  // are turned into conrete types
+  // are turned into concrete types
   uint64_t id;
 
-  TypeParameter(const SourceLocation &loc, const std::string &name)
+  FormalTypeParameter(const SourceLocation &loc, const std::string &name)
       : Type(loc), name(name), id(next_id()){};
 };
 
@@ -225,30 +238,21 @@ public:
  * not inferred, just not yet resolved by ResolvePass */
 class UnresolvedType : public Type {
 public:
+  // type identifier
   std::vector<std::string> scopes;
   std::string name;
+  // type parameters
+  ast::TypeList type_params;
   // if the type began with ::
   bool is_root_scoped;
 
   bool equalToExpected(const Type &expected) const override;
 
-  UnresolvedType(const SourceLocation &loc,
-                 const std::vector<std::string> &scopes,
-                 const std::string &name, bool is_root_scoped)
-      : Type(loc), scopes(scopes), name(name), is_root_scoped(is_root_scoped){};
-};
-
-/* a usage of an aliased type that has been resolved to it's entry in the type
- * alias tables */
-class ResolvedAlias : public Type {
-public:
-  std::shared_ptr<TypeAlias> alias;
-
-  bool equalToExpected(const Type &expected) const override;
-  bool containsPointer() const override;
-
-  ResolvedAlias(const SourceLocation &loc, std::shared_ptr<TypeAlias> alias)
-      : Type(loc), alias(std::move(alias)){};
+  UnresolvedType(const SourceLocation &loc, std::vector<std::string> scopes,
+                 const std::string &name, bool is_root_scoped,
+                 ast::TypeList type_params)
+      : Type(loc), scopes(std::move(scopes)), name(name),
+        type_params(std::move(type_params)), is_root_scoped(is_root_scoped){};
 };
 
 class VoidType : public Type {
@@ -342,7 +346,7 @@ public:
 /* product types (types with interior fields -- tuples, struct, arrays) */
 class ProductType : public Type {
 public:
-  ProductType(const SourceLocation &loc) : Type(loc){};
+  explicit ProductType(const SourceLocation &loc) : Type(loc){};
 
   // getNumFields and getTypeOfField are the internal representation of fields
   virtual std::shared_ptr<Type> getTypeOfField(int32_t field_index) const;
@@ -690,12 +694,10 @@ public:
   std::vector<std::string> field_names;
   ExpressionList field_exprs;
 
-  StructExpr(const SourceLocation &loc, std::vector<std::string> type_scope,
-             const std::string &type_id, bool type_is_root_scoped,
+  StructExpr(const SourceLocation &loc,
+             std::shared_ptr<ast::UnresolvedType> type_expr,
              std::vector<std::string> field_names, ExpressionList field_exprs)
-      : Expression(loc),
-        type(std::make_shared<ast::UnresolvedType>(
-            loc, std::move(type_scope), type_id, type_is_root_scoped)),
+      : Expression(loc), type(std::move(type_expr)),
         field_names(std::move(field_names)),
         field_exprs(std::move(field_exprs)){};
 };

@@ -28,7 +28,7 @@ jobs:
 
     # Install LLVM + boehm gc
     - name: Install LLVM, libgc
-      run: sudo apt install llvm-10 llvm-10-dev libgc-dev
+      run: sudo apt install llvm-11 llvm-11-dev libgc-dev
       
     # Build and test cmake project
     - name: Build

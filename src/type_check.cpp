@@ -11,11 +11,7 @@ TypeCheckState TypeCheckState::withoutTypeHint() const {
 
 TypeCheckState
 TypeCheckState::withTypeHint(const std::shared_ptr<Type> &hint) const {
-  auto typeHintAlias = std::dynamic_pointer_cast<ResolvedAlias>(hint);
-
-  std::shared_ptr<ast::Type> newHint =
-      typeHintAlias == nullptr ? hint : typeHintAlias->alias->type;
-  return TypeCheckState(std::move(newHint), functionReturnType);
+  return TypeCheckState(hint, functionReturnType);
 }
 
 TypeCheckState
@@ -1378,14 +1374,6 @@ std::string TypePrinter::getType(Type &type) {
     visitType(type, TypePrinterState());
   }
   return getRes();
-}
-
-int TypePrinter::visitResolvedAlias(ResolvedAlias &type,
-                                    const TypePrinterState &state) {
-  assert(type.alias->type != nullptr);
-  visitType(*type.alias->type, state);
-
-  return 0;
 }
 
 int TypePrinter::visitVoidType(VoidType &type, const TypePrinterState &state) {

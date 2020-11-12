@@ -2,8 +2,8 @@
 #include "escape_analysis.hpp"
 #include "name_mangle.hpp"
 
-/* needs LLVM 10.0.0 or higher */
-static_assert(LLVM_VERSION_MAJOR >= 10);
+/* needs LLVM 11 */
+static_assert(LLVM_VERSION_MAJOR >= 11);
 
 namespace ovid::ir {
 
@@ -108,12 +108,14 @@ void LLVMCodegenPass::initNativeFns() {
       llvm::PointerType::get(llvm::Type::getInt8Ty(llvm_context), 0),
       malloc_args, false);
 
-  native_fns.GC_malloc =
+  native_fns.GC_malloc = llvm::FunctionCallee(
+      malloc_type,
       llvm::Function::Create(malloc_type, llvm::GlobalValue::ExternalLinkage,
-                             "GC_malloc", llvm_module.get());
-  native_fns.GC_malloc_atomic =
+                             "GC_malloc", llvm_module.get()));
+  native_fns.GC_malloc_atomic = llvm::FunctionCallee(
+      malloc_type,
       llvm::Function::Create(malloc_type, llvm::GlobalValue::ExternalLinkage,
-                             "GC_malloc_atomic", llvm_module.get());
+                             "GC_malloc_atomic", llvm_module.get()));
 }
 
 llvm::Value *
@@ -516,7 +518,10 @@ LLVMCodegenPass::visitFunctionCall(FunctionCall &instruct,
       args.push_back(useValue(arg.get(), state));
     }
 
-    auto res = builder.CreateCall(funcDecl, args);
+    auto funcType = llvm::dyn_cast<llvm::FunctionType>(
+        funcDecl->getType()->getPointerElementType());
+    assert(funcType != nullptr);
+    auto res = builder.CreateCall(funcType, funcDecl, args);
 
     return instruct.val.llvm_value = res;
   }
@@ -866,10 +871,10 @@ void LLVMCodegenPass::optAndEmit(llvm::PassBuilder::OptimizationLevel optLevel,
 
   /* create pass manager */
   llvm::PipelineTuningOptions PTO;
-  PTO.LoopUnrolling =
-      optLevel != llvm::PassBuilder::Oz && optLevel != llvm::PassBuilder::Os;
-  PTO.LoopInterleaving =
-      optLevel != llvm::PassBuilder::Oz && optLevel != llvm::PassBuilder::Os;
+  PTO.LoopUnrolling = optLevel != llvm::PassBuilder::OptimizationLevel::Oz &&
+                      optLevel != llvm::PassBuilder::OptimizationLevel::Os;
+  PTO.LoopInterleaving = optLevel != llvm::PassBuilder::OptimizationLevel::Oz &&
+                         optLevel != llvm::PassBuilder::OptimizationLevel::Os;
   PTO.LoopVectorization = true;
   PTO.SLPVectorization = true;
 

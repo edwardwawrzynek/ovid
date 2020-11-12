@@ -73,9 +73,7 @@ class Parser {
 
   std::unique_ptr<ast::Expression>
   parseStructLiteral(const ParserState &state, const SourceLocation &loc_start,
-                     const std::string &ident,
-                     std::vector<std::string> ident_scope,
-                     bool ident_is_root_scoped);
+                     std::shared_ptr<ast::UnresolvedType> type_expr);
 
   std::unique_ptr<ast::Expression> parseIdentifier(const ParserState &state);
 
@@ -149,6 +147,11 @@ class Parser {
   std::unique_ptr<ast::TypeAliasDecl>
   parseTypeAliasDecl(const ParserState &state, bool is_public);
 
+  ast::FormalTypeParameterList
+  parseFormalTypeParameterList(const ParserState &state);
+
+  ast::TypeList parseTypeParameterList(const ParserState &state);
+
   std::unique_ptr<ast::TypeAliasDecl>
   parseStructStatement(const ParserState &state, bool is_public);
 
@@ -160,8 +163,8 @@ class Parser {
   std::unique_ptr<ast::WhileStatement>
   parseWhileStatement(const ParserState &state);
 
-  void addTypeAlias(const ParserState &state, std::string name,
-                    std::shared_ptr<TypeAlias> alias);
+  void addTypeAlias(const ParserState &state, const std::string &name,
+                    const std::shared_ptr<TypeAlias> &alias);
 
   void expectSnakeCase(const std::string &name, SourceLocation &pos);
   void expectUpperCamelCase(const std::string &name, SourceLocation &pos);

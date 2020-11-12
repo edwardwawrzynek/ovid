@@ -439,8 +439,12 @@ int TesterInstance::runLLVMCodegen(ErrorManager &errorMan,
   bool run_mode = modes.count(TestMode::Run) > 0;
 
   std::vector<llvm::PassBuilder::OptimizationLevel> optsToRun = {
-      llvm::PassBuilder::Oz, llvm::PassBuilder::Os, llvm::PassBuilder::O0,
-      llvm::PassBuilder::O1, llvm::PassBuilder::O2, llvm::PassBuilder::O3};
+      llvm::PassBuilder::OptimizationLevel::Oz,
+      llvm::PassBuilder::OptimizationLevel::Os,
+      llvm::PassBuilder::OptimizationLevel::O0,
+      llvm::PassBuilder::OptimizationLevel::O1,
+      llvm::PassBuilder::OptimizationLevel::O2,
+      llvm::PassBuilder::OptimizationLevel::O3};
 
   std::string main_name = "main";
 

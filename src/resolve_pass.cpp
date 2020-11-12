@@ -224,8 +224,18 @@ int ResolvePass::visitTypeAliasDecl(TypeAliasDecl &node,
   // if the aliased type hasn't already been resolved, resolve it
   // needed to reject invalid aliases if they are never otherwise used
   if (!node.type->inner_resolved) {
-    node.type->type = type_resolver.visitType(
-        node.type->type, TypeResolverState(package, current_module));
+    // type_resolver checks types, not type constructors.
+    // instead, we call the constructor on unit type parameters and check that
+    auto expected_params = node.type->type->numTypeParams();
+    ast::TypeList params;
+    for (size_t i = 0; i < expected_params; i++) {
+      params.push_back(
+          std::make_shared<ast::TupleType>(node.loc, ast::TypeList()));
+    }
+    auto constructed_type = node.type->type->construct(params);
+    assert(constructed_type != nullptr);
+    type_resolver.visitType(constructed_type,
+                            TypeResolverState(package, current_module));
   }
 
   return 0;
@@ -354,12 +364,39 @@ TypeResolver::visitUnresolvedType(std::shared_ptr<UnresolvedType> type,
                       type->loc, ErrorType::UseOfPrivateType);
   }
 
-  // resolve inner type if it hasn't been already
-  if (!sym->inner_resolved) {
-    sym->inner_resolved = true;
-    sym->type = visitType(sym->type, state);
+  auto type_construct = sym->type;
+  auto params_required = type_construct->numTypeParams();
+  // call type constructor with parameters
+  if (type->type_params.size() != params_required) {
+    return errorMan.logError(
+        string_format("invalid number of parameters for type constructor "
+                      "`\x1b[1b%s\x1b[m` (expected %zu, found %zu)",
+                      scopedName.c_str(), params_required,
+                      type->type_params.size()),
+        type->loc, ErrorType::TypeError);
   }
-  return sym->type;
+
+  // if type constructor is 0 argument, attempt to use cached value
+  if (params_required == 0 && sym->inner_resolved) {
+    auto res = std::dynamic_pointer_cast<Type>(sym->type);
+    assert(res != nullptr);
+    return res;
+  }
+
+  auto result_type_unresolved = type_construct->construct(type->type_params);
+  assert(result_type_unresolved != nullptr);
+  auto result_type = visitType(result_type_unresolved, state);
+
+  // if type constructor is 0 argument, result can be cached
+  if (params_required == 0 && !sym->inner_resolved) {
+    sym->type = result_type;
+  }
+  // mark the alias as inner_resolved
+  // if the constructor has more than 0 params, this just stops
+  // visitTypeAliasDecl from checking it later
+  sym->inner_resolved = true;
+
+  return result_type;
 }
 
 std::shared_ptr<MutType>

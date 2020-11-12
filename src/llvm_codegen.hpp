@@ -73,8 +73,8 @@ public:
 /* native methods that the codegen pass uses */
 struct LLVMCodegenNativeMethods {
 public:
-  llvm::Value *GC_malloc;
-  llvm::Value *GC_malloc_atomic;
+  llvm::FunctionCallee GC_malloc;
+  llvm::FunctionCallee GC_malloc_atomic;
 };
 
 /* the llvm codegen pass over the ir.

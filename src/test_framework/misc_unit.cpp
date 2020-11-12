@@ -17,7 +17,7 @@ TEST(TokenizerTest, Tokens) {
       " 0b110101 "
       "0.345 -3. true false 'a' '\\n'");
   auto testError = TestErrorManager();
-  Tokenizer tokenizer("test", &input, testError);
+  Tokenizer tokenizer(nullptr, &input, testError);
 
   EXPECT_EQ(tokenizer.curToken.token, T_ADD);
   tokenizer.nextToken();
@@ -97,7 +97,7 @@ TEST(TokenizerTest, Tokens) {
 TEST(SemicolonInsertion, Tokens) {
   std::istringstream input("a val 1 +\n 3 + 4\n( 5\n + 1 )");
   auto testError = TestErrorManager();
-  Tokenizer tokenizer("test", &input, testError);
+  Tokenizer tokenizer(nullptr, &input, testError);
 
   EXPECT_EQ(tokenizer.curToken.token, T_IDENT);
   tokenizer.nextToken();
@@ -172,7 +172,7 @@ TEST(BasicActiveScopesTest, Symbols) {
   package.emplace_back("s1");
   package.emplace_back("s2");
 
-  auto loc = SourceLocation("test", 0, 0, 0, 0, nullptr);
+  auto loc = SourceLocation(nullptr, 0, 0, 0, 0, nullptr);
 
   auto root_scope = ScopesRoot();
   auto scopes =
@@ -244,7 +244,7 @@ TEST(ActiveScopesDeathTest, Symbols) {
 }
 
 TEST(EscapeAnalysisValueContains, EscapeAnalsysis) {
-  auto loc = SourceLocation("test", 0, 0, 0, 0, nullptr);
+  auto loc = SourceLocation(nullptr, 0, 0, 0, 0, nullptr);
 
   ast::TypeList types1;
   types1.push_back(std::make_shared<ast::BoolType>(loc));

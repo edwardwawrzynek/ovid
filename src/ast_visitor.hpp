@@ -218,12 +218,11 @@ T BaseASTVisitor<T, S>::visitStructExpr(StructExpr &node, const S &state) {
 /* the base generic type visitor
  * basically the same as BaseASTVisitor, but for type expressions */
 template <class T, class S> class BaseTypeVisitor {
+protected:
   T defaultValue;
 
-  virtual T visitProductType(ProductType &type, const S &state);
-
+private:
   virtual T visitUnresolvedType(UnresolvedType &type, const S &state);
-  virtual T visitResolvedAlias(ResolvedAlias &type, const S &state);
 
   virtual T visitVoidType(VoidType &type, const S &state);
   virtual T visitBoolType(BoolType &type, const S &state);
@@ -236,6 +235,7 @@ template <class T, class S> class BaseTypeVisitor {
   virtual T visitFunctionType(FunctionType &type, const S &state);
   virtual T visitNamedFunctionType(NamedFunctionType &type, const S &state);
 
+  virtual T visitProductType(ProductType &type, const S &state);
   virtual T visitTupleType(TupleType &type, const S &state);
   virtual T visitStructType(StructType &type, const S &state);
 
@@ -268,10 +268,12 @@ T BaseTypeVisitor<T, S>::visitType(Type &type, const S &state) {
                                   state);
   } else if (dynamic_cast<FunctionType *>(&type) != nullptr) {
     return visitFunctionType(dynamic_cast<FunctionType &>(type), state);
-  } else if (dynamic_cast<ResolvedAlias *>(&type) != nullptr) {
-    return visitResolvedAlias(dynamic_cast<ResolvedAlias &>(type), state);
   } else if (dynamic_cast<ProductType *>(&type) != nullptr) {
     return visitProductType(dynamic_cast<ProductType &>(type), state);
+  } else if (dynamic_cast<FormalTypeParameter *>(&type) != nullptr) {
+    // FormalTypeParameter's should only be found in TypeConstructor's, which is
+    // handled by the TypeConstructor visitor
+    assert(false);
   }
 
   assert(false);
@@ -291,12 +293,6 @@ T BaseTypeVisitor<T, S>::visitProductType(ProductType &type, const S &state) {
 template <class T, class S>
 T BaseTypeVisitor<T, S>::visitUnresolvedType(UnresolvedType &type,
                                              const S &state) {
-  return std::move(defaultValue);
-}
-
-template <class T, class S>
-T BaseTypeVisitor<T, S>::visitResolvedAlias(ResolvedAlias &type,
-                                            const S &state) {
   return std::move(defaultValue);
 }
 
@@ -349,6 +345,50 @@ T BaseTypeVisitor<T, S>::visitTupleType(TupleType &type, const S &state) {
 template <class T, class S>
 T BaseTypeVisitor<T, S>::visitStructType(StructType &type, const S &state) {
   return std::move(defaultValue);
+}
+
+/* base type construct visitor */
+template <class T, class S>
+class BaseTypeConstructorVisitor : public BaseTypeVisitor<T, S> {
+  virtual T visitFormalTypeParameter(FormalTypeParameter &type, const S &state);
+  virtual T visitGenericTypeConstructor(GenericTypeConstructor &type_construct,
+                                        const S &state);
+
+public:
+  virtual T visitTypeConstructor(TypeConstructor &type_construct,
+                                 const S &state);
+
+  explicit BaseTypeConstructorVisitor(T defaultValue)
+      : BaseTypeVisitor<T, S>(std::move(defaultValue)){};
+};
+
+template <class T, class S>
+T BaseTypeConstructorVisitor<T, S>::visitTypeConstructor(
+    TypeConstructor &type_construct, const S &state) {
+  if (dynamic_cast<GenericTypeConstructor *>(&type_construct) != nullptr) {
+    return visitGenericTypeConstructor(
+        dynamic_cast<GenericTypeConstructor &>(type_construct), state);
+  } else if (dynamic_cast<FormalTypeParameter *>(&type_construct) != nullptr) {
+    return visitFormalTypeParameter(
+        dynamic_cast<FormalTypeParameter &>(type_construct), state);
+  } else if (dynamic_cast<Type *>(&type_construct) != nullptr) {
+    return BaseTypeVisitor<T, S>::visitType(
+        dynamic_cast<Type &>(type_construct), state);
+  }
+
+  assert(false);
+}
+
+template <class T, class S>
+T BaseTypeConstructorVisitor<T, S>::visitFormalTypeParameter(
+    FormalTypeParameter &type, const S &state) {
+  return std::move(BaseTypeVisitor<T, S>::defaultValue);
+}
+
+template <class T, class S>
+T BaseTypeConstructorVisitor<T, S>::visitGenericTypeConstructor(
+    GenericTypeConstructor &type_construct, const S &state) {
+  return std::move(BaseTypeVisitor<T, S>::defaultValue);
 }
 
 } // namespace ovid::ast

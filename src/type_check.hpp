@@ -17,9 +17,6 @@ class TypePrinter : public BaseTypeVisitor<int, TypePrinterState> {
 
   std::string res;
 
-  int visitResolvedAlias(ResolvedAlias &type,
-                         const TypePrinterState &state) override;
-
   int visitVoidType(VoidType &type, const TypePrinterState &state) override;
   int visitBoolType(BoolType &type, const TypePrinterState &state) override;
   int visitIntType(IntType &type, const TypePrinterState &state) override;

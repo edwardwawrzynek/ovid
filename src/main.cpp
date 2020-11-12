@@ -43,9 +43,10 @@ public:
   DriverArgs()
       : dump_ast(false), dump_ir(false), dump_escape_analysis(false),
         dump_llvm(false), codegen_out(ir::CodegenOutputType::OBJ),
-        opt_level(llvm::PassBuilder::O2), reloc_model(llvm::Reloc::PIC_),
-        code_model(llvm::CodeModel::Small), out_file("ovidc.out"), in_files(),
-        package_name(), package_version(-1), do_main(false){};
+        opt_level(llvm::PassBuilder::OptimizationLevel::O2),
+        reloc_model(llvm::Reloc::PIC_), code_model(llvm::CodeModel::Small),
+        out_file("ovidc.out"), in_files(), package_name(), package_version(-1),
+        do_main(false){};
 };
 
 void usage() {
@@ -129,17 +130,17 @@ DriverArgs parseCLIArgs(int argc, char **argv) {
       break;
     case 'O':
       if (!strcmp(optarg, "0")) {
-        res.opt_level = llvm::PassBuilder::O0;
+        res.opt_level = llvm::PassBuilder::OptimizationLevel::O0;
       } else if (!strcmp(optarg, "1")) {
-        res.opt_level = llvm::PassBuilder::O1;
+        res.opt_level = llvm::PassBuilder::OptimizationLevel::O1;
       } else if (!strcmp(optarg, "2")) {
-        res.opt_level = llvm::PassBuilder::O2;
+        res.opt_level = llvm::PassBuilder::OptimizationLevel::O2;
       } else if (!strcmp(optarg, "3")) {
-        res.opt_level = llvm::PassBuilder::O3;
+        res.opt_level = llvm::PassBuilder::OptimizationLevel::O3;
       } else if (!strcmp(optarg, "s")) {
-        res.opt_level = llvm::PassBuilder::Os;
+        res.opt_level = llvm::PassBuilder::OptimizationLevel::Os;
       } else if (!strcmp(optarg, "z")) {
-        res.opt_level = llvm::PassBuilder::Oz;
+        res.opt_level = llvm::PassBuilder::OptimizationLevel::Oz;
       } else {
         std::cerr << "invalid optimization level " << std::string(optarg)
                   << "\n";

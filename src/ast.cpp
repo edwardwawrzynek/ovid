@@ -19,6 +19,8 @@ std::shared_ptr<Type> TypeConstructor::trivialConstruct() {
   return std::dynamic_pointer_cast<Type>(shared_from_this());
 }
 
+size_t TypeConstructor::numTypeParams() const { assert(false); }
+
 const Type *ast::Type::withoutMutability() const { return this; }
 Type *Type::withoutMutability() { return this; }
 
@@ -28,6 +30,8 @@ bool Type::containsPointer() const {
   // false provides a default for most of the builtin types
   return false;
 }
+
+size_t Type::numTypeParams() const { return 0; }
 
 const Type *ast::MutType::withoutMutability() const { return type.get(); }
 Type *MutType::withoutMutability() { return type.get(); }
@@ -40,13 +44,6 @@ bool UnresolvedType::equalToExpected(const Type &expected) const {
   assert(false);
 
   return false;
-}
-
-bool ResolvedAlias::equalToExpected(const Type &expected) const {
-  return alias->type->equalToExpected(expected);
-}
-bool ResolvedAlias::containsPointer() const {
-  return alias->type->containsPointer();
 }
 
 bool VoidType::equalToExpected(const Type &expected) const {
@@ -239,6 +236,25 @@ bool StructType::hasPublicConstructor() const {
   }
 
   return true;
+}
+
+size_t GenericTypeConstructor::numTypeParams() const { return params.size(); }
+
+std::shared_ptr<Type> GenericTypeConstructor::construct(const TypeList &args) {
+  if (params.size() != args.size())
+    return nullptr;
+  if (params.empty())
+    return trivialConstruct();
+  // TODO: visit type and replace type parameters
+  assert(false);
+}
+
+std::shared_ptr<Type> GenericTypeConstructor::trivialConstruct() {
+  if (params.empty()) {
+    return type;
+  } else {
+    return nullptr;
+  }
 }
 
 } // namespace ovid::ast

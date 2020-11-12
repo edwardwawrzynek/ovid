@@ -264,7 +264,7 @@ int ASTPrinter::visitTypeAliasDecl(TypeAliasDecl &node,
   state.printIndent(output);
   printLoc(output, node.loc);
   output << " TypeAliasDecl: " << node.name << "\n";
-  typePrinter.visitType(*node.type->type, state.withIndent());
+  typePrinter.visitTypeConstructor(*node.type->type, state.withIndent());
 
   return 0;
 }
@@ -372,15 +372,6 @@ int ASTTypePrinter::visitUnresolvedType(UnresolvedType &type,
   return 0;
 }
 
-int ASTTypePrinter::visitResolvedAlias(ResolvedAlias &type,
-                                       const ASTPrinterState &state) {
-  state.printIndent(output);
-  output << "ResolvedAlias\n";
-  visitType(*type.alias->type, state.withIndent());
-
-  return 0;
-}
-
 int ASTTypePrinter::visitFunctionType(FunctionType &type,
                                       const ASTPrinterState &state) {
   state.printIndent(output);
@@ -436,6 +427,27 @@ int ASTTypePrinter::visitStructType(StructType &type,
       output << ":";
   }
   output << "\n";
+
+  return 0;
+}
+
+int ASTTypePrinter::visitFormalTypeParameter(FormalTypeParameter &type,
+                                             const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "FormalTypeParameter: " << type.name << "\n";
+
+  return 0;
+}
+
+int ASTTypePrinter::visitGenericTypeConstructor(
+    GenericTypeConstructor &type_construct, const ASTPrinterState &state) {
+  state.printIndent(output);
+  output << "GenericTypeConstructor:";
+  for (auto &param : type_construct.params) {
+    output << " " << param->name;
+  }
+  output << "\n";
+  visitType(*type_construct.type, state.withIndent());
 
   return 0;
 }
