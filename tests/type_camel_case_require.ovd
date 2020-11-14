@@ -14,3 +14,8 @@ type Bad_Upper = i32 //__error: "identifier Bad_Upper should be an upper camel c
 struct lower_type {} //__error: "identifier lower_type should be an upper camel case identifier: LowerType"
 
 struct UpperType {}
+
+type Generic<param> = () //__error: "identifier param should be an upper camel case identifier: Param"
+type Generic<Param, Bad_Param> = () //__error: "identifier Bad_Param should be an upper camel case identifier: BadParam"
+struct Generic<type1> {} //__error: "identifier type1 should be an upper camel case identifier: Type1"
+struct Generic<A, B, GoodType>> {}

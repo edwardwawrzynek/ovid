@@ -1,0 +1,15 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+type Pair<A, B> = (A, B)
+type Pointer<T> = *T
+
+fn test(arg Pointer<i32>) -> Pair<i32, i64> {
+	return (*arg, *arg)
+}
+
+pub fn main() -> i32 {
+	val num = 0
+	return test(&num).0
+}
