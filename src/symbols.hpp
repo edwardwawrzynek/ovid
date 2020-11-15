@@ -161,13 +161,8 @@ public:
   bool getIsPublic() const;
   bool getIsFuncScope() const;
 
-  ScopeTable(bool is_public, ScopeTable<T> *parent, const std::string &name)
-      : symbols(std::make_unique<SymbolTable<T>>()), scopes(),
-        is_public(is_public), is_func_scope(false), parent(parent), name(name),
-        version_int(-1){};
-
-  ScopeTable(bool is_public, ScopeTable<T> *parent, bool is_func_scope,
-             const std::string &name, int64_t version_int = -1)
+  ScopeTable(bool is_public, ScopeTable<T> *parent, const std::string &name,
+             bool is_func_scope = false, int64_t version_int = -1)
       : symbols(std::make_unique<SymbolTable<T>>()), scopes(),
         is_public(is_public), is_func_scope(is_func_scope), parent(parent),
         name(name), version_int(version_int){};
@@ -260,12 +255,18 @@ void ScopeTable<T>::addSymbol(const std::string &name,
 template <class T>
 bool checkVisible(const T &sym, ScopeTable<T> *curPackage,
                   ScopeTable<T> *curModule, bool is_symbol_pub) {
-
-  // determine if the symbol is in curPackage
   bool is_in_package = false;
 
   // table directly containing the symbol
   ScopeTable<T> *containingTable = sym.parent_table;
+
+  // if the symbol is contained in a function scope, it is automatically
+  // accessible (ActiveScopes make sure it isn't accessible outside the
+  // function)
+  if (containingTable->getIsFuncScope())
+    return true;
+
+  // determine if the symbol is in curPackage
   ScopeTable<T> *tmp = containingTable;
   while (tmp != nullptr) {
     if (tmp == curPackage) {
@@ -285,12 +286,6 @@ bool checkVisible(const T &sym, ScopeTable<T> *curPackage,
     }
     tmp = tmp->getParent();
   }
-
-  // if the symbol is contained in a function scope, it is automatically
-  // accessible (ActiveScopes make sure it isn't accessible outside the
-  // function)
-  if (containingTable->getIsFuncScope())
-    return true;
 
   // if the current module is a descendant of symbol's module, symbol is
   // automatically accessible

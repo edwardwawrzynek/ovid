@@ -7,7 +7,6 @@
  * The name resolution pass on the AST
  * the pass visits each ast node, and resolves all identifiers to references to
  * entries in the symbol tables
- * TODO: simplify some syntactical sugar
  */
 
 namespace ovid::ast {
@@ -26,8 +25,12 @@ class TypeResolver {
   ActiveScopes &scopes;
   ErrorManager &errorMan;
 
+  std::shared_ptr<GenericTypeConstructor> visitGenericTypeConstructor(
+      std::shared_ptr<GenericTypeConstructor> type_construct,
+      const TypeResolverState &state);
+
   std::shared_ptr<Type>
-  visitUnresolvedType(std::shared_ptr<UnresolvedType> type,
+  visitUnresolvedType(const std::shared_ptr<UnresolvedType> &type,
                       const TypeResolverState &state);
 
   std::shared_ptr<MutType> visitMutType(std::shared_ptr<MutType> type,
@@ -42,12 +45,16 @@ class TypeResolver {
 
   std::shared_ptr<TupleType> visitTupleType(std::shared_ptr<TupleType> type,
                                             const TypeResolverState &state);
-  std::shared_ptr<Type> visitStructType(std::shared_ptr<StructType> type,
-                                        const TypeResolverState &state);
+  std::shared_ptr<StructType> visitStructType(std::shared_ptr<StructType> type,
+                                              const TypeResolverState &state);
 
 public:
   std::shared_ptr<Type> visitType(const std::shared_ptr<Type> &type,
                                   const TypeResolverState &state);
+
+  std::shared_ptr<TypeConstructor>
+  visitTypeConstructor(const std::shared_ptr<TypeConstructor> &type,
+                       const TypeResolverState &state);
 
   std::shared_ptr<NamedFunctionType>
   visitNamedFunctionType(std::shared_ptr<NamedFunctionType> type,

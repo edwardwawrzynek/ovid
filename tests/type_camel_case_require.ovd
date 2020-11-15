@@ -15,7 +15,10 @@ struct lower_type {} //__error: "identifier lower_type should be an upper camel 
 
 struct UpperType {}
 
-type Generic<param> = () //__error: "identifier param should be an upper camel case identifier: Param"
-type Generic<Param, Bad_Param> = () //__error: "identifier Bad_Param should be an upper camel case identifier: BadParam"
-struct Generic<type1> {} //__error: "identifier type1 should be an upper camel case identifier: Type1"
-struct Generic<A, B, GoodType>> {}
+type Generic1<param> = () //__error: "identifier param should be an upper camel case identifier: Param"
+
+type Generic2<Param, Bad_Param> = () //__error: "identifier Bad_Param should be an upper camel case identifier: BadParam"
+
+struct Generic3<type1> {} //__error: "identifier type1 should be an upper camel case identifier: Type1"
+
+struct Generic4<A, B, GoodType> {}

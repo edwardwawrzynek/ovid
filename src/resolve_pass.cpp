@@ -1,4 +1,5 @@
 #include "resolve_pass.hpp"
+#include "generics.hpp"
 
 #include <utility>
 
@@ -232,8 +233,9 @@ int ResolvePass::visitTypeAliasDecl(TypeAliasDecl &node,
       params.push_back(
           std::make_shared<ast::TupleType>(node.loc, ast::TypeList()));
     }
-    auto constructed_type = node.type->type->construct(params);
-    assert(constructed_type != nullptr);
+    auto resolved_type = type_resolver.visitTypeConstructor(
+        node.type->type, TypeResolverState(package, current_module));
+    auto constructed_type = resolved_type->construct(params);
     type_resolver.visitType(constructed_type,
                             TypeResolverState(package, current_module));
   }
@@ -311,8 +313,8 @@ bool ResolvePass::checkTypeShadowed(
   // is still the scope in which the visited type is declared in
   auto poppedScope = scopes.types.popScope();
 
-  auto shadowed =
-      scopes.types.findSymbol(std::vector<std::string>(), name, predicate);
+  auto shadowed = scopes.types.findSymbol(std::vector<std::string>(), name,
+                                          std::move(predicate));
 
   if (shadowed) {
     auto scoped_name =
@@ -334,8 +336,25 @@ bool ResolvePass::checkTypeShadowed(
   return shadowed != nullptr;
 }
 
+std::shared_ptr<GenericTypeConstructor>
+TypeResolver::visitGenericTypeConstructor(
+    std::shared_ptr<GenericTypeConstructor> type_construct,
+    const TypeResolverState &state) {
+  if (type_construct->type_resolved) {
+    return type_construct;
+  }
+  // add generic's type scope
+  scopes.types.pushScope(type_construct->type_scope.get());
+  // resolve body of constructor
+  type_construct->type = visitType(type_construct->type, state);
+  scopes.types.popScope(type_construct->type_scope.get());
+
+  type_construct->type_resolved = true;
+  return type_construct;
+}
+
 std::shared_ptr<Type>
-TypeResolver::visitUnresolvedType(std::shared_ptr<UnresolvedType> type,
+TypeResolver::visitUnresolvedType(const std::shared_ptr<UnresolvedType> &type,
                                   const TypeResolverState &state) {
   // lookup type in type tables
   std::shared_ptr<TypeAlias> sym;
@@ -383,9 +402,16 @@ TypeResolver::visitUnresolvedType(std::shared_ptr<UnresolvedType> type,
     return res;
   }
 
-  auto result_type_unresolved = type_construct->construct(type->type_params);
-  assert(result_type_unresolved != nullptr);
-  auto result_type = visitType(result_type_unresolved, state);
+  // resolve type parameters
+  ast::TypeList resolved_type_params;
+  for (auto &param : type->type_params) {
+    resolved_type_params.push_back(visitType(param, state));
+  }
+
+  auto result_type = visitType(visitTypeConstructor(type_construct, state)
+                                   ->construct(resolved_type_params),
+                               state);
+  assert(result_type != nullptr);
 
   // if type constructor is 0 argument, result can be cached
   if (params_required == 0 && !sym->inner_resolved) {
@@ -444,7 +470,7 @@ TypeResolver::visitTupleType(std::shared_ptr<TupleType> type,
   return type;
 }
 
-std::shared_ptr<Type>
+std::shared_ptr<StructType>
 TypeResolver::visitStructType(std::shared_ptr<StructType> type,
                               const TypeResolverState &state) {
   if (type->fields_resolved) {
@@ -460,7 +486,7 @@ TypeResolver::visitStructType(std::shared_ptr<StructType> type,
 }
 
 #define TYPE_RESOLVER_VISIT_CASE(caseType, caseFunction)                       \
-  if (std::dynamic_pointer_cast<caseType>(type) != nullptr) {                  \
+  if (dynamic_cast<caseType *>(type.get()) != nullptr) {                       \
     return caseFunction(std::dynamic_pointer_cast<caseType>(type), state);     \
   }
 
@@ -475,6 +501,15 @@ std::shared_ptr<Type> TypeResolver::visitType(const std::shared_ptr<Type> &type,
 
   /* all other types can't contain type aliases */
   return type;
+}
+
+std::shared_ptr<TypeConstructor>
+TypeResolver::visitTypeConstructor(const std::shared_ptr<TypeConstructor> &type,
+                                   const TypeResolverState &state) {
+  TYPE_RESOLVER_VISIT_CASE(GenericTypeConstructor, visitGenericTypeConstructor);
+  TYPE_RESOLVER_VISIT_CASE(Type, visitType);
+
+  assert(false);
 }
 
 TypeResolver::TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan)

@@ -1,0 +1,32 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+type T1<A> = *A
+type T2<A> = (T1<A>)
+type T3<A, B> = (T2<A>, T2<B>)
+
+struct T4<C> {
+    field1 T3<C, C>
+}
+
+struct T5<D> {
+    field2 *T4<D>
+}
+
+fn test(arg T5<i32>) -> i32 {
+    val a i32 = *arg.field2.field1.0
+    return a
+}
+
+pub fn main() -> i32 {
+    val a = 56
+    val t4 = T4<i32> {
+        field1: (&a, &a)
+    }
+    val t5 = T5<i32> {
+        field2: &t4
+    }
+
+    return test(t5) - a
+}

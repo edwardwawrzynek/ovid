@@ -38,6 +38,8 @@ public:
 class LLVMTypeGen
     : public ast::BaseTypeVisitor<llvm::Type *, LLVMTypeGenState> {
   llvm::LLVMContext &llvm_context;
+  llvm::Module *llvm_module;
+
   llvm::Type *visitVoidType(ast::VoidType &type,
                             const LLVMTypeGenState &state) override;
   llvm::Type *visitBoolType(ast::BoolType &type,
@@ -66,8 +68,10 @@ public:
   using BaseTypeVisitor::visitType;
   llvm::Type *visitType(ast::Type &type);
 
-  explicit LLVMTypeGen(llvm::LLVMContext &llvm_context)
-      : BaseTypeVisitor(nullptr), llvm_context(llvm_context){};
+  explicit LLVMTypeGen(llvm::LLVMContext &llvm_context,
+                       llvm::Module *llvm_module)
+      : BaseTypeVisitor(nullptr), llvm_context(llvm_context),
+        llvm_module(llvm_module){};
 };
 
 /* native methods that the codegen pass uses */

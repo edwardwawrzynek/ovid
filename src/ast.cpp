@@ -1,4 +1,5 @@
 #include "ast.hpp"
+#include "generics.hpp"
 
 namespace ovid::ast {
 
@@ -42,8 +43,6 @@ void ScopedBlock::addStatement(std::unique_ptr<Statement> statement) {
 
 bool UnresolvedType::equalToExpected(const Type &expected) const {
   assert(false);
-
-  return false;
 }
 
 bool VoidType::equalToExpected(const Type &expected) const {
@@ -196,7 +195,22 @@ bool StructType::equalToExpected(const Type &expected) const {
   assert(expectedStruct->type_alias.lock() != nullptr);
 
   /* structure types use name equality */
-  return type_alias.lock().get() == expectedStruct->type_alias.lock().get();
+  auto alias_equal =
+      type_alias.lock().get() == expectedStruct->type_alias.lock().get();
+  if (!alias_equal)
+    return false;
+
+  // make sure generic parameters are equal
+  assert(actual_generic_params.size() ==
+         expectedStruct->actual_generic_params.size());
+  for (size_t i = 0; i < actual_generic_params.size(); i++) {
+    if (!actual_generic_params[i]->equalToExpected(
+            *expectedStruct->actual_generic_params[i])) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 size_t StructType::getNumFields() const { return field_types.size(); }
@@ -238,15 +252,31 @@ bool StructType::hasPublicConstructor() const {
   return true;
 }
 
+GenericTypeConstructor::GenericTypeConstructor(const SourceLocation &loc,
+                                               FormalTypeParameterList params,
+                                               std::shared_ptr<Type> type)
+    : TypeConstructor(loc), params(std::move(params)), type(std::move(type)),
+      type_scope(
+          std::make_unique<ScopeTable<TypeAlias>>(false, nullptr, "", true)),
+      type_resolved(false) {
+  // construct scope table from type parameters
+  for (auto &param : this->params) {
+    auto type_alias = std::make_shared<TypeAlias>(param->loc, param, false);
+    type_scope->addSymbol(param->name, std::move(type_alias));
+  }
+}
+
 size_t GenericTypeConstructor::numTypeParams() const { return params.size(); }
 
 std::shared_ptr<Type> GenericTypeConstructor::construct(const TypeList &args) {
-  if (params.size() != args.size())
-    return nullptr;
+  assert(params.size() == args.size());
+
   if (params.empty())
     return trivialConstruct();
-  // TODO: visit type and replace type parameters
-  assert(false);
+
+  // visit type and replace formal params -> actual params
+  auto construct_pass = TypeConstructorPass(params, args);
+  return construct_pass.constructType(type);
 }
 
 std::shared_ptr<Type> GenericTypeConstructor::trivialConstruct() {
@@ -258,7 +288,6 @@ std::shared_ptr<Type> GenericTypeConstructor::trivialConstruct() {
 }
 
 } // namespace ovid::ast
-// namespace ovid::ast
 
 namespace ovid {
 void ActiveScopes::pushComponentScopesByName(

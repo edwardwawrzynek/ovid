@@ -1467,6 +1467,18 @@ int TypePrinter::visitStructType(StructType &type,
       res.push_back(':');
   }
 
+  // if present, print generic type params
+  auto &params = type.actual_generic_params;
+  if (!params.empty()) {
+    res.push_back('<');
+    for (size_t i = 0; i < params.size(); i++) {
+      visitType(*params[i], state);
+      if (i < params.size() - 1)
+        res.append(", ");
+    }
+    res.push_back('>');
+  }
+
   return 0;
 }
 

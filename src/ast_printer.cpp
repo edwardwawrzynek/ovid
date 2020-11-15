@@ -55,7 +55,7 @@ int ASTPrinter::visitFunctionDecl(FunctionDecl &node,
   output << " FunctionDecl: " << node.name << "\n";
   state.printIndent(output);
   output << "  retType:\n";
-  typePrinter.visitType(*node.type->retType, state.withIndent());
+  typePrinter.visitTypeConstructor(*node.type->retType, state.withIndent());
   state.printIndent(output);
   output << "  argNames:";
   for (auto &argName : node.type->argNames) {
@@ -65,7 +65,7 @@ int ASTPrinter::visitFunctionDecl(FunctionDecl &node,
   state.printIndent(output);
   output << "  argTypes:\n";
   for (auto &type : node.type->argTypes) {
-    typePrinter.visitType(*type, state.withIndent());
+    typePrinter.visitTypeConstructor(*type, state.withIndent());
   }
   state.printIndent(output);
   output << "  body:\n";
@@ -249,7 +249,7 @@ int ASTPrinter::visitStructExpr(StructExpr &node,
   state.printIndent(output);
   printLoc(output, node.loc);
   output << " StructExpr:\n";
-  typePrinter.visitType(*node.type, state.withIndent());
+  typePrinter.visitTypeConstructor(*node.type, state.withIndent());
   for (size_t i = 0; i < node.field_exprs.size(); i++) {
     state.printIndent(output);
     output << "  " << node.field_names[i] << ":\n";
@@ -305,7 +305,7 @@ int ASTPrinter::visitNativeFunctionDecl(NativeFunctionDecl &node,
       output << ":";
   }
   output << "\n";
-  typePrinter.visitType(*node.sym->type, state.withIndent());
+  typePrinter.visitTypeConstructor(*node.sym->type, state.withIndent());
   return 0;
 }
 
@@ -344,7 +344,7 @@ int ASTTypePrinter::visitFloatType(FloatType &type,
 int ASTTypePrinter::visitMutType(MutType &type, const ASTPrinterState &state) {
   state.printIndent(output);
   output << "MutType\n";
-  visitType(*type.type, state.withIndent());
+  visitTypeConstructor(*type.type, state.withIndent());
 
   return 0;
 }
@@ -353,7 +353,7 @@ int ASTTypePrinter::visitPointerType(PointerType &type,
                                      const ASTPrinterState &state) {
   state.printIndent(output);
   output << "PointerType\n";
-  visitType(*type.type, state.withIndent());
+  visitTypeConstructor(*type.type, state.withIndent());
 
   return 0;
 }
@@ -378,11 +378,11 @@ int ASTTypePrinter::visitFunctionType(FunctionType &type,
   output << "FunctionType\n";
   state.printIndent(output);
   output << "  retType:\n";
-  visitType(*type.retType, state.withIndent());
+  visitTypeConstructor(*type.retType, state.withIndent());
   state.printIndent(output);
   output << "  argTypes:\n";
   for (auto &arg : type.argTypes) {
-    visitType(*arg, state.withIndent());
+    visitTypeConstructor(*arg, state.withIndent());
   }
 
   return 0;
@@ -410,7 +410,7 @@ int ASTTypePrinter::visitTupleType(TupleType &type,
   state.printIndent(output);
   output << "TupleType\n";
   for (auto &child : type.types) {
-    visitType(*child, state.withIndent());
+    visitTypeConstructor(*child, state.withIndent());
   }
 
   return 0;
@@ -427,6 +427,15 @@ int ASTTypePrinter::visitStructType(StructType &type,
       output << ":";
   }
   output << "\n";
+  // if present, print generic type params
+  auto &params = type.actual_generic_params;
+  if (!params.empty()) {
+    state.printIndent(output);
+    output << "  actual_generic_params:\n";
+    for (auto &param : params) {
+      visitTypeConstructor(*param, state.withIndent());
+    }
+  }
 
   return 0;
 }
@@ -447,7 +456,7 @@ int ASTTypePrinter::visitGenericTypeConstructor(
     output << " " << param->name;
   }
   output << "\n";
-  visitType(*type_construct.type, state.withIndent());
+  visitTypeConstructor(*type_construct.type, state.withIndent());
 
   return 0;
 }

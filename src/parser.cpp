@@ -873,7 +873,7 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
 
   // construct scope table for function (private, function scope)
   auto symbolTable =
-      std::make_unique<ScopeTable<Symbol>>(false, nullptr, true, "");
+      std::make_unique<ScopeTable<Symbol>>(false, nullptr, "", true);
   auto symbolTablePointer = symbolTable.get();
   ast::ScopedBlock body(std::move(symbolTable));
   // the current type scope is copied, as function's can't contain type alias
@@ -1171,7 +1171,7 @@ Parser::parseIfStatement(const ParserState &state) {
 
     // setup body's scope
     auto symbolTable =
-        std::make_unique<ScopeTable<Symbol>>(false, nullptr, true, "");
+        std::make_unique<ScopeTable<Symbol>>(false, nullptr, "", true);
     auto symbolTablePointer = symbolTable.get();
     ast::ScopedBlock body(std::move(symbolTable));
 
@@ -1272,7 +1272,7 @@ Parser::parseWhileStatement(const ParserState &state) {
   // parse body
   // setup body's scope
   auto symbolTable =
-      std::make_unique<ScopeTable<Symbol>>(false, nullptr, true, "");
+      std::make_unique<ScopeTable<Symbol>>(false, nullptr, "", true);
   auto symbolTablePointer = symbolTable.get();
   ast::ScopedBlock body(std::move(symbolTable));
 

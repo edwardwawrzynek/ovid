@@ -64,7 +64,14 @@ llvm::Type *LLVMTypeGen::visitStructType(ast::StructType &type,
   if (type.llvm_type != nullptr)
     return type.llvm_type;
   // create struct type
-  auto name = name_mangling::mangleType(type.type_alias.lock());
+  auto name = name_mangling::mangleType(type);
+  // check if type already exists in module
+  auto existing_type = llvm_module->getTypeByName(name);
+  if (existing_type != nullptr) {
+    type.llvm_type = existing_type;
+    return existing_type;
+  }
+  // otherwise create type
   auto structType = llvm::StructType::create(llvm_context, name);
   type.llvm_type = structType;
   // fill in body
@@ -96,7 +103,8 @@ LLVMCodegenPass::LLVMCodegenPass(const std::string &module_name,
                                  ErrorManager &errorMan)
     : BaseIRVisitor(nullptr), llvm_context(), builder(llvm_context),
       llvm_module(std::make_unique<llvm::Module>(module_name, llvm_context)),
-      type_gen(llvm_context), errorMan(errorMan), native_fns() {
+      type_gen(llvm_context, llvm_module.get()), errorMan(errorMan),
+      native_fns() {
   initNativeFns();
 }
 

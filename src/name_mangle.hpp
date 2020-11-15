@@ -6,8 +6,6 @@
 #include <vector>
 
 /* The name mangling scheme for ovid symbols
- * Right now it just encodes scoped names, but TODO: it will have to support
- * generics (and therefor type encoding).
  *
  * Non scoped symbols of a single name are not mangled.
  * Other symbols are mangled:
@@ -15,13 +13,23 @@
  * and scope is the scope name
  *
  * The symbol test:scope:func would be:
- * _I4test6scope4func */
+ * _I4test6scope4func
+ *
+ * Type aliases are mangled the same, with an encoding starting with _T
+ *
+ * Generic symbols are mangled with their symbol first, then a G, then generic
+ * type parameters mangled (below), then an E
+ *
+ * Type mangling
+ *
+ *
+ * */
 
 namespace ovid::name_mangling {
 
 std::string mangleIdentifier(const ir::Value &val);
 std::string mangleIdentifier(const std::shared_ptr<Symbol> &sym);
-std::string mangleType(const std::shared_ptr<TypeAlias> &sym);
+std::string mangleType(ast::Type &type);
 
 std::string mangleMainFunc(const ScopeTable<Symbol> *package,
                            const std::string &name);

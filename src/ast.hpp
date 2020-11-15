@@ -188,6 +188,13 @@ public:
   // concrete type (with FormalTypeParameter's)
   std::shared_ptr<Type> type;
 
+  // type scope table for type parameters
+  std::unique_ptr<ScopeTable<TypeAlias>> type_scope;
+
+  // if UnresolvedTypes present in .type have been resolved to
+  // FormalTypeParameter's
+  bool type_resolved;
+
   size_t numTypeParams() const override;
 
   std::shared_ptr<Type> construct(const TypeList &args) override;
@@ -195,9 +202,7 @@ public:
 
   GenericTypeConstructor(const SourceLocation &loc,
                          FormalTypeParameterList params,
-                         std::shared_ptr<Type> type)
-      : TypeConstructor(loc), params(std::move(params)),
-        type(std::move(type)){};
+                         std::shared_ptr<Type> type);
 };
 
 /* a concrete type -- a type that can be created */
@@ -393,6 +398,13 @@ public:
   // llvm structure type alias
   llvm::StructType *llvm_type;
 
+  // if the type has been through type construction
+  // if true, actual_generic_params should be set
+  bool constructed;
+  // the actual type parameters that this struct was constructed with
+  // needed for name mangling + type equality checking
+  ast::TypeList actual_generic_params;
+
   bool equalToExpected(const Type &expected) const override;
 
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
@@ -412,17 +424,20 @@ public:
       : ProductType(loc), field_types(std::move(field_types)),
         field_names(std::move(field_names)),
         fields_are_public(std::move(fields_are_public)), type_alias(),
-        fields_resolved(false), llvm_type(nullptr){};
+        fields_resolved(false), llvm_type(nullptr), constructed(false),
+        actual_generic_params(){};
 
   StructType(const SourceLocation &loc, TypeList field_types,
              std::vector<std::string> field_names,
              std::vector<bool> fields_are_public,
-             std::weak_ptr<TypeAlias> type_alias)
+             std::weak_ptr<TypeAlias> type_alias, bool fields_resolved,
+             bool constructed, ast::TypeList actual_generic_params)
       : ProductType(loc), field_types(std::move(field_types)),
         field_names(std::move(field_names)),
         fields_are_public(std::move(fields_are_public)),
-        type_alias(std::move(type_alias)), fields_resolved(false),
-        llvm_type(nullptr){};
+        type_alias(std::move(type_alias)), fields_resolved(fields_resolved),
+        llvm_type(nullptr), constructed(constructed),
+        actual_generic_params(std::move(actual_generic_params)){};
 };
 
 class FunctionPrototype {
