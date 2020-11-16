@@ -1,0 +1,19 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+struct LinkedList<T> {
+    value   T
+    next    *LinkedList<T>
+}
+
+fn ll_i32_get(head *LinkedList<i32>, index i32) -> i32 {
+    mut cur = head
+    mut i = 0
+    while i < index {
+        cur = cur.next
+        i += 1
+    }
+
+    return cur.value
+}

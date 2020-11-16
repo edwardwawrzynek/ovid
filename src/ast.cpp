@@ -191,12 +191,11 @@ bool StructType::equalToExpected(const Type &expected) const {
   if (expectedStruct == nullptr)
     return false;
 
-  assert(type_alias.lock() != nullptr);
-  assert(expectedStruct->type_alias.lock() != nullptr);
+  assert(getTypeAlias() != nullptr);
+  assert(expectedStruct->getTypeAlias() != nullptr);
 
   /* structure types use name equality */
-  auto alias_equal =
-      type_alias.lock().get() == expectedStruct->type_alias.lock().get();
+  auto alias_equal = getTypeAlias() == expectedStruct->getTypeAlias();
   if (!alias_equal)
     return false;
 
@@ -239,9 +238,7 @@ bool StructType::fieldIsPublic(int32_t field_index) const {
   return fields_are_public[field_index];
 }
 
-const TypeAlias *StructType::getTypeAlias() const {
-  return type_alias.lock().get();
-}
+const TypeAlias *StructType::getTypeAlias() const { return type_alias; }
 
 bool StructType::hasPublicConstructor() const {
   for (auto pub : fields_are_public) {
@@ -328,7 +325,7 @@ ActiveScopes::ActiveScopes(const std::vector<std::string> &packageName,
   curTypeScope->setVersionInt(package_version);
 }
 
-std::vector<std::string> Symbol::getFullyScopedName() {
+std::vector<std::string> Symbol::getFullyScopedName() const {
   size_t scopes_size = 1;
   auto tmp = parent_table;
   while (tmp != nullptr && !tmp->getName().empty()) {
@@ -349,7 +346,7 @@ std::vector<std::string> Symbol::getFullyScopedName() {
   return fullName;
 }
 
-std::vector<std::string> TypeAlias::getFullyScopedName() {
+std::vector<std::string> TypeAlias::getFullyScopedName() const {
   size_t scopes_size = 1;
   auto tmp = parent_table;
   while (tmp != nullptr && !tmp->getName().empty()) {

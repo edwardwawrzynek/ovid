@@ -1,0 +1,12 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+struct Type1<T> {
+    field1  T
+    field2  *Type1<i32>
+}
+
+fn test(a *Type1<f64>) -> i32 {
+    return a.field2.field1
+}

@@ -1,0 +1,22 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+struct Type1<T> {
+    field1 T
+    field2 *Type2<T>
+}
+
+struct Type2<T> {
+    field1 T
+    field2 *Type3<T>
+}
+
+struct Type3<T> {
+    field1 T
+    field2 *Type1<T>
+}
+
+fn test(a *Type1<i32>) -> *Type2<i32> {
+    return a.field2.field2.field2.field2
+}

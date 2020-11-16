@@ -48,8 +48,7 @@ static std::string mangleScope(const ScopeTable<T> *scope, MangleType type) {
   return res;
 }
 
-template <typename T>
-static std::string mangle(const std::shared_ptr<T> &sym, MangleType type) {
+template <typename T> static std::string mangle(const T *sym, MangleType type) {
   // generate c compatible identifier names if unscoped
   if ((sym->parent_table == nullptr || sym->parent_table->getName().empty()) &&
       type == MangleType::IDENTIFIER) {
@@ -73,7 +72,7 @@ std::string mangleMainFunc(const ScopeTable<Symbol> *package,
 }
 
 std::string mangleIdentifier(const std::shared_ptr<Symbol> &sym) {
-  return mangle(sym, MangleType::IDENTIFIER);
+  return mangle(sym.get(), MangleType::IDENTIFIER);
 }
 
 std::string mangleIdentifier(const ir::Value &val) {
@@ -167,7 +166,7 @@ class TypeMangler : public ast::BaseTypeVisitor<int, TypeManglerState> {
 
   int visitStructType(ast::StructType &type,
                       const TypeManglerState &state) override {
-    res.append(mangle(type.type_alias.lock(), MangleType::TYPE_ALIAS));
+    res.append(mangle(type.getTypeAlias(), MangleType::TYPE_ALIAS));
     res.push_back('G');
     for (auto &param : type.actual_generic_params) {
       visitType(*param, state);

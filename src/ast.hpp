@@ -61,7 +61,7 @@ public:
         parent_table(nullptr){};
 
   /* get this symbol's fully scoped name */
-  std::vector<std::string> getFullyScopedName();
+  std::vector<std::string> getFullyScopedName() const;
 };
 /* a type alias and its metadata */
 struct TypeAlias {
@@ -91,7 +91,7 @@ public:
         inner_resolved(false), name(), parent_table(nullptr){};
 
   /* get this symbol's fully scoped name */
-  std::vector<std::string> getFullyScopedName();
+  std::vector<std::string> getFullyScopedName() const;
 };
 
 // name and type symbol tables
@@ -392,7 +392,7 @@ public:
   std::vector<std::string> field_names;
   std::vector<bool> fields_are_public;
   // type alias for this structure type
-  std::weak_ptr<TypeAlias> type_alias;
+  TypeAlias *type_alias;
   // if the field types have gone through type resolution
   bool fields_resolved;
   // llvm structure type alias
@@ -429,14 +429,14 @@ public:
 
   StructType(const SourceLocation &loc, TypeList field_types,
              std::vector<std::string> field_names,
-             std::vector<bool> fields_are_public,
-             std::weak_ptr<TypeAlias> type_alias, bool fields_resolved,
-             bool constructed, ast::TypeList actual_generic_params)
+             std::vector<bool> fields_are_public, TypeAlias *type_alias,
+             bool fields_resolved, bool constructed,
+             ast::TypeList actual_generic_params)
       : ProductType(loc), field_types(std::move(field_types)),
         field_names(std::move(field_names)),
-        fields_are_public(std::move(fields_are_public)),
-        type_alias(std::move(type_alias)), fields_resolved(fields_resolved),
-        llvm_type(nullptr), constructed(constructed),
+        fields_are_public(std::move(fields_are_public)), type_alias(type_alias),
+        fields_resolved(fields_resolved), llvm_type(nullptr),
+        constructed(constructed),
         actual_generic_params(std::move(actual_generic_params)){};
 };
 

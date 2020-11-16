@@ -1433,7 +1433,7 @@ Parser::parseStructStatement(const ParserState &state, bool is_public) {
   auto alias =
       std::make_shared<TypeAlias>(pos, std::move(typeConstruct), is_public);
   // StructType needs to know it's alias for name mangling, etc
-  typePtr->type_alias = alias;
+  typePtr->type_alias = alias.get();
 
   addTypeAlias(state, name, alias);
   return std::make_unique<ast::TypeAliasDecl>(pos, name, alias);

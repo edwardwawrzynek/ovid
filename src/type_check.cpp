@@ -1458,8 +1458,8 @@ int TypePrinter::visitTupleType(TupleType &type,
 
 int TypePrinter::visitStructType(StructType &type,
                                  const TypePrinterState &state) {
-  assert(type.type_alias.lock() != nullptr);
-  auto name = type.type_alias.lock()->getFullyScopedName();
+  assert(type.getTypeAlias() != nullptr);
+  auto name = type.getTypeAlias()->getFullyScopedName();
 
   for (size_t i = 0; i < name.size(); i++) {
     res.append(name[i]);

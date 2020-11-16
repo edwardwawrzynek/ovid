@@ -18,6 +18,23 @@ public:
         actual_type(std::move(actual_type)){};
 };
 
+/* TypeConstructorPass builds a stack of TypeConstructorStructVisit records
+ * they are used to detect cycles in the type graph and resolve them
+ * since only StructType's can cause cycles, only struct visits are recorded
+ */
+class TypeConstructorStructVisit {
+public:
+  // struct's type alias entry
+  const TypeAlias *type_alias;
+  // the constructed type to substitute
+  const std::shared_ptr<StructType> &constructed_type;
+
+  explicit TypeConstructorStructVisit(
+      const TypeAlias *type_alias,
+      const std::shared_ptr<StructType> &constructed_type)
+      : type_alias(type_alias), constructed_type(constructed_type){};
+};
+
 /* Generic type construction pass
  * The pass visits TypeConstructors and replaces FormalTypeParameter's with
  * concrete types */
@@ -29,6 +46,11 @@ class TypeConstructorPass {
 
   // map of formal type parameter id's to actual params
   std::unordered_map<uint64_t, std::shared_ptr<Type>> param_map;
+
+  // stack of visited struct type's type aliases
+  // used to detect cycles in the type graph and resolve them
+  // structs are the only types that can form cycles
+  std::vector<TypeConstructorStructVisit> visited_structs;
 
   TypeConstructorPassResult<Type>
   visitFormalTypeParameter(const std::shared_ptr<FormalTypeParameter> &type);
@@ -45,6 +67,17 @@ class TypeConstructorPass {
   visitStructType(const std::shared_ptr<StructType> &type);
 
   TypeConstructorPassResult<Type> visitType(const std::shared_ptr<Type> &type);
+
+  // check if a TypeList consists of just FormalTypeParameters and matches a
+  // FormalTypeParameterList
+  static bool
+  checkTypesMatchFormalTypes(const TypeList &types,
+                             const FormalTypeParameterList &formal_types);
+
+  // check if a StructType is in visited_structs and that it's
+  // actual_generic_params match formal_params
+  const TypeConstructorStructVisit *
+  structTypeInVisitedStructs(const StructType &type);
 
 public:
   // visit a type, replacing formal_params with actual_params

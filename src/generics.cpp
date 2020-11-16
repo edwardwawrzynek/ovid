@@ -4,7 +4,8 @@ namespace ovid::ast {
 
 TypeConstructorPass::TypeConstructorPass(
     const FormalTypeParameterList &formal_params, const TypeList &actual_params)
-    : formal_params(formal_params), actual_params(actual_params), param_map() {
+    : formal_params(formal_params), actual_params(actual_params), param_map(),
+      visited_structs() {
   assert(formal_params.size() == actual_params.size());
   for (size_t i = 0; i < formal_params.size(); i++) {
     param_map.emplace(this->formal_params[i]->id, this->actual_params[i]);
@@ -119,15 +120,25 @@ TypeConstructorPass::visitStructType(const std::shared_ptr<StructType> &type) {
     actual_generic_params = actual_params;
   }
 
+  // in order to break struct type cycles, we need to make sure that we don't
+  // recursively visit a field that we are im the process of resolving
+  auto visited = structTypeInVisitedStructs(*type);
+  if (visited != nullptr) {
+    return TypeConstructorPassResult(true, visited->constructed_type);
+  }
+  // construct result type (without field_types set)
+  auto res_type = std::make_shared<StructType>(
+      type->loc, TypeList(), type->field_names, type->fields_are_public,
+      type->type_alias, type->fields_resolved, true,
+      std::move(actual_generic_params));
+  visited_structs.emplace_back(type->getTypeAlias(), res_type);
+
   ast::TypeList field_types;
   for (auto &field : type->field_types) {
     field_types.push_back(visitType(field).actual_type);
   }
-
-  auto res_type = std::make_shared<StructType>(
-      type->loc, std::move(field_types), type->field_names,
-      type->fields_are_public, type->type_alias, type->fields_resolved, true,
-      std::move(actual_generic_params));
+  res_type->field_types = std::move(field_types);
+  visited_structs.pop_back();
 
   return TypeConstructorPassResult(true, std::move(res_type));
 }
@@ -151,9 +162,38 @@ TypeConstructorPass::visitType(const std::shared_ptr<Type> &type) {
   return TypeConstructorPassResult(false, type);
 }
 
+const TypeConstructorStructVisit *
+TypeConstructorPass::structTypeInVisitedStructs(const StructType &type) {
+  // if the type isn't bound over the same formal params as we are resolving,
+  // then it can't form a cycle against any types in visited_structs
+  if (!checkTypesMatchFormalTypes(type.actual_generic_params, formal_params))
+    return nullptr;
+
+  for (auto &visited : visited_structs) {
+    if (visited.type_alias == type.type_alias)
+      return &visited;
+  }
+
+  return nullptr;
+}
+
+bool TypeConstructorPass::checkTypesMatchFormalTypes(
+    const TypeList &types, const FormalTypeParameterList &formal_types) {
+  if (types.size() != formal_types.size())
+    return false;
+  for (size_t i = 0; i < types.size(); i++) {
+    auto formal_type = dynamic_cast<FormalTypeParameter *>(types[i].get());
+    if (formal_type == nullptr)
+      return false;
+    if (formal_type->id != formal_types[i]->id)
+      return false;
+  }
+
+  return true;
+}
+
 std::shared_ptr<Type>
 TypeConstructorPass::constructType(const std::shared_ptr<Type> &type) {
   return visitType(type).actual_type;
 }
-
 } // namespace ovid::ast
