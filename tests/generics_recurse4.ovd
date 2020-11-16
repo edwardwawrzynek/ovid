@@ -1,0 +1,18 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+struct Type<A, B, C, D> {
+    a       A
+    b       B
+    c       C
+    d       D
+    field *Type<C, A, D, B>
+}
+
+fn test1(a *Type<i32, f64, (), *()>) {
+    val v1 i32 = a.field.field.d
+    val v2 f64 = a.field.field.field.a
+    val v3 () = *a.field.c
+    val v4 () = a.field.field.c //__error: "type of expression f64 doesn't match expected type ()"
+}

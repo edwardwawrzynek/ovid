@@ -2,11 +2,6 @@
 //__mode: compile
 //__end_header
 
-struct LinkedList<T> {
-    value   T
-    next    *LinkedList<T>
-}
-
 fn ll_i32_get(head *LinkedList<i32>, index i32) -> i32 {
     mut cur = head
     mut i = 0
@@ -16,4 +11,25 @@ fn ll_i32_get(head *LinkedList<i32>, index i32) -> i32 {
     }
 
     return cur.value
+}
+
+fn ll_f64_get(head *LinkedList<f64>, index i32) -> i32 {
+    mut cur = head
+    mut i = 0
+    while i < index {
+        cur = cur.next
+        i += 1
+    }
+
+    return cur.value //__error: "return type f64 doesn't match expected type i32"
+}
+
+struct LinkedList<T> {
+    value   T
+    next    *LinkedList<T>
+}
+
+fn test(a *mut LinkedList<i32>, b *LinkedList<f64>) {
+    a.next = b //__error: "type of expression *ovidc_test:LinkedList<f64> does not match expected type *ovidc_test:LinkedList<i32>"
+    a.next = a
 }

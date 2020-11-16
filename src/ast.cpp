@@ -20,6 +20,14 @@ TypeConstructor::getFormalTypeParameters() const {
   assert(false);
 }
 
+ScopeTable<TypeAlias> *TypeConstructor::getFormalScopeTable() const {
+  assert(false);
+}
+
+std::shared_ptr<Type> TypeConstructor::trivialConstruct() {
+  return std::dynamic_pointer_cast<Type>(shared_from_this());
+}
+
 const Type *ast::Type::withoutMutability() const { return this; }
 Type *Type::withoutMutability() { return this; }
 
@@ -276,6 +284,10 @@ GenericTypeConstructor::getFormalTypeParameters() const {
 
 std::shared_ptr<Type> GenericTypeConstructor::getFormalBoundType() const {
   return type;
+}
+
+ScopeTable<TypeAlias> *GenericTypeConstructor::getFormalScopeTable() const {
+  return type_scope.get();
 }
 
 bool FormalTypeParameter::equal(const Type &other, bool strict) const {

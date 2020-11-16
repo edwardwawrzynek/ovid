@@ -1,0 +1,14 @@
+// __ovid_compiler_test
+//__mode: check_ir compile
+//__end_header
+
+type RefPair<A, B> = (*A, *B)
+struct Generic<T> {
+    value T
+    next *Generic<T>
+}
+
+fn test(v1 RefPair<i32, f64>, v2 Generic<*Generic<u32> >) {
+    val a = v1.0
+    val b = v2.next.value.next.value
+}

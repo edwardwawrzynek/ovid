@@ -161,7 +161,7 @@ public:
 
 /* ast types */
 /* a type constructor (ie function that produces a concrete type) */
-class TypeConstructor {
+class TypeConstructor : public std::enable_shared_from_this<TypeConstructor> {
 public:
   SourceLocation loc;
   virtual ~TypeConstructor() = default;
@@ -171,10 +171,15 @@ public:
   // get the number of arguments that the type constructor expects
   virtual size_t numTypeParams() const;
 
+  // if this constructor is trivial (0 param + instance of Type), return
+  // construction result (nullptr otherwise)
+  virtual std::shared_ptr<Type> trivialConstruct();
   // get this constructor's formal type parameters
   virtual const FormalTypeParameterList &getFormalTypeParameters() const;
   // get this constructor's inner type (with formal parameters in it)
   virtual std::shared_ptr<Type> getFormalBoundType() const;
+  // get the formal parameter scope table for this type
+  virtual ScopeTable<TypeAlias> *getFormalScopeTable() const;
 };
 
 /* a type constructor (FormalTypeParameter, FormalTypeParameter, ...) -> Type */
@@ -195,6 +200,7 @@ public:
   size_t numTypeParams() const override;
   const FormalTypeParameterList &getFormalTypeParameters() const override;
   std::shared_ptr<Type> getFormalBoundType() const override;
+  ScopeTable<TypeAlias> *getFormalScopeTable() const override;
 
   GenericTypeConstructor(const SourceLocation &loc,
                          FormalTypeParameterList params,

@@ -1,0 +1,21 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+fn test1(a *Type<i32, f64>) -> f64 {
+    return a.field.a
+}
+
+fn test2(a *Type<*mut Type<i32, u8>, f64>) -> u8 {
+    return a.field.field.field.b.field.a
+}
+
+fn test3(a *Type<*mut Type<f32, u8>, f64>) -> u8 {
+    return a.field.field.field.b.field.field.a //__error: "return type f32 doesn't match expected type u8"
+}
+
+struct Type<A, B> {
+    a       A
+    b       B
+    field   *Type<B, A>
+}

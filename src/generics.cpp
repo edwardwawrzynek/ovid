@@ -58,8 +58,6 @@ TypeConstructorPass::visitPointerType(const std::shared_ptr<PointerType> &type,
 TypeConstructorPassResult<FunctionType> TypeConstructorPass::visitFunctionType(
     const std::shared_ptr<FunctionType> &type,
     const TypeConstructorState &state) {
-  // TODO: handle NamedFunctionType
-  // if the function type has formal parameters
   bool has_formal_params = false;
   TypeList args;
 
@@ -75,9 +73,19 @@ TypeConstructorPassResult<FunctionType> TypeConstructorPass::visitFunctionType(
     has_formal_params = true;
 
   if (has_formal_params) {
-    return TypeConstructorPassResult(
-        true, std::make_shared<FunctionType>(type->loc, std::move(args),
-                                             std::move(ret.actual_type)));
+    std::shared_ptr<FunctionType> result;
+    // if type is a NamedFunctionType, result should be too
+    auto namedFType = dynamic_cast<NamedFunctionType *>(type.get());
+    if (namedFType != nullptr) {
+      return TypeConstructorPassResult<FunctionType>(
+          true, std::make_shared<NamedFunctionType>(type->loc, std::move(args),
+                                                    std::move(ret.actual_type),
+                                                    namedFType->argNames));
+    } else {
+      return TypeConstructorPassResult(
+          true, std::make_shared<FunctionType>(type->loc, std::move(args),
+                                               std::move(ret.actual_type)));
+    }
   } else {
     for (size_t i = 0; i < args.size(); i++) {
       type->argTypes[i] = args[i];
@@ -113,12 +121,12 @@ TypeConstructorPass::visitTupleType(const std::shared_ptr<TupleType> &type,
 TypeConstructorPassResult<StructType>
 TypeConstructorPass::visitStructType(const std::shared_ptr<StructType> &type,
                                      const TypeConstructorState &state) {
+  bool had_formal_params = false;
   ast::TypeList actual_generic_params;
   if (type->constructed) {
     // if type is already constructed (ie field of other type), then its
     // actual_generic_params is already set. Some of those actual params may be
     // our formal parameters, so we need to substitute them if present
-    bool had_formal_params = false;
     for (auto &param : type->actual_generic_params) {
       auto formal_param = dynamic_cast<FormalTypeParameter *>(param.get());
       // check if param is bound in this construction
@@ -140,7 +148,7 @@ TypeConstructorPass::visitStructType(const std::shared_ptr<StructType> &type,
   }
 
   // in order to break struct type cycles, we need to make sure that we don't
-  // recursively visit a field that we are im the process of resolving
+  // recursively visit a field that we are in the process of resolving
   auto visited = structTypeInVisitedStructs(*type, state);
   if (visited != nullptr) {
     return TypeConstructorPassResult(true, visited->constructed_type);
@@ -150,17 +158,29 @@ TypeConstructorPass::visitStructType(const std::shared_ptr<StructType> &type,
       type->loc, TypeList(), type->field_names, type->fields_are_public,
       type->type_alias, type->fields_resolved, true,
       std::move(actual_generic_params));
+  // resolve field_types
   visited_structs.emplace_back(type->getTypeAlias(), state.actual_params,
                                res_type);
-
   ast::TypeList field_types;
   for (auto &field : type->field_types) {
-    field_types.push_back(visitType(field, state).actual_type);
+    auto resolved = visitType(field, state);
+    field_types.push_back(resolved.actual_type);
+    if (resolved.had_formal_params)
+      had_formal_params = true;
   }
-  res_type->field_types = std::move(field_types);
   visited_structs.pop_back();
 
-  return TypeConstructorPassResult(true, std::move(res_type));
+  if (had_formal_params) {
+    res_type->field_types = std::move(field_types);
+    return TypeConstructorPassResult(true, std::move(res_type));
+  } else {
+    // b/c the struct type had none of the formal parameters we are replacing in
+    // it, it is safe to mutate in place
+    type->actual_generic_params = std::move(res_type->actual_generic_params);
+    type->field_types = std::move(field_types);
+
+    return TypeConstructorPassResult(false, type);
+  }
 }
 
 std::shared_ptr<TypeAlias> TypeConstructorPass::lookupUnresolvedType(
@@ -203,7 +223,6 @@ TypeConstructorPassResult<Type> TypeConstructorPass::visitUnresolvedType(
 
   auto type_construct = sym->type;
   auto params_required = type_construct->numTypeParams();
-  // call type constructor with parameters
   if (type->type_params.size() != params_required) {
     errorMan.logError(
         string_format("invalid number of parameters for type constructor "
@@ -212,6 +231,13 @@ TypeConstructorPassResult<Type> TypeConstructorPass::visitUnresolvedType(
                       type->type_params.size()),
         type->loc, ErrorType::TypeError);
     return TypeConstructorPassResult<Type>(false, nullptr);
+  }
+
+  // if constructor is 0 param and result is cached, use that
+  if (params_required == 0 && sym->inner_resolved) {
+    auto res = std::dynamic_pointer_cast<Type>(sym->type);
+    assert(res != nullptr);
+    return TypeConstructorPassResult(false, res);
   }
 
   bool had_formal_params = false;
@@ -224,15 +250,26 @@ TypeConstructorPassResult<Type> TypeConstructorPass::visitUnresolvedType(
       had_formal_params = true;
   }
 
-  // construct new state with new formal + actual params
-  auto new_state = TypeConstructorState(
-      type_construct->getFormalTypeParameters(), resolved_type_params);
-  auto result_type = visitType(type_construct->getFormalBoundType(), new_state);
-  assert(result_type.actual_type != nullptr);
+  TypeConstructorPassResult<Type> result_type(false, nullptr);
+  // check for trivial constructor and use it if available
+  auto trivial = type_construct->trivialConstruct();
+  if (trivial == nullptr) {
+    // call constructor with new formal + actual params
+    auto new_state = TypeConstructorState(
+        type_construct->getFormalTypeParameters(), resolved_type_params);
+    scopes.types.pushScope(type_construct->getFormalScopeTable());
+    result_type = visitType(type_construct->getFormalBoundType(), new_state);
+    scopes.types.popScope();
+  } else {
+    result_type = visitType(trivial, state);
+  }
 
-  // mark the alias as inner_resolved
-  // this just stops visitTypeAliasDecl from checking it later
-  sym->inner_resolved = true;
+  // mark the alias as inner_resolved and cache (if 0 parameter)
+  if (params_required == 0 && !had_formal_params &&
+      !result_type.had_formal_params) {
+    sym->inner_resolved = true;
+    sym->type = result_type.actual_type;
+  }
 
   return TypeConstructorPassResult<Type>(true, result_type.actual_type);
 }
@@ -266,13 +303,14 @@ TypeConstructorPass::structTypeInVisitedStructs(
 
     if (type.getTypeAlias() != visited.type_alias)
       continue;
-    assert(type.actual_generic_params.size() == visited.actual_params.size());
-    for (size_t j = 0; j < type.actual_generic_params.size(); j++) {
-      if (!type.actual_generic_params[j]->equalStrict(
-              *visited.actual_params[j]))
-        continue;
+    assert(state.actual_params.size() == visited.actual_params.size());
+    bool params_match = true;
+    for (size_t j = 0; j < state.actual_params.size(); j++) {
+      if (!state.actual_params[j]->equalStrict(*visited.actual_params[j]))
+        params_match = false;
     }
-    return &visited;
+    if (params_match)
+      return &visited;
   }
 
   return nullptr;

@@ -34,7 +34,7 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
   assert(node.type->resolvedArgs.empty());
   auto resolvedType =
       std::dynamic_pointer_cast<NamedFunctionType>(resolveType(node.type));
-  assert(node.type == nullptr || resolvedType != nullptr);
+  assert(resolvedType != nullptr);
   node.type = resolvedType;
 
   node.resolved_symbol->type = node.type;
@@ -220,22 +220,18 @@ int ResolvePass::visitTypeAliasDecl(TypeAliasDecl &node,
 
   // if the aliased type hasn't already been resolved, resolve it
   // needed to reject invalid aliases if they are never otherwise used
-  // TODO
-  /*if (!node.type->inner_resolved) {
-    // type_resolver checks types, not type constructors.
-    // instead, we call the constructor on unit type parameters and check that
+  if (!node.type->inner_resolved) {
+    // call the constructor on unit type parameters and check that
     auto expected_params = node.type->type->numTypeParams();
     ast::TypeList params;
     for (size_t i = 0; i < expected_params; i++) {
       params.push_back(
           std::make_shared<ast::TupleType>(node.loc, ast::TypeList()));
     }
-    auto resolved_type = type_resolver.visitTypeConstructor(
-        node.type->type, TypeResolverState(package, current_module));
-    auto constructed_type = resolved_type->construct(params);
-    type_resolver.visitType(constructed_type,
-                            TypeResolverState(package, current_module));
-  }*/
+    auto dummy_construct_call = std::make_shared<UnresolvedType>(
+        node.loc, std::vector<std::string>(), node.name, false, params);
+    resolveType(dummy_construct_call);
+  }
 
   return 0;
 }
@@ -338,182 +334,5 @@ ResolvePass::resolveType(const std::shared_ptr<Type> &type) {
   return TypeConstructorPass::resolveType(type, scopes, errorMan, package,
                                           current_module);
 }
-
-std::shared_ptr<GenericTypeConstructor>
-TypeResolver::visitGenericTypeConstructor(
-    std::shared_ptr<GenericTypeConstructor> type_construct,
-    const TypeResolverState &state) {
-  if (type_construct->type_resolved) {
-    return type_construct;
-  }
-  // add generic's type scope
-  scopes.types.pushScope(type_construct->type_scope.get());
-  // resolve body of constructor
-  type_construct->type = visitType(type_construct->type, state);
-  scopes.types.popScope(type_construct->type_scope.get());
-
-  type_construct->type_resolved = true;
-  return type_construct;
-}
-
-std::shared_ptr<Type>
-TypeResolver::visitUnresolvedType(const std::shared_ptr<UnresolvedType> &type,
-                                  const TypeResolverState &state) {
-  // lookup type in type tables
-  std::shared_ptr<TypeAlias> sym;
-  if (type->is_root_scoped) {
-    sym = scopes.types.getRootScope()->findSymbol(type->scopes, type->name);
-  } else {
-    sym = scopes.types.findSymbol(type->scopes, type->name);
-  }
-
-  auto scopedName = scopesAndNameToString(type->scopes, type->name, true);
-
-  if (sym == nullptr) {
-    errorMan.logError(string_format("use of undeclared type `\x1b[1m%s\x1b[m`",
-                                    scopedName.c_str()),
-                      type->loc, ErrorType::UndeclaredType);
-
-    return nullptr;
-  }
-  // check for use of private type
-  else if (!checkVisible(
-               *sym, scopes.types.getRootScope()->getScopeTable(state.package),
-               scopes.types.getRootScope()->getScopeTable(state.current_module),
-               sym->is_public)) {
-    errorMan.logError(string_format("use of private type `\x1b[1m%s\x1b[m`",
-                                    scopedName.c_str()),
-                      type->loc, ErrorType::UseOfPrivateType);
-  }
-
-  auto type_construct = sym->type;
-  auto params_required = type_construct->numTypeParams();
-  // call type constructor with parameters
-  if (type->type_params.size() != params_required) {
-    return errorMan.logError(
-        string_format("invalid number of parameters for type constructor "
-                      "`\x1b[1b%s\x1b[m` (expected %zu, found %zu)",
-                      scopedName.c_str(), params_required,
-                      type->type_params.size()),
-        type->loc, ErrorType::TypeError);
-  }
-
-  // if type constructor is 0 argument, attempt to use cached value
-  if (params_required == 0 && sym->inner_resolved) {
-    auto res = std::dynamic_pointer_cast<Type>(sym->type);
-    assert(res != nullptr);
-    return res;
-  }
-
-  // resolve type parameters
-  for (auto &param : type->type_params) {
-    param = visitType(param, state);
-  }
-
-  auto result_type = nullptr; // visitType(visitTypeConstructor(type_construct,
-                              // state)->construct(type->type_params), state);
-  assert(result_type != nullptr);
-
-  // if type constructor is 0 argument, result can be cached
-  if (params_required == 0 && !sym->inner_resolved) {
-    sym->type = result_type;
-  }
-  // mark the alias as inner_resolved
-  // if the constructor has more than 0 params, this just stops
-  // visitTypeAliasDecl from checking it later
-  sym->inner_resolved = true;
-
-  return result_type;
-}
-
-std::shared_ptr<MutType>
-TypeResolver::visitMutType(std::shared_ptr<MutType> type,
-                           const TypeResolverState &state) {
-  type->type = visitType(type->type, state);
-  return type;
-}
-
-std::shared_ptr<PointerType>
-TypeResolver::visitPointerType(std::shared_ptr<PointerType> type,
-                               const TypeResolverState &state) {
-  type->type = visitType(type->type, state);
-  return type;
-}
-
-std::shared_ptr<FunctionType>
-TypeResolver::visitFunctionType(std::shared_ptr<FunctionType> type,
-                                const TypeResolverState &state) {
-  for (auto &arg : type->argTypes) {
-    arg = visitType(arg, state);
-  }
-
-  type->retType = visitType(type->retType, state);
-
-  return type;
-}
-
-std::shared_ptr<NamedFunctionType>
-TypeResolver::visitNamedFunctionType(std::shared_ptr<NamedFunctionType> type,
-                                     const TypeResolverState &state) {
-  auto funcTypeRes = visitFunctionType(type, state);
-  assert(funcTypeRes.get() == type.get());
-
-  return type;
-}
-
-std::shared_ptr<TupleType>
-TypeResolver::visitTupleType(std::shared_ptr<TupleType> type,
-                             const TypeResolverState &state) {
-  for (auto &field : type->types) {
-    field = visitType(field, state);
-  }
-
-  return type;
-}
-
-std::shared_ptr<StructType>
-TypeResolver::visitStructType(std::shared_ptr<StructType> type,
-                              const TypeResolverState &state) {
-  if (type->fields_resolved) {
-    return type;
-  }
-  type->fields_resolved = true;
-
-  for (auto &field : type->field_types) {
-    field = visitType(field, state);
-  }
-
-  return type;
-}
-
-#define TYPE_RESOLVER_VISIT_CASE(caseType, caseFunction)                       \
-  if (dynamic_cast<caseType *>(type.get()) != nullptr) {                       \
-    return caseFunction(std::dynamic_pointer_cast<caseType>(type), state);     \
-  }
-
-std::shared_ptr<Type> TypeResolver::visitType(const std::shared_ptr<Type> &type,
-                                              const TypeResolverState &state) {
-  TYPE_RESOLVER_VISIT_CASE(UnresolvedType, visitUnresolvedType);
-  TYPE_RESOLVER_VISIT_CASE(MutType, visitMutType);
-  TYPE_RESOLVER_VISIT_CASE(PointerType, visitPointerType);
-  TYPE_RESOLVER_VISIT_CASE(FunctionType, visitFunctionType);
-  TYPE_RESOLVER_VISIT_CASE(TupleType, visitTupleType);
-  TYPE_RESOLVER_VISIT_CASE(StructType, visitStructType);
-
-  /* all other types can't contain type aliases */
-  return type;
-}
-
-std::shared_ptr<TypeConstructor>
-TypeResolver::visitTypeConstructor(const std::shared_ptr<TypeConstructor> &type,
-                                   const TypeResolverState &state) {
-  TYPE_RESOLVER_VISIT_CASE(GenericTypeConstructor, visitGenericTypeConstructor);
-  TYPE_RESOLVER_VISIT_CASE(Type, visitType);
-
-  assert(false);
-}
-
-TypeResolver::TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan)
-    : scopes(scopes), errorMan(errorMan) {}
 
 } // namespace ovid::ast

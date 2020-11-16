@@ -10,59 +10,6 @@
  */
 
 namespace ovid::ast {
-
-class TypeResolverState {
-public:
-  const std::vector<std::string> &package;
-  const std::vector<std::string> &current_module;
-
-  TypeResolverState(const std::vector<std::string> &package,
-                    const std::vector<std::string> &current_module)
-      : package(package), current_module(current_module){};
-};
-
-class TypeResolver {
-  ActiveScopes &scopes;
-  ErrorManager &errorMan;
-
-  std::shared_ptr<GenericTypeConstructor> visitGenericTypeConstructor(
-      std::shared_ptr<GenericTypeConstructor> type_construct,
-      const TypeResolverState &state);
-
-  std::shared_ptr<Type>
-  visitUnresolvedType(const std::shared_ptr<UnresolvedType> &type,
-                      const TypeResolverState &state);
-
-  std::shared_ptr<MutType> visitMutType(std::shared_ptr<MutType> type,
-                                        const TypeResolverState &state);
-  std::shared_ptr<PointerType>
-  visitPointerType(std::shared_ptr<PointerType> type,
-                   const TypeResolverState &state);
-
-  std::shared_ptr<FunctionType>
-  visitFunctionType(std::shared_ptr<FunctionType> type,
-                    const TypeResolverState &state);
-
-  std::shared_ptr<TupleType> visitTupleType(std::shared_ptr<TupleType> type,
-                                            const TypeResolverState &state);
-  std::shared_ptr<StructType> visitStructType(std::shared_ptr<StructType> type,
-                                              const TypeResolverState &state);
-
-public:
-  std::shared_ptr<Type> visitType(const std::shared_ptr<Type> &type,
-                                  const TypeResolverState &state);
-
-  std::shared_ptr<TypeConstructor>
-  visitTypeConstructor(const std::shared_ptr<TypeConstructor> &type,
-                       const TypeResolverState &state);
-
-  std::shared_ptr<NamedFunctionType>
-  visitNamedFunctionType(std::shared_ptr<NamedFunctionType> type,
-                         const TypeResolverState &state);
-
-  TypeResolver(ActiveScopes &scopes, ErrorManager &errorMan);
-};
-
 class ResolvePassState {};
 
 // the resolution pass doesn't have a type, it just modifies the ast, so int is
