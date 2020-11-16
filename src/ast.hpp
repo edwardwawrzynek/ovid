@@ -161,7 +161,7 @@ public:
 
 /* ast types */
 /* a type constructor (ie function that produces a concrete type) */
-class TypeConstructor : public std::enable_shared_from_this<TypeConstructor> {
+class TypeConstructor {
 public:
   SourceLocation loc;
   virtual ~TypeConstructor() = default;
@@ -171,13 +171,10 @@ public:
   // get the number of arguments that the type constructor expects
   virtual size_t numTypeParams() const;
 
-  // apply the type constructor with the given type arguments
-  // return nullptr if construction is invalid
-  virtual std::shared_ptr<Type> construct(const TypeList &args);
-
-  // if the type constructor is trivial (ie -- no arguments), apply it
-  // returns nullptr if type constructor isn't trivial
-  virtual std::shared_ptr<Type> trivialConstruct();
+  // get this constructor's formal type parameters
+  virtual const FormalTypeParameterList &getFormalTypeParameters() const;
+  // get this constructor's inner type (with formal parameters in it)
+  virtual std::shared_ptr<Type> getFormalBoundType() const;
 };
 
 /* a type constructor (FormalTypeParameter, FormalTypeParameter, ...) -> Type */
@@ -196,9 +193,8 @@ public:
   bool type_resolved;
 
   size_t numTypeParams() const override;
-
-  std::shared_ptr<Type> construct(const TypeList &args) override;
-  std::shared_ptr<Type> trivialConstruct() override;
+  const FormalTypeParameterList &getFormalTypeParameters() const override;
+  std::shared_ptr<Type> getFormalBoundType() const override;
 
   GenericTypeConstructor(const SourceLocation &loc,
                          FormalTypeParameterList params,
@@ -207,13 +203,16 @@ public:
 
 /* a concrete type -- a type that can be created */
 class Type : public TypeConstructor {
-
 public:
+  virtual bool equal(const Type &expected, bool strict) const;
   // check if a type is equivalent to the given expected type
   // if this type has a mut (anywhere in the chain) that isn't in expected,
   // valid (mut -> non mut is valid) if the expected type has a mut that this
   // type doesn't, invalid (non mut -> mut invalid)
-  virtual bool equalToExpected(const Type &expected) const;
+  bool equalToExpected(const Type &other) const;
+  // check if a type is exactly equivalent to the given type
+  // mutability much match exactly
+  bool equalStrict(const Type &other) const;
   // check if a type is or containsFrom a pointer
   virtual bool containsPointer() const;
 
@@ -234,6 +233,7 @@ public:
   // for equality checks to replace type parameters when GenericTypeConstructors
   // are turned into concrete types
   uint64_t id;
+  bool equal(const Type &expected, bool strict) const override;
 
   FormalTypeParameter(const SourceLocation &loc, const std::string &name)
       : Type(loc), name(name), id(next_id()){};
@@ -251,7 +251,7 @@ public:
   // if the type began with ::
   bool is_root_scoped;
 
-  bool equalToExpected(const Type &expected) const override;
+  bool equal(const Type &expected, bool strict) const override;
 
   UnresolvedType(const SourceLocation &loc, std::vector<std::string> scopes,
                  const std::string &name, bool is_root_scoped,
@@ -262,14 +262,14 @@ public:
 
 class VoidType : public Type {
 public:
-  bool equalToExpected(const Type &expected) const override;
+  bool equal(const Type &expected, bool strict) const override;
 
   VoidType(const SourceLocation &loc) : Type(loc){};
 };
 
 class BoolType : public Type {
 public:
-  bool equalToExpected(const Type &expected) const override;
+  bool equal(const Type &expected, bool strict) const override;
 
   BoolType(const SourceLocation &loc) : Type(loc){};
 };
@@ -279,7 +279,7 @@ public:
   int size; // in bits
   bool isUnsigned;
 
-  bool equalToExpected(const Type &expected) const override;
+  bool equal(const Type &expected, bool strict) const override;
 
   IntType(const SourceLocation &loc, int size, bool isUnsigned)
       : Type(loc), size(size), isUnsigned(isUnsigned){};
@@ -289,7 +289,7 @@ class FloatType : public Type {
 public:
   int size; // in bits
 
-  bool equalToExpected(const Type &expected) const override;
+  bool equal(const Type &expected, bool strict) const override;
 
   explicit FloatType(const SourceLocation &loc, int size)
       : Type(loc), size(size){};
@@ -302,7 +302,7 @@ public:
   const Type *withoutMutability() const override;
   Type *withoutMutability() override;
 
-  bool equalToExpected(const Type &expected) const override;
+  bool equal(const Type &expected, bool strict) const override;
 
   bool containsPointer() const override;
 
@@ -314,7 +314,7 @@ class PointerType : public Type {
 public:
   std::shared_ptr<Type> type;
 
-  bool equalToExpected(const Type &expected) const override;
+  bool equal(const Type &expected, bool strict) const override;
 
   bool containsPointer() const override;
 
@@ -327,7 +327,7 @@ public:
   TypeList argTypes;
   std::shared_ptr<Type> retType;
 
-  bool equalToExpected(const Type &expected) const override;
+  bool equal(const Type &expected, bool strict) const override;
 
   FunctionType(const SourceLocation &loc, TypeList argTypes,
                std::shared_ptr<Type> retType)
@@ -339,7 +339,7 @@ public:
   std::vector<std::string> argNames;
   std::vector<std::shared_ptr<Symbol>> resolvedArgs;
 
-  bool equalToExpected(const Type &expected) const override;
+  bool equal(const Type &expected, bool strict) const override;
 
   NamedFunctionType(const SourceLocation &loc, TypeList argTypes,
                     std::shared_ptr<Type> retType,
@@ -372,7 +372,7 @@ class TupleType : public ProductType {
 public:
   TypeList types;
 
-  bool equalToExpected(const Type &expected) const override;
+  bool equal(const Type &expected, bool strict) const override;
 
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
   size_t getNumFields() const override;
@@ -405,7 +405,7 @@ public:
   // needed for name mangling + type equality checking
   ast::TypeList actual_generic_params;
 
-  bool equalToExpected(const Type &expected) const override;
+  bool equal(const Type &expected, bool strict) const override;
 
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
   size_t getNumFields() const override;

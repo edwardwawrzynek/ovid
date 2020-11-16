@@ -73,7 +73,6 @@ class ResolvePass : public BaseASTVisitor<int, ResolvePassState> {
   const std::vector<std::string> &package;
   std::vector<std::string> current_module;
   bool is_in_global;
-  TypeResolver type_resolver;
 
   int visitVarDecl(VarDecl &node, const ResolvePassState &state) override;
   int visitFunctionDecl(FunctionDecl &node,
@@ -112,6 +111,9 @@ class ResolvePass : public BaseASTVisitor<int, ResolvePassState> {
   // ActiveScope.findSymbol
   bool checkTypeShadowed(const SourceLocation &pos, const std::string &name,
                          std::function<bool(const TypeAlias &)> predicate);
+
+  // resolve a type
+  std::shared_ptr<Type> resolveType(const std::shared_ptr<Type> &type);
 
 public:
   ResolvePass(ActiveScopes &scopes, ErrorManager &errorMan,

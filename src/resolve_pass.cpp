@@ -17,9 +17,7 @@ int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
   node.resolved_symbol->resolve_pass_declared_yet = true;
 
   if (node.explicitType != nullptr) {
-    auto type_resolv_state = TypeResolverState(package, current_module);
-    node.explicitType =
-        type_resolver.visitType(node.explicitType, type_resolv_state);
+    node.explicitType = resolveType(node.explicitType);
   }
 
   return 0;
@@ -34,8 +32,10 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
   is_in_global = false;
 
   assert(node.type->resolvedArgs.empty());
-  auto typeResolveState = TypeResolverState(package, current_module);
-  node.type = type_resolver.visitNamedFunctionType(node.type, typeResolveState);
+  auto resolvedType =
+      std::dynamic_pointer_cast<NamedFunctionType>(resolveType(node.type));
+  assert(node.type == nullptr || resolvedType != nullptr);
+  node.type = resolvedType;
 
   node.resolved_symbol->type = node.type;
 
@@ -70,9 +70,7 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
 int ResolvePass::visitNativeFunctionDecl(NativeFunctionDecl &node,
                                          const ResolvePassState &state) {
   // resolve function type
-  node.sym->type = type_resolver.visitType(
-      node.sym->type, TypeResolverState(package, current_module));
-
+  node.sym->type = resolveType(node.sym->type);
   return 0;
 }
 
@@ -205,9 +203,7 @@ int ResolvePass::visitTuple(Tuple &node, const ResolvePassState &state) {
 
 int ResolvePass::visitStructExpr(StructExpr &node,
                                  const ResolvePassState &state) {
-  node.type = type_resolver.visitType(
-      node.type, TypeResolverState(package, current_module));
-
+  node.type = resolveType(node.type);
   // resolve field_expr's
   for (auto &expr : node.field_exprs) {
     visitNode(*expr, state);
@@ -224,7 +220,8 @@ int ResolvePass::visitTypeAliasDecl(TypeAliasDecl &node,
 
   // if the aliased type hasn't already been resolved, resolve it
   // needed to reject invalid aliases if they are never otherwise used
-  if (!node.type->inner_resolved) {
+  // TODO
+  /*if (!node.type->inner_resolved) {
     // type_resolver checks types, not type constructors.
     // instead, we call the constructor on unit type parameters and check that
     auto expected_params = node.type->type->numTypeParams();
@@ -238,7 +235,7 @@ int ResolvePass::visitTypeAliasDecl(TypeAliasDecl &node,
     auto constructed_type = resolved_type->construct(params);
     type_resolver.visitType(constructed_type,
                             TypeResolverState(package, current_module));
-  }
+  }*/
 
   return 0;
 }
@@ -292,7 +289,7 @@ ResolvePass::ResolvePass(ActiveScopes &scopes, ErrorManager &errorMan,
                          const std::vector<std::string> &package)
     : BaseASTVisitor<int, ResolvePassState>(0), errorMan(errorMan),
       scopes(scopes), package(package), current_module(package),
-      is_in_global(true), type_resolver(scopes, errorMan) {
+      is_in_global(true) {
   // add package as scope table [1] in scope stack
   assert(scopes.names.getNumActiveScopes() == 1);
   assert(scopes.types.getNumActiveScopes() == 1);
@@ -334,6 +331,12 @@ bool ResolvePass::checkTypeShadowed(
   scopes.types.pushScope(poppedScope);
 
   return shadowed != nullptr;
+}
+
+std::shared_ptr<Type>
+ResolvePass::resolveType(const std::shared_ptr<Type> &type) {
+  return TypeConstructorPass::resolveType(type, scopes, errorMan, package,
+                                          current_module);
 }
 
 std::shared_ptr<GenericTypeConstructor>
@@ -403,14 +406,12 @@ TypeResolver::visitUnresolvedType(const std::shared_ptr<UnresolvedType> &type,
   }
 
   // resolve type parameters
-  ast::TypeList resolved_type_params;
   for (auto &param : type->type_params) {
-    resolved_type_params.push_back(visitType(param, state));
+    param = visitType(param, state);
   }
 
-  auto result_type = visitType(visitTypeConstructor(type_construct, state)
-                                   ->construct(resolved_type_params),
-                               state);
+  auto result_type = nullptr; // visitType(visitTypeConstructor(type_construct,
+                              // state)->construct(type->type_params), state);
   assert(result_type != nullptr);
 
   // if type constructor is 0 argument, result can be cached

@@ -9,23 +9,21 @@ uint64_t next_id() { return ast_id++; }
 
 void reset_id() { ast_id = 0; }
 
-std::shared_ptr<Type> TypeConstructor::construct(const TypeList &args) {
-  if (args.empty()) {
-    return trivialConstruct();
-  }
+size_t TypeConstructor::numTypeParams() const { assert(false); }
+
+std::shared_ptr<Type> TypeConstructor::getFormalBoundType() const {
   assert(false);
 }
 
-std::shared_ptr<Type> TypeConstructor::trivialConstruct() {
-  return std::dynamic_pointer_cast<Type>(shared_from_this());
+const FormalTypeParameterList &
+TypeConstructor::getFormalTypeParameters() const {
+  assert(false);
 }
-
-size_t TypeConstructor::numTypeParams() const { assert(false); }
 
 const Type *ast::Type::withoutMutability() const { return this; }
 Type *Type::withoutMutability() { return this; }
 
-bool Type::equalToExpected(const Type &expected) const { return false; }
+bool Type::equal(const Type &expected, bool strict) const { return false; }
 
 bool Type::containsPointer() const {
   // false provides a default for most of the builtin types
@@ -34,6 +32,12 @@ bool Type::containsPointer() const {
 
 size_t Type::numTypeParams() const { return 0; }
 
+bool Type::equalStrict(const Type &other) const { return equal(other, true); }
+
+bool Type::equalToExpected(const Type &other) const {
+  return equal(other, false);
+}
+
 const Type *ast::MutType::withoutMutability() const { return type.get(); }
 Type *MutType::withoutMutability() { return type.get(); }
 
@@ -41,19 +45,19 @@ void ScopedBlock::addStatement(std::unique_ptr<Statement> statement) {
   statements.push_back(std::move(statement));
 }
 
-bool UnresolvedType::equalToExpected(const Type &expected) const {
+bool UnresolvedType::equal(const Type &expected, bool strict) const {
   assert(false);
 }
 
-bool VoidType::equalToExpected(const Type &expected) const {
+bool VoidType::equal(const Type &expected, bool strict) const {
   return dynamic_cast<const VoidType *>(&expected) != nullptr;
 }
 
-bool BoolType::equalToExpected(const Type &expected) const {
+bool BoolType::equal(const Type &expected, bool strict) const {
   return dynamic_cast<const BoolType *>(&expected) != nullptr;
 }
 
-bool IntType::equalToExpected(const Type &expected) const {
+bool IntType::equal(const Type &expected, bool strict) const {
   const auto expectInt = dynamic_cast<const IntType *>(&expected);
 
   if (expectInt == nullptr)
@@ -62,23 +66,20 @@ bool IntType::equalToExpected(const Type &expected) const {
   return expectInt->isUnsigned == isUnsigned && expectInt->size == size;
 }
 
-bool TupleType::equalToExpected(const Type &expected) const {
+bool TupleType::equal(const Type &expected, bool strict) const {
   const auto expectTuple = dynamic_cast<const TupleType *>(&expected);
-
   if (expectTuple == nullptr)
     return false;
   if (expectTuple->types.size() != types.size())
     return false;
-
   for (size_t i = 0; i < types.size(); i++) {
-    if (!types[i]->equalToExpected(*expectTuple->types[i]))
+    if (!types[i]->equal(*expectTuple->types[i], strict))
       return false;
   }
-
   return true;
 }
 
-bool FloatType::equalToExpected(const Type &expected) const {
+bool FloatType::equal(const Type &expected, bool strict) const {
   const auto expectFloat = dynamic_cast<const FloatType *>(&expected);
 
   if (expectFloat == nullptr)
@@ -87,30 +88,33 @@ bool FloatType::equalToExpected(const Type &expected) const {
   return expectFloat->size == size;
 }
 
-bool MutType::equalToExpected(const Type &expected) const {
+bool MutType::equal(const Type &expected, bool strict) const {
   // if expected is mut, check inner types
   auto expectMut = dynamic_cast<const MutType *>(&expected);
   if (expectMut != nullptr) {
-    return type->equalToExpected(*expectMut->type);
+    return type->equal(*expectMut->type, strict);
   }
   // otherwise, remove mut in check (converting mut -> non mut is valid)
-  return type->equalToExpected(expected);
+  if (!strict) {
+    return type->equal(expected, strict);
+  }
+  return false;
 }
 
 bool MutType::containsPointer() const { return type->containsPointer(); }
 
-bool PointerType::equalToExpected(const Type &expected) const {
+bool PointerType::equal(const Type &expected, bool strict) const {
   const auto expectPointer = dynamic_cast<const PointerType *>(&expected);
 
   if (expectPointer == nullptr)
     return false;
 
-  return type->equalToExpected(*expectPointer->type);
+  return type->equal(*expectPointer->type, strict);
 }
 
 bool PointerType::containsPointer() const { return true; }
 
-bool FunctionType::equalToExpected(const Type &expected) const {
+bool FunctionType::equal(const Type &expected, bool strict) const {
   const auto expectFunctionType = dynamic_cast<const FunctionType *>(&expected);
 
   // FunctionType and NamedFunctionType are equivalent if arg types and ret
@@ -121,18 +125,18 @@ bool FunctionType::equalToExpected(const Type &expected) const {
       return false;
 
     for (size_t i = 0; i < argTypes.size(); i++) {
-      if (!argTypes[i]->equalToExpected(*expectFunctionType->argTypes[i]))
+      if (!argTypes[i]->equal(*expectFunctionType->argTypes[i], strict))
         return false;
     }
 
-    return retType->equalToExpected(*expectFunctionType->retType);
+    return retType->equal(*expectFunctionType->retType, strict);
   }
 
   return false;
 }
 
-bool NamedFunctionType::equalToExpected(const Type &expected) const {
-  return FunctionType::equalToExpected(expected);
+bool NamedFunctionType::equal(const Type &expected, bool strict) const {
+  return FunctionType::equal(expected, strict);
 }
 
 std::shared_ptr<Type> ProductType::getTypeOfField(int32_t field_index) const {
@@ -186,7 +190,7 @@ bool TupleType::fieldIsPublic(int32_t field_index) const { return true; }
 
 const TypeAlias *TupleType::getTypeAlias() const { return nullptr; }
 
-bool StructType::equalToExpected(const Type &expected) const {
+bool StructType::equal(const Type &expected, bool strict) const {
   auto expectedStruct = dynamic_cast<const StructType *>(&expected);
   if (expectedStruct == nullptr)
     return false;
@@ -203,8 +207,8 @@ bool StructType::equalToExpected(const Type &expected) const {
   assert(actual_generic_params.size() ==
          expectedStruct->actual_generic_params.size());
   for (size_t i = 0; i < actual_generic_params.size(); i++) {
-    if (!actual_generic_params[i]->equalToExpected(
-            *expectedStruct->actual_generic_params[i])) {
+    if (!actual_generic_params[i]->equal(
+            *expectedStruct->actual_generic_params[i], strict)) {
       return false;
     }
   }
@@ -265,23 +269,18 @@ GenericTypeConstructor::GenericTypeConstructor(const SourceLocation &loc,
 
 size_t GenericTypeConstructor::numTypeParams() const { return params.size(); }
 
-std::shared_ptr<Type> GenericTypeConstructor::construct(const TypeList &args) {
-  assert(params.size() == args.size());
-
-  if (params.empty())
-    return trivialConstruct();
-
-  // visit type and replace formal params -> actual params
-  auto construct_pass = TypeConstructorPass(params, args);
-  return construct_pass.constructType(type);
+const FormalTypeParameterList &
+GenericTypeConstructor::getFormalTypeParameters() const {
+  return params;
 }
 
-std::shared_ptr<Type> GenericTypeConstructor::trivialConstruct() {
-  if (params.empty()) {
-    return type;
-  } else {
-    return nullptr;
-  }
+std::shared_ptr<Type> GenericTypeConstructor::getFormalBoundType() const {
+  return type;
+}
+
+bool FormalTypeParameter::equal(const Type &other, bool strict) const {
+  auto expectedParam = dynamic_cast<const FormalTypeParameter *>(&other);
+  return expectedParam != nullptr && expectedParam->id == id;
 }
 
 } // namespace ovid::ast
