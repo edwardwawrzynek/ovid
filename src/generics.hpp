@@ -93,7 +93,13 @@ class TypeConstructorPass {
   // actual_generic_params match formal_params
   const TypeConstructorStructVisit *
   structTypeInVisitedStructs(const StructType &type,
-                             const TypeConstructorState &state);
+                             const TypeConstructorState &state,
+                             const TypeList &actual_generic_params);
+
+  // visit a type constructor and resolve UnresolvedTypes inside of it
+  // does not apply the constructor
+  std::shared_ptr<TypeConstructor> genericResolveTypeConstructor(
+      const std::shared_ptr<TypeConstructor> &type_construct);
 
   // lookup unresolved type in type tables
   std::shared_ptr<TypeAlias>

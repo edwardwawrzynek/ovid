@@ -266,8 +266,7 @@ GenericTypeConstructor::GenericTypeConstructor(const SourceLocation &loc,
                                                std::shared_ptr<Type> type)
     : TypeConstructor(loc), params(std::move(params)), type(std::move(type)),
       type_scope(
-          std::make_unique<ScopeTable<TypeAlias>>(false, nullptr, "", true)),
-      type_resolved(false) {
+          std::make_unique<ScopeTable<TypeAlias>>(false, nullptr, "", true)) {
   // construct scope table from type parameters
   for (auto &param : this->params) {
     auto type_alias = std::make_shared<TypeAlias>(param->loc, param, false);

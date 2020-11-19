@@ -1,7 +1,9 @@
 (5:1) TypeAliasDecl: Type1
-    StructType ovidc_test:Type1
+    GenericTypeConstructor:
+        StructType ovidc_test:Type1
 (9:1) TypeAliasDecl: Type2
-    StructType ovidc_test:Type2
+    GenericTypeConstructor:
+        StructType ovidc_test:Type2
 (14:1) FunctionDecl: main
   retType:
     VoidType

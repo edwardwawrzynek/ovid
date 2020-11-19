@@ -221,7 +221,7 @@ int ResolvePass::visitTypeAliasDecl(TypeAliasDecl &node,
   // if the aliased type hasn't already been resolved, resolve it
   // needed to reject invalid aliases if they are never otherwise used
   if (!node.type->inner_resolved) {
-    // call the constructor on unit type parameters and check that
+    // call the constructor on unit type parameters
     auto expected_params = node.type->type->numTypeParams();
     ast::TypeList params;
     for (size_t i = 0; i < expected_params; i++) {

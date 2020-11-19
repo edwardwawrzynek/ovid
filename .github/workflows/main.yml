@@ -24,7 +24,7 @@ jobs:
     
     # Install cmake
     - name: get-cmake
-      uses: lukka/get-cmake@v3.17.1
+      uses: lukka/get-cmake@latest
 
     # Install boehm gc
     - name: Install libgc

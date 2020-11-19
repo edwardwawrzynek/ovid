@@ -193,10 +193,6 @@ public:
   // type scope table for type parameters
   std::unique_ptr<ScopeTable<TypeAlias>> type_scope;
 
-  // if UnresolvedTypes present in .type have been resolved to
-  // FormalTypeParameter's
-  bool type_resolved;
-
   size_t numTypeParams() const override;
   const FormalTypeParameterList &getFormalTypeParameters() const override;
   std::shared_ptr<Type> getFormalBoundType() const override;
@@ -399,11 +395,8 @@ public:
   std::vector<bool> fields_are_public;
   // type alias for this structure type
   TypeAlias *type_alias;
-  // if the field types have gone through type resolution
-  bool fields_resolved;
   // llvm structure type alias
   llvm::StructType *llvm_type;
-
   // if the type has been through type construction
   // if true, actual_generic_params should be set
   bool constructed;
@@ -430,19 +423,16 @@ public:
       : ProductType(loc), field_types(std::move(field_types)),
         field_names(std::move(field_names)),
         fields_are_public(std::move(fields_are_public)), type_alias(),
-        fields_resolved(false), llvm_type(nullptr), constructed(false),
-        actual_generic_params(){};
+        llvm_type(nullptr), constructed(false), actual_generic_params(){};
 
   StructType(const SourceLocation &loc, TypeList field_types,
              std::vector<std::string> field_names,
              std::vector<bool> fields_are_public, TypeAlias *type_alias,
-             bool fields_resolved, bool constructed,
-             ast::TypeList actual_generic_params)
+             bool constructed, ast::TypeList actual_generic_params)
       : ProductType(loc), field_types(std::move(field_types)),
         field_names(std::move(field_names)),
         fields_are_public(std::move(fields_are_public)), type_alias(type_alias),
-        fields_resolved(fields_resolved), llvm_type(nullptr),
-        constructed(constructed),
+        llvm_type(nullptr), constructed(constructed),
         actual_generic_params(std::move(actual_generic_params)){};
 };
 
