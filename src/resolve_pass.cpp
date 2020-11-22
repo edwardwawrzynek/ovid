@@ -31,18 +31,21 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
   auto pis_in_global = is_in_global;
   is_in_global = false;
 
-  assert(node.type->resolvedArgs.empty());
-  auto resolvedType =
-      std::dynamic_pointer_cast<NamedFunctionType>(resolveType(node.type));
+  assert(node.getFormalBoundFunctionType()->resolvedArgs.empty());
+  // add function's generic scope to scope stack and resolve constructor
+  scopes.types.pushScope(node.type->getFormalScopeTable());
+  auto resolvedType = resolveTypeConstructor(node.type);
+  scopes.types.popScope();
+
   assert(resolvedType != nullptr);
   node.type = resolvedType;
-
   node.resolved_symbol->type = node.type;
 
+  auto formal_bound_type = node.getFormalBoundFunctionType();
   // mark arguments as declared
-  assert(node.type->argNames.size() == node.type->argTypes.size());
-  for (size_t i = 0; i < node.type->argNames.size(); i++) {
-    auto &name = node.type->argNames[i];
+  assert(formal_bound_type->argNames.size() == formal_bound_type->argTypes.size());
+  for (size_t i = 0; i < formal_bound_type->argNames.size(); i++) {
+    auto &name = formal_bound_type->argNames[i];
     // check for shadowing
     checkShadowed(
         node.loc, name, [](const Symbol &sym) -> bool { return true; }, true);
@@ -50,9 +53,9 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
     assert(sym != nullptr);
     sym->resolve_pass_declared_yet = true;
     // set arg type appropriately
-    sym->type = node.type->argTypes[i];
+    sym->type = formal_bound_type->argTypes[i];
     // make function type refer to resolved symbols
-    node.type->resolvedArgs.push_back(sym);
+    formal_bound_type->resolvedArgs.push_back(sym);
   }
 
   for (auto &child : node.body.statements) {
@@ -70,7 +73,7 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
 int ResolvePass::visitNativeFunctionDecl(NativeFunctionDecl &node,
                                          const ResolvePassState &state) {
   // resolve function type
-  node.sym->type = resolveType(node.sym->type);
+  node.sym->type = resolveTypeConstructor(node.sym->type);
   return 0;
 }
 
@@ -333,6 +336,16 @@ std::shared_ptr<Type>
 ResolvePass::resolveType(const std::shared_ptr<Type> &type) {
   return TypeConstructorPass::resolveType(type, scopes, errorMan, package,
                                           current_module);
+}
+std::shared_ptr<TypeConstructor> ResolvePass::resolveTypeConstructor(
+    const std::shared_ptr<TypeConstructor> &type_construct) {
+  auto trivial = type_construct->trivialConstruct();
+  if(trivial != nullptr) {
+    return resolveType(trivial);
+  } else {
+    return TypeConstructorPass::resolveTypeConstructor(
+        type_construct, scopes, errorMan, package, current_module);
+  }
 }
 
 } // namespace ovid::ast

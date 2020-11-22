@@ -148,7 +148,7 @@ class Parser {
   parseTypeAliasDecl(const ParserState &state, bool is_public);
 
   ast::FormalTypeParameterList
-  parseFormalTypeParameterList(const ParserState &state);
+  parseFormalTypeParameterList(const ParserState &state, bool bounds);
 
   ast::TypeList parseTypeParameterList(const ParserState &state);
 

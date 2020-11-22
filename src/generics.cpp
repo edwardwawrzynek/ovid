@@ -352,4 +352,12 @@ std::shared_ptr<Type> TypeConstructorPass::resolveType(
   return constructor.constructType(type, FormalTypeParameterList(), TypeList());
 }
 
+std::shared_ptr<TypeConstructor> TypeConstructorPass::resolveTypeConstructor(const std::shared_ptr<TypeConstructor> &type_construct, ActiveScopes &scopes,
+                                                                             ErrorManager &errorMan, const std::vector<std::string> &package,
+                                                                             const std::vector<std::string> &current_module) {
+  auto constructor =
+      TypeConstructorPass(scopes, errorMan, package, current_module);
+  return constructor.genericResolveTypeConstructor(type_construct);
+}
+
 } // namespace ovid::ast

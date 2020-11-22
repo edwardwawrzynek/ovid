@@ -191,13 +191,12 @@ Parser::parseStructLiteral(const ParserState &state,
                                            std::move(field_exprs));
 }
 
-// identexpr ::= identifier (':' identifier)*
+// identexpr ::= identifier (':' identifier)* (':' typeparams)?
 std::unique_ptr<ast::Expression>
 Parser::parseIdentifier(const ParserState &state) {
   std::vector<std::string> varScopes;
-  std::string ident;
-
   bool is_root_scoped = false;
+  ast::TypeList ident_type_params;
 
   auto pos = tokenizer.curTokenLoc;
 
@@ -208,20 +207,29 @@ Parser::parseIdentifier(const ParserState &state) {
 
   SourceLocation end = pos;
   while (true) {
-    if (tokenizer.curToken.token != T_IDENT)
-      return errorMan.logError("expected identifier after scope operator :",
-                               tokenizer.curTokenLoc, ErrorType::ParseError);
-
-    ident = tokenizer.curToken.ident;
-    end = tokenizer.curTokenLoc;
-
-    tokenizer.nextToken();
-    if (tokenizer.curToken.token == T_COLON) {
-      varScopes.push_back(ident);
-      tokenizer.nextToken();
-    } else
+    // generic :<> operator
+    if (tokenizer.curToken.token == T_LESS) {
+      ident_type_params = parseTypeParameterList(state);
+      end = tokenizer.curTokenLoc;
       break;
+    }
+    else if (tokenizer.curToken.token == T_IDENT) {
+      varScopes.push_back(tokenizer.curToken.ident);
+      end = tokenizer.curTokenLoc;
+      tokenizer.nextToken();
+    }
+    else {
+      return errorMan.logError("expected identifier or '<' after scope operator :",
+                               tokenizer.curTokenLoc, ErrorType::ParseError);
+    }
+
+    if (tokenizer.curToken.token != T_COLON)
+      break;
+    tokenizer.nextToken();
   }
+
+  std::string ident = varScopes[varScopes.size() - 1];
+  varScopes.pop_back();
 
   // special handling for structure literal
   // either an opening bracket or angled bracket (generic) indicate a struct
@@ -240,7 +248,7 @@ Parser::parseIdentifier(const ParserState &state) {
   }
 
   return std::make_unique<ast::Identifier>(
-      pos.through(end), ident, std::move(varScopes), is_root_scoped);
+      pos.through(end), ident, std::move(varScopes), is_root_scoped, std::move(ident_type_params));
 }
 
 // parenexpr ::= '(' ')'
@@ -726,7 +734,7 @@ Parser::parseTypeAliasDecl(const ParserState &state, bool is_public) {
   // check for '<' (generic type parameter list)
   ast::FormalTypeParameterList type_parameters;
   if (tokenizer.curToken.token == T_LESS) {
-    type_parameters = parseFormalTypeParameterList(state);
+    type_parameters = parseFormalTypeParameterList(state, false);
   }
 
   if (tokenizer.curToken.token != T_ASSIGN) {
@@ -825,7 +833,7 @@ Parser::parseNamedFunctionType(const ParserState &state,
       loc, std::move(argTypes), std::move(retType), std::move(argNames));
 }
 
-// functionproto ::= ident namedFunctionType
+// functionproto ::= ident formaltypeparams? namedFunctionType
 //
 // argLocs is an empty vector to put the location of each arg declare
 // in. If null, ignored
@@ -838,10 +846,17 @@ Parser::parseFunctionProto(const ParserState &state,
   std::string name = tokenizer.curToken.ident;
   expectSnakeCase(name, tokenizer.curTokenLoc);
   tokenizer.nextToken();
+  // check for generics
+  auto generics_loc_start = tokenizer.curTokenLoc;
+  ast::FormalTypeParameterList formal_params;
+  if(tokenizer.curToken.token == T_LESS) {
+    formal_params = parseFormalTypeParameterList(state, true);
+  }
 
   auto type = parseNamedFunctionType(state, argLocs);
+  auto type_construct = std::make_shared<ast::GenericTypeConstructor>(generics_loc_start.through(type->loc), formal_params, std::move(type));
 
-  return std::make_unique<ast::FunctionPrototype>(std::move(type), name);
+  return std::make_unique<ast::FunctionPrototype>(std::move(type_construct), name);
 }
 
 std::unique_ptr<ast::Statement>
@@ -882,12 +897,14 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
                         state.current_module, state.in_private_mod);
 
   // add entries in symbol table for arguments
-  for (size_t i = 0; i < proto->type->argNames.size(); i++) {
-    auto &arg = proto->type->argNames[i];
+  auto funcType = dynamic_cast<ast::NamedFunctionType*>(proto->type->getFormalBoundType().get());
+  assert(funcType != nullptr);
+  for (size_t i = 0; i < funcType->argTypes.size(); i++) {
+    auto &arg = funcType->argNames[i];
     auto &loc = argLocs[i];
 
     auto sym = std::make_shared<Symbol>(loc, false, false, false, false);
-    sym->type = proto->type->argTypes[i];
+    sym->type = funcType->argTypes[i];
     bodyState.current_scope->addSymbol(arg, sym);
   }
 
@@ -1293,8 +1310,9 @@ Parser::parseWhileStatement(const ParserState &state) {
 }
 
 // formaltypeparams ::= '<' (ident ',')* ident? '>'
+// formaltypeparamsbound ::= '<' (ident boundExpr '.')* (ident boundExpr)? '>'
 ast::FormalTypeParameterList
-Parser::parseFormalTypeParameterList(const ParserState &state) {
+Parser::parseFormalTypeParameterList(const ParserState &state, bool bounds) {
   ast::FormalTypeParameterList res;
   // consume '<'
   tokenizer.nextToken();
@@ -1310,6 +1328,8 @@ Parser::parseFormalTypeParameterList(const ParserState &state) {
     res.push_back(std::make_shared<ast::FormalTypeParameter>(
         tokenizer.curTokenLoc, tokenizer.curToken.ident));
     tokenizer.nextToken();
+
+    // TODO: parse type bound if bounds is true
 
     if (tokenizer.curToken.token == T_GREATER)
       break;
@@ -1374,7 +1394,7 @@ Parser::parseStructStatement(const ParserState &state, bool is_public) {
   // check for opening arrow (generics)
   ast::FormalTypeParameterList type_parameters;
   if (tokenizer.curToken.token == T_LESS) {
-    type_parameters = parseFormalTypeParameterList(state);
+    type_parameters = parseFormalTypeParameterList(state, false);
   }
   // expect opening brace
   if (tokenizer.curToken.token != T_LBRK) {

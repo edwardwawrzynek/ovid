@@ -16,7 +16,7 @@ class Type;
 } // namespace ovid::ast
 
 namespace ovid::ir {
-class Expression;
+class Instruction;
 }
 
 namespace ovid {
@@ -26,7 +26,7 @@ public:
   // declaration or import location
   SourceLocation decl_loc;
   /* type of a the symbol */
-  std::shared_ptr<ast::Type> type;
+  std::shared_ptr<ast::TypeConstructor> type;
   /* if the symbol is exported out of it's module or not */
   bool is_public;
   // if the declaration point has been reached in resolve_pass
@@ -36,9 +36,9 @@ public:
   /* if the symbol is mutable
    * only applicable for variables */
   bool is_mut;
-  /* the symbol's declaration location in the ir
-   * set and used by the type checker */
-  ir::Expression *ir_decl_instruction;
+  /* the symbol's declaration instructionin the ir
+   * set. Used by the type checker */
+  ir::Instruction *ir_decl_instruction;
   /* if the symbol is in a global scope */
   bool is_global;
   /* the symbol's name and containing table (used for generating fully scoped
@@ -438,10 +438,10 @@ public:
 
 class FunctionPrototype {
 public:
-  std::shared_ptr<NamedFunctionType> type;
+  std::shared_ptr<TypeConstructor> type;
   std::string name;
 
-  FunctionPrototype(std::shared_ptr<NamedFunctionType> type,
+  FunctionPrototype(std::shared_ptr<TypeConstructor> type,
                     const std::string &name)
       : type(std::move(type)), name(name){};
 };
@@ -481,14 +481,16 @@ public:
 
 class FunctionDecl : public Statement {
 public:
-  std::shared_ptr<NamedFunctionType> type;
+  std::shared_ptr<TypeConstructor> type;
   std::string name;
   ScopedBlock body;
 
   std::shared_ptr<Symbol> resolved_symbol;
 
+  std::shared_ptr<NamedFunctionType> getFormalBoundFunctionType();
+
   FunctionDecl(const SourceLocation &loc,
-               std::shared_ptr<NamedFunctionType> type, const std::string &name,
+               std::shared_ptr<TypeConstructor> type, const std::string &name,
                ScopedBlock body)
       : Statement(loc), type(std::move(type)), name(name),
         body(std::move(body)), resolved_symbol(){};
@@ -577,13 +579,14 @@ public:
   std::vector<std::string> scope;
   std::string id;
   bool is_root_scope; // if the identifier began with ::
+  TypeList type_params; // type params passed in :<> operator
   /* -- resolved symbol info -- */
   std::shared_ptr<Symbol> resolved_symbol;
 
   Identifier(const SourceLocation &loc, const std::string &id,
-             std::vector<std::string> scope, bool is_root_scope)
+             std::vector<std::string> scope, bool is_root_scope, TypeList type_params)
       : Expression(loc), scope(std::move(scope)), id(id),
-        is_root_scope(is_root_scope), resolved_symbol(){};
+        is_root_scope(is_root_scope), type_params(std::move(type_params)), resolved_symbol() {};
 };
 
 enum class OperatorType {

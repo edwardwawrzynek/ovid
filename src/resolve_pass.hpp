@@ -61,6 +61,7 @@ class ResolvePass : public BaseASTVisitor<int, ResolvePassState> {
 
   // resolve a type
   std::shared_ptr<Type> resolveType(const std::shared_ptr<Type> &type);
+  std::shared_ptr<TypeConstructor> resolveTypeConstructor(const std::shared_ptr<TypeConstructor>& type_construct);
 
 public:
   ResolvePass(ActiveScopes &scopes, ErrorManager &errorMan,

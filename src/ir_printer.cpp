@@ -164,6 +164,11 @@ int ovid::ir::IRPrinter::visitFunctionCall(
   return 0;
 }
 
+int IRPrinter::visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
+                                           const ast::ASTPrinterState &state) {
+
+}
+
 int ovid::ir::IRPrinter::visitFunctionDeclare(
     ovid::ir::FunctionDeclare &instruct,
     const ovid::ast::ASTPrinterState &state) {

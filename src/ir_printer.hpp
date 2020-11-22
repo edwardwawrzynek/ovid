@@ -12,6 +12,7 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
 
   void printValue(const Value &val);
 
+  int visitGenericFunctionDeclare(GenericFunctionDeclare &instruct, const ast::ASTPrinterState &state) override;
   int visitFunctionDeclare(FunctionDeclare &instruct,
                            const ast::ASTPrinterState &state) override;
   int visitIntLiteral(IntLiteral &instruct,

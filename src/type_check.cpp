@@ -95,8 +95,8 @@ TypeCheckResult TypeCheck::visitTuple(Tuple &node,
     if (exprRes.isNull())
       return TypeCheckResult::nullResult();
 
-    exprs.emplace_back(*exprRes.resultInstruction);
-    exprTypes.push_back(withoutMutType(exprRes.resultType));
+    exprs.emplace_back(*exprRes.resExpr);
+    exprTypes.push_back(withoutMutType(exprRes.resType));
   }
 
   // construct instruction
@@ -157,18 +157,18 @@ TypeCheckResult TypeCheck::visitStructExpr(StructExpr &node,
     auto field_type = structType->getTypeOfField(field_index);
     auto expr = visitNode(*node.field_exprs[i], state.withTypeHint(field_type));
 
-    if (!expr.resultType->equalToExpected(*field_type)) {
+    if (!expr.resType->equalToExpected(*field_type)) {
       errorMan.logError(
           string_format("type of expression \x1b[1m%s\x1b[m doesn't match "
                         "expected type \x1b[1m%s\x1b[m",
-                        type_printer.getType(*expr.resultType).c_str(),
+                        type_printer.getType(*expr.resType).c_str(),
                         type_printer.getType(*field_type).c_str()),
           node.field_exprs[i]->loc, ErrorType::TypeError);
       return TypeCheckResult::nullResult();
     }
 
     unorder_exprs.emplace_back(field_index,
-                               std::reference_wrapper(*expr.resultInstruction));
+                               std::reference_wrapper(*expr.resExpr));
   }
 
   bool missing_fields = false;
@@ -271,7 +271,7 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
   if (initial.isNull())
     return TypeCheckResult::nullResult();
   // remove mut (if present) from inferred type
-  auto initialType = withoutMutType(initial.resultType);
+  auto initialType = withoutMutType(initial.resType);
 
   if (node.explicitType != nullptr &&
       !initialType->equalToExpected(*node.explicitType)) {
@@ -292,7 +292,7 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
     // create GlobalAllocation instruction
     auto global = std::make_unique<ir::GlobalAllocation>(
         node.loc, ir::Value(node.resolved_symbol), initialType,
-        *initial.resultInstruction, node.resolved_symbol);
+        *initial.resExpr, node.resolved_symbol);
     allocPointer = global.get();
 
     curInstructionList->push_back(std::move(global));
@@ -306,7 +306,7 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
     curInstructionList->push_back(std::move(alloc));
     // create the store instruction
     auto store = std::make_unique<ir::Store>(node.loc, allocRef,
-                                             *initial.resultInstruction);
+                                             *initial.resExpr);
     curInstructionList->push_back(std::move(store));
   }
 
@@ -345,25 +345,40 @@ TypeCheckResult TypeCheck::visitModuleDecl(ModuleDecl &node,
 TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
                                            const TypeCheckState &state) {
   assert(node.resolved_symbol != nullptr);
+  auto node_type = node.resolved_symbol->type->trivialConstruct();
+  // TODO: if type is generic, insert specialize node + construct type
+  assert(node_type != nullptr);
 
   ir::Expression *alloc_node;
   // If a variable is forward referenced (or in another compilation unit),
   // insert a ForwardIdentifier node
   if (node.resolved_symbol->ir_decl_instruction == nullptr) {
+    // TODO: insert specialize node if needed
     auto forwardIdent = std::make_unique<ir::ForwardIdentifier>(
-        node.loc, ir::Value(node.resolved_symbol), node.resolved_symbol);
+        node.loc, ir::Value(node.resolved_symbol), node.resolved_symbol, node_type);
     alloc_node = forwardIdent.get();
     curInstructionList->push_back(std::move(forwardIdent));
   } else {
     assert(node.resolved_symbol->type != nullptr);
     // use of the identifier doesn't generate any ir -- it just selects the
     // appropriate node
-    alloc_node = node.resolved_symbol->ir_decl_instruction;
+    auto ir_decl_expr = dynamic_cast<ir::Expression *>(node.resolved_symbol->ir_decl_instruction);
+    if(ir_decl_expr != nullptr) {
+      alloc_node = ir_decl_expr;
+    } else {
+      auto ir_generic_decl_expr = dynamic_cast<ir::GenericExpression *>(node.resolved_symbol->ir_decl_instruction);
+      if(ir_generic_decl_expr != nullptr) {
+        // TODO: insert specialize node
+        assert(false);
+      } else {
+        assert(false);
+      }
+    }
   }
 
   // do implicit conversion to type hint if needed
   return doImplicitConversion(
-      TypeCheckResult(node.resolved_symbol->type, alloc_node), state, node.loc);
+      TypeCheckResult(node_type, alloc_node), state, node.loc);
 }
 
 TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
@@ -374,8 +389,8 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
     return TypeCheckResult::nullResult();
 
   // make sure lvalue is an expression and has an address
-  if (lvalueRes.resultInstruction == nullptr ||
-      !lvalueRes.resultInstruction->isAddressable()) {
+  if (lvalueRes.resExpr == nullptr ||
+      !lvalueRes.resExpr->isAddressable()) {
     errorMan.logError("left side of assignment is non assignable",
                       node.lvalue->loc, ErrorType::TypeError);
 
@@ -383,25 +398,25 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
   }
 
   // make sure that lvalue is mut
-  if (dynamic_cast<MutType *>(lvalueRes.resultType.get()) == nullptr) {
+  if (dynamic_cast<MutType *>(lvalueRes.resType.get()) == nullptr) {
     errorMan.logError("left side of assignment is non mutable",
                       node.lvalue->loc, ErrorType::TypeError);
   }
 
   // load rvalue, and set type hint to type of lvalue
   auto rvalueRes = visitNode(
-      *node.rvalue, state.withTypeHint(withoutMutType(lvalueRes.resultType)));
+      *node.rvalue, state.withTypeHint(withoutMutType(lvalueRes.resType)));
 
   if (rvalueRes.isNull())
     return TypeCheckResult::nullResult();
 
-  auto lvalueExpected = withoutMutType(lvalueRes.resultType);
+  auto lvalueExpected = withoutMutType(lvalueRes.resType);
 
-  if (!rvalueRes.resultType->equalToExpected(*lvalueExpected)) {
+  if (!rvalueRes.resType->equalToExpected(*lvalueExpected)) {
     errorMan.logError(
         string_format("type of expression \x1b[1m%s\x1b[m does not match "
                       "expected type \x1b[1m%s\x1b[m",
-                      type_printer.getType(*rvalueRes.resultType).c_str(),
+                      type_printer.getType(*rvalueRes.resType).c_str(),
                       type_printer.getType(*lvalueExpected).c_str()),
         node.rvalue->loc, ErrorType::TypeError);
 
@@ -410,12 +425,12 @@ TypeCheckResult TypeCheck::visitAssignment(Assignment &node,
 
   // create store instruction
   auto store = std::make_unique<ir::Store>(
-      node.loc, *lvalueRes.resultInstruction, *rvalueRes.resultInstruction);
+      node.loc, *lvalueRes.resExpr, *rvalueRes.resExpr);
 
   curInstructionList->push_back(std::move(store));
 
   // treat the lvalue allocation as the value of this expression
-  return TypeCheckResult(lvalueRes.resultType, lvalueRes.resultInstruction);
+  return TypeCheckResult(lvalueRes.resType, lvalueRes.resExpr);
 }
 
 TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
@@ -433,29 +448,30 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   curBasicBlockList = &body;
   curInstructionList = &body[0]->body;
 
+  auto formal_bound_type = node.getFormalBoundFunctionType();
   // create allocations for arguments
   std::vector<std::reference_wrapper<ir::Allocation>> argAllocs;
 
-  assert(node.type->argNames.size() == node.type->argTypes.size());
-  assert(node.type->argNames.size() == node.type->resolvedArgs.size());
+  assert(formal_bound_type->argNames.size() == formal_bound_type->argTypes.size());
+  assert(formal_bound_type->argNames.size() == formal_bound_type->resolvedArgs.size());
 
-  for (size_t i = 0; i < node.type->argNames.size(); i++) {
-    auto &type = node.type->argTypes[i];
+  for (size_t i = 0; i < formal_bound_type->argNames.size(); i++) {
+    auto &type = formal_bound_type->argTypes[i];
 
     auto argAlloc = std::make_unique<ir::Allocation>(
-        type->loc, ir::Value(node.type->resolvedArgs[i]), type,
+        type->loc, ir::Value(formal_bound_type->resolvedArgs[i]), type,
         ir::AllocationType::UNRESOLVED_FUNC_ARG);
     auto argAllocPointer = argAlloc.get();
 
     curInstructionList->push_back(std::move(argAlloc));
     argAllocs.emplace_back(*argAllocPointer);
     // set symbol table entries to refer to ir nodes
-    node.type->resolvedArgs[i]->ir_decl_instruction = argAllocPointer;
+    formal_bound_type->resolvedArgs[i]->ir_decl_instruction = argAllocPointer;
   }
 
   // visit body
   auto bodyState =
-      state.withoutTypeHint().withFunctionReturnType(node.type->retType);
+      state.withoutTypeHint().withFunctionReturnType(formal_bound_type->retType);
   for (auto &child : node.body.statements) {
     visitNode(*child, bodyState);
   }
@@ -465,15 +481,13 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   curBasicBlockList = pCurBasicBlockList;
 
   // construct the function declaration instruction
-  auto instr = std::make_unique<ir::FunctionDeclare>(
-      node.loc, ir::Value(node.resolved_symbol), node.type, argAllocs,
+  auto instr = std::make_unique<ir::GenericFunctionDeclare>(
+      node.loc, node.type, argAllocs,
       std::move(body), node.resolved_symbol->is_public);
   auto instrPointer = instr.get();
-
-  curInstructionList->push_back(std::move(instr));
-
   node.resolved_symbol->ir_decl_instruction = instrPointer;
 
+  curInstructionList->push_back(std::move(instr));
   return TypeCheckResult(node.type, instrPointer);
 }
 
@@ -495,7 +509,7 @@ TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
       return TypeCheckResult::nullResult();
 
     // check that condRes is a bool
-    if (!condRes.resultType->equalToExpected(*condTypeHint)) {
+    if (!condRes.resType->equalToExpected(*condTypeHint)) {
       errorMan.logError("condition is not a boolean", cond->loc,
                         ErrorType::TypeError);
 
@@ -514,7 +528,7 @@ TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
     auto &nextCondHeadRef = *nextCondHead;
 
     auto condJump = std::make_unique<ir::ConditionalJump>(
-        cond->loc, condBodyRef, nextCondHeadRef, *condRes.resultInstruction);
+        cond->loc, condBodyRef, nextCondHeadRef, *condRes.resExpr);
 
     curInstructionList->push_back(std::move(condJump));
 
@@ -554,11 +568,11 @@ TypeCheckResult TypeCheck::visitWhileStatement(WhileStatement &node,
   if (cond.isNull())
     return TypeCheckResult::nullResult();
 
-  if (!cond.resultType->equalToExpected(*condTypeHint)) {
+  if (!cond.resType->equalToExpected(*condTypeHint)) {
     errorMan.logError(
         string_format("type of expression \x1b[1m%s\x1b[m is not equal to "
                       "expected type \x1b[1mbool\x1b[m",
-                      type_printer.getType(*cond.resultType).c_str()),
+                      type_printer.getType(*cond.resType).c_str()),
         node.cond->loc, ErrorType::TypeError);
     return TypeCheckResult::nullResult();
   }
@@ -567,7 +581,7 @@ TypeCheckResult TypeCheck::visitWhileStatement(WhileStatement &node,
   auto &bodyRef = *body;
   // conditional jump to end/or body
   auto condJump = std::make_unique<ir::ConditionalJump>(
-      node.loc, bodyRef, endRef, *cond.resultInstruction);
+      node.loc, bodyRef, endRef, *cond.resExpr);
   curInstructionList->push_back(std::move(condJump));
 
   // visit body
@@ -715,15 +729,15 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
     // visit function expression (TODO: construct type hint from type of
     // arguments)
     auto funcRes = visitNode(*node.funcExpr, state.withoutTypeHint());
-    if (funcRes.resultType == nullptr)
+    if (funcRes.resType == nullptr)
       return TypeCheckResult::nullResult();
-    auto funcType = functionTypeFromType(funcRes.resultType);
+    auto funcType = functionTypeFromType(funcRes.resType);
 
     if (funcType == nullptr) {
       errorMan.logError(
           string_format(
               "cannot do a function call on non function type \x1b[1m%s\x1b[m",
-              type_printer.getType(*funcRes.resultType).c_str()),
+              type_printer.getType(*funcRes.resType).c_str()),
           node.funcExpr->loc, ErrorType::TypeError);
 
       return TypeCheckResult::nullResult();
@@ -749,23 +763,23 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
       if (argRes.isNull())
         return TypeCheckResult::nullResult();
 
-      if (!argRes.resultType->equalToExpected(*argType)) {
+      if (!argRes.resType->equalToExpected(*argType)) {
         errorMan.logError(
             string_format("type of expression \x1b[1m%s\x1b[m doesn't match "
                           "expected type \x1b[1m%s\x1b[m",
-                          type_printer.getType(*argRes.resultType).c_str(),
+                          type_printer.getType(*argRes.resType).c_str(),
                           type_printer.getType(*argType).c_str()),
             arg->loc, ErrorType::TypeError);
 
         return TypeCheckResult::nullResult();
       }
 
-      args.emplace_back(*argRes.resultInstruction);
+      args.emplace_back(*argRes.resExpr);
     }
 
     // construct expression
     auto instr = std::make_unique<ir::FunctionCall>(node.loc, ir::Value(),
-                                                    *funcRes.resultInstruction,
+                                                    *funcRes.resExpr,
                                                     args, funcType->retType);
     auto instrPointer = instr.get();
 
@@ -790,12 +804,12 @@ TypeCheck::visitShortCircuitingCall(const FunctionCall &node,
   if (left.isNull())
     return TypeCheckResult::nullResult();
 
-  if (!left.resultType->equalToExpected(*boolType)) {
+  if (!left.resType->equalToExpected(*boolType)) {
     errorMan.logError(
         string_format(
             "type of left hand side of boolean expression \x1b[1m%s\x1b[m "
             "doesn't match expected type \x1b[1mbool\x1b[m",
-            type_printer.getType(*left.resultType).c_str()),
+            type_printer.getType(*left.resType).c_str()),
         node.args[0]->loc, ErrorType::TypeError);
 
     return TypeCheckResult::nullResult();
@@ -807,7 +821,7 @@ TypeCheck::visitShortCircuitingCall(const FunctionCall &node,
   auto resStoragePointer = resStorage.get();
   /* store left into result storage */
   auto store = std::make_unique<ir::Store>(node.loc, *resStorage,
-                                           *left.resultInstruction);
+                                           *left.resExpr);
 
   curInstructionList->push_back(std::move(resStorage));
   curInstructionList->push_back(std::move(store));
@@ -825,7 +839,7 @@ TypeCheck::visitShortCircuitingCall(const FunctionCall &node,
   auto &falseLable =
       opNode.op == OperatorType::LOG_AND ? *endBlock : *rightBlock;
   auto initJump = std::make_unique<ir::ConditionalJump>(
-      node.loc, trueLabel, falseLable, *left.resultInstruction);
+      node.loc, trueLabel, falseLable, *left.resExpr);
   curInstructionList->push_back(std::move(initJump));
   /* evaluate right side of expression */
   curBasicBlockList->push_back(std::move(rightBlock));
@@ -835,12 +849,12 @@ TypeCheck::visitShortCircuitingCall(const FunctionCall &node,
   if (right.isNull())
     return TypeCheckResult::nullResult();
 
-  if (!right.resultType->equalToExpected(*boolType)) {
+  if (!right.resType->equalToExpected(*boolType)) {
     errorMan.logError(
         string_format(
             "type of right hand side of boolean expression \x1b[1m%s\x1b[m "
             "doesn't match expected type \x1b[1mbool\x1b[m",
-            type_printer.getType(*right.resultType).c_str()),
+            type_printer.getType(*right.resType).c_str()),
         node.args[0]->loc, ErrorType::TypeError);
 
     return TypeCheckResult::nullResult();
@@ -848,7 +862,7 @@ TypeCheck::visitShortCircuitingCall(const FunctionCall &node,
 
   /* store right hand expression into result storage */
   curInstructionList->push_back(std::make_unique<ir::Store>(
-      node.loc, *resStoragePointer, *right.resultInstruction));
+      node.loc, *resStoragePointer, *right.resExpr));
   curInstructionList->push_back(
       std::make_unique<ir::Jump>(node.loc, *endBlock));
 
@@ -866,10 +880,10 @@ TypeCheck::visitFunctionCallAddress(const FunctionCall &node,
   // visit expression (don't set type hint -- conversions make address not
   // storage)
   auto valueRes = visitNode(*node.args[0], state.withoutTypeHint());
-  if (valueRes.resultType == nullptr)
+  if (valueRes.resType == nullptr)
     return TypeCheckResult::nullResult();
   // make sure expression is a storage
-  if (!valueRes.resultInstruction->isAddressable()) {
+  if (!valueRes.resExpr->isAddressable()) {
     errorMan.logError("cannot take address of expression", node.args[0]->loc,
                       ErrorType::TypeError);
 
@@ -877,9 +891,9 @@ TypeCheck::visitFunctionCallAddress(const FunctionCall &node,
   }
   // construct instruction
   auto resType =
-      std::make_shared<PointerType>(node.funcExpr->loc, valueRes.resultType);
+      std::make_shared<PointerType>(node.funcExpr->loc, valueRes.resType);
   auto instr = std::make_unique<ir::Address>(
-      node.funcExpr->loc, ir::Value(), *valueRes.resultInstruction, resType);
+      node.funcExpr->loc, ir::Value(), *valueRes.resExpr, resType);
   auto instrPointer = instr.get();
 
   curInstructionList->push_back(std::move(instr));
@@ -898,18 +912,18 @@ TypeCheckResult TypeCheck::visitFunctionCallDeref(const FunctionCall &node,
     return TypeCheckResult::nullResult();
   // make sure expression is a pointer
   auto typeRes =
-      dynamic_cast<PointerType *>(withoutMutType(valueRes.resultType).get());
+      dynamic_cast<PointerType *>(withoutMutType(valueRes.resType).get());
   if (typeRes == nullptr) {
     errorMan.logError(
         string_format("cannot dereference non pointer type \x1b[1m%s\x1b[m",
-                      type_printer.getType(*valueRes.resultType).c_str()),
+                      type_printer.getType(*valueRes.resType).c_str()),
         node.args[0]->loc, ErrorType::TypeError);
 
     return TypeCheckResult::nullResult();
   }
   // construct expression
   auto instr = std::make_unique<ir::Dereference>(
-      node.funcExpr->loc, ir::Value(), *valueRes.resultInstruction,
+      node.funcExpr->loc, ir::Value(), *valueRes.resExpr,
       typeRes->type);
   auto instrPointer = instr.get();
 
@@ -949,7 +963,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
     }
     is_first_arg = false;
 
-    auto argType = withoutMutType(argRes.resultType);
+    auto argType = withoutMutType(argRes.resType);
 
     // convert type to BuiltinTypeArgs
     if (dynamic_cast<ast::IntType *>(argType.get()) != nullptr) {
@@ -962,7 +976,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
       builtinArgTypes.push_back(BuiltinTypeArg::NONE);
     }
 
-    args.emplace_back(TypeCheckResult(argType, argRes.resultInstruction));
+    args.emplace_back(TypeCheckResult(argType, argRes.resExpr));
   }
 
   // find appropriate overload variant
@@ -981,7 +995,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
           string_format("no overloaded variant of operator \x1b[1m%s\x1b[m "
                         "with argument type \x1b[1m%s\x1b[m",
                         printOperatorMap[opNode.op].c_str(),
-                        type_printer.getType(*args[0].resultType).c_str()),
+                        type_printer.getType(*args[0].resType).c_str()),
           node.funcExpr->loc, ErrorType::TypeError);
     } else if (args.size() == 2) {
       errorMan.logError(
@@ -989,8 +1003,8 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
               "no overloaded variant of operator \x1b[1m%s\x1b[m with argument "
               "types \x1b[1m%s\x1b[m and \x1b[1m%s\x1b[m",
               printOperatorMap[opNode.op].c_str(),
-              type_printer.getType(*args[0].resultType).c_str(),
-              type_printer.getType(*args[1].resultType).c_str()),
+              type_printer.getType(*args[0].resType).c_str(),
+              type_printer.getType(*args[1].resType).c_str()),
           node.funcExpr->loc, ErrorType::TypeError);
     } else {
       // no operators with more than two arguments
@@ -1007,7 +1021,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
       std::shared_ptr<IntType> castType =
           std::make_shared<IntType>(node.funcExpr->loc, 0, false);
       for (auto &arg : args) {
-        auto type = std::dynamic_pointer_cast<IntType>(arg.resultType);
+        auto type = std::dynamic_pointer_cast<IntType>(arg.resType);
         assert(type != nullptr);
         // cast to largest type
         castType->size = std::max(castType->size, type->size);
@@ -1020,11 +1034,11 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
       for (auto &arg : args) {
         arg = doImplicitConversion(arg, state.withTypeHint(castType),
                                    node.args[i]->loc);
-        if (!arg.resultType->equalToExpected(*castType)) {
+        if (!arg.resType->equalToExpected(*castType)) {
           errorMan.logError(
               string_format("type of expresion \x1b[1m%s\x1b[m doesn't match "
                             "expected type \x1b[1m%s\x1b[1m",
-                            type_printer.getType(*arg.resultType).c_str(),
+                            type_printer.getType(*arg.resType).c_str(),
                             type_printer.getType(*castType).c_str()),
               node.args[i]->loc, ErrorType::TypeError);
 
@@ -1036,7 +1050,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
       std::shared_ptr<FloatType> castType =
           std::make_shared<FloatType>(node.funcExpr->loc, 0);
       for (auto &arg : args) {
-        auto type = std::dynamic_pointer_cast<FloatType>(arg.resultType);
+        auto type = std::dynamic_pointer_cast<FloatType>(arg.resType);
         assert(type != nullptr);
         // cast to largest type
         castType->size = std::max(castType->size, type->size);
@@ -1046,11 +1060,11 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
       for (auto &arg : args) {
         arg = doImplicitConversion(arg, state.withTypeHint(castType),
                                    node.args[i]->loc);
-        if (!arg.resultType->equalToExpected(*castType)) {
+        if (!arg.resType->equalToExpected(*castType)) {
           errorMan.logError(
               string_format("type of expresion \x1b[1m%s\x1b[m doesn't match "
                             "expected type \x1b[1m%s\x1b[1m",
-                            type_printer.getType(*arg.resultType).c_str(),
+                            type_printer.getType(*arg.resType).c_str(),
                             type_printer.getType(*castType).c_str()),
               node.args[i]->loc, ErrorType::TypeError);
 
@@ -1064,12 +1078,12 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
   // construct operator instruction
   auto opRetType = matchedVariant->retType == BuiltinTypeArg::BOOL
                        ? std::make_shared<BoolType>(node.funcExpr->loc)
-                       : args[0].resultType;
+                       : args[0].resType;
 
   auto opInstr = std::make_unique<ir::BuiltinOperator>(
       node.funcExpr->loc, ir::Value(), opNode.op,
       std::make_shared<FunctionType>(node.funcExpr->loc,
-                                     TypeList(args.size(), args[0].resultType),
+                                     TypeList(args.size(), args[0].resType),
                                      opRetType));
   auto &opInstrRef = *opInstr;
 
@@ -1078,7 +1092,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
   std::vector<std::reference_wrapper<ir::Expression>> argExprs;
   argExprs.reserve(args.size());
   for (auto &arg : args)
-    argExprs.emplace_back(*arg.resultInstruction);
+    argExprs.emplace_back(*arg.resExpr);
 
   auto instr = std::make_unique<ir::FunctionCall>(
       node.loc, ir::Value(), opInstrRef, argExprs, opRetType);
@@ -1106,20 +1120,20 @@ TypeCheck::visitCompoundAssignmentCall(const FunctionCall &node,
   auto &opNode = dynamic_cast<OperatorSymbol &>(*node.funcExpr);
   /* set op on node to non-compound op, and emit code to calculate expression
    * without store */
-  TypeCheckResult left(nullptr, nullptr);
+  auto left = TypeCheckResult::nullResult();
   opNode.op = compoundOpsMap[opNode.op];
   auto res = visitFunctionCallOperator(node, state, &left);
   if (res.isNull())
     return TypeCheckResult::nullResult();
 
   /* make sure left side of expression has an address and is mutable */
-  if (!left.resultInstruction->isAddressable()) {
+  if (!left.resExpr->isAddressable()) {
     errorMan.logError(
         "left side of compound assignment operator is not assignable",
         node.args[0]->loc, ErrorType::TypeError);
     return TypeCheckResult::nullResult();
   }
-  if (dynamic_cast<MutType *>(left.resultType.get()) == nullptr) {
+  if (dynamic_cast<MutType *>(left.resType.get()) == nullptr) {
     errorMan.logError(
         "left side of compound assignment operator is not mutable",
         node.args[0]->loc, ErrorType::TypeError);
@@ -1128,7 +1142,7 @@ TypeCheck::visitCompoundAssignmentCall(const FunctionCall &node,
 
   /* generate store from result into left side */
   curInstructionList->push_back(std::make_unique<ir::Store>(
-      node.loc, *left.resultInstruction, *res.resultInstruction));
+      node.loc, *left.resExpr, *res.resExpr));
 
   return left;
 }
@@ -1152,7 +1166,7 @@ TypeCheckResult TypeCheck::visitReturnStatement(ReturnStatement &node,
     curInstructionList->emplace_back(
         std::make_unique<ir::Return>(node.loc, nullptr));
 
-    return TypeCheckResult(std::make_shared<VoidType>(node.loc), nullptr);
+    return TypeCheckResult(std::make_shared<VoidType>(node.loc), (ir::Expression *)nullptr);
   } else {
     auto exprRes = visitNode(*node.expression,
                              state.withTypeHint(state.functionReturnType));
@@ -1164,12 +1178,12 @@ TypeCheckResult TypeCheck::visitReturnStatement(ReturnStatement &node,
     exprRes = doImplicitConversion(exprRes,
                                    state.withTypeHint(state.functionReturnType),
                                    node.expression->loc);
-    if (!exprRes.resultType->equalToExpected(*state.functionReturnType)) {
+    if (!exprRes.resType->equalToExpected(*state.functionReturnType)) {
       errorMan.logError(
           string_format(
               "return type \x1b[1m%s\x1b[m doesn't match expected type "
               "\x1b[1m%s\x1b[m",
-              type_printer.getType(*exprRes.resultType).c_str(),
+              type_printer.getType(*exprRes.resType).c_str(),
               type_printer.getType(*state.functionReturnType).c_str()),
           node.loc, ErrorType::TypeError);
 
@@ -1177,9 +1191,9 @@ TypeCheckResult TypeCheck::visitReturnStatement(ReturnStatement &node,
     }
 
     curInstructionList->emplace_back(
-        std::make_unique<ir::Return>(node.loc, exprRes.resultInstruction));
+        std::make_unique<ir::Return>(node.loc, exprRes.resExpr));
 
-    return TypeCheckResult(exprRes.resultType, nullptr);
+    return TypeCheckResult(exprRes.resType, nullptr);
   }
 }
 
@@ -1199,16 +1213,16 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
   if (lvalueRes.isNull())
     return TypeCheckResult::nullResult();
 
-  auto lvalueInstr = lvalueRes.resultInstruction;
+  auto lvalueInstr = lvalueRes.resExpr;
   // type of expression
   auto recordType =
-      dynamic_cast<ProductType *>(lvalueRes.resultType->withoutMutability());
+      dynamic_cast<ProductType *>(lvalueRes.resType->withoutMutability());
   // if the resulting fields should be mutable
-  bool isMut = dynamic_cast<MutType *>(lvalueRes.resultType.get()) != nullptr;
+  bool isMut = dynamic_cast<MutType *>(lvalueRes.resType.get()) != nullptr;
   // check for pointer to a RecordType, and, if so, perform implicit dereference
   if (recordType == nullptr) {
     auto pointerType =
-        dynamic_cast<PointerType *>(lvalueRes.resultType->withoutMutability());
+        dynamic_cast<PointerType *>(lvalueRes.resType->withoutMutability());
     if (pointerType != nullptr) {
       auto recordPointerType = std::dynamic_pointer_cast<ProductType>(
           withoutMutType(pointerType->type));
@@ -1230,7 +1244,7 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
   if (recordType == nullptr) {
     errorMan.logError(
         string_format("cannot take a field on type \x1b[1m%s\x1b[m",
-                      type_printer.getType(*lvalueRes.resultType).c_str()),
+                      type_printer.getType(*lvalueRes.resType).c_str()),
         node.lvalue->loc, ErrorType::TypeError);
 
     return TypeCheckResult::nullResult();
@@ -1299,10 +1313,10 @@ TypeCheckResult
 TypeCheck::doImplicitConversion(const TypeCheckResult &expression,
                                 const TypeCheckState &state,
                                 const SourceLocation &loc) {
-  assert(expression.resultType != nullptr &&
-         expression.resultInstruction != nullptr);
+  assert(expression.resType != nullptr &&
+         expression.resExpr != nullptr);
 
-  auto expressionType = withoutMutType(expression.resultType);
+  auto expressionType = withoutMutType(expression.resType);
 
   // if there is no type hint, no need to convert
   if (state.typeHint == nullptr)
@@ -1335,8 +1349,8 @@ TypeCheck::doImplicitConversion(const TypeCheckResult &expression,
     }
 
     auto instr = std::make_unique<ir::BuiltinCast>(
-        expression.resultInstruction->loc, ir::Value(),
-        *expression.resultInstruction, typeHint);
+        expression.resExpr->loc, ir::Value(),
+        *expression.resExpr, typeHint);
     auto instrPointer = instr.get();
     curInstructionList->push_back(std::move(instr));
 
@@ -1489,11 +1503,11 @@ int TypePrinter::visitUnresolvedType(UnresolvedType &type,
 }
 
 bool TypeCheckResult::isNull() const {
-  return resultInstruction == nullptr || resultType == nullptr;
+  return resExpr == nullptr || resType == nullptr || is_generic;
 }
 
 TypeCheckResult TypeCheckResult::nullResult() {
-  return TypeCheckResult(nullptr, nullptr);
+  return TypeCheckResult(nullptr, (ir::Expression *)nullptr);
 }
 
 } // namespace ovid::ast

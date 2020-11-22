@@ -221,7 +221,7 @@ public:
 };
 
 /* an instruction which produces some kind of value that is usable in
- * computation basically everything but a jump or label */
+ * computation - basically everything but a jump, label, or GenericExpression */
 class Expression : public Instruction {
 public:
   Value val;
@@ -242,6 +242,15 @@ public:
              std::shared_ptr<ast::Type> type);
 };
 
+/* an instruction which produces a type constructor. Not a usable value, but can
+ * be specialized into one */
+class GenericExpression : public Instruction {
+public:
+  std::shared_ptr<ast::TypeConstructor> type_construct;
+
+  GenericExpression(const SourceLocation &loc, std::shared_ptr<ast::TypeConstructor> type_construct);
+};
+
 /* a forward declared expression (likely a function or global) */
 class ForwardIdentifier : public Expression {
 public:
@@ -255,7 +264,7 @@ public:
                   Expression &returnExpr) override;
 
   ForwardIdentifier(const SourceLocation &loc, const Value &val,
-                    std::shared_ptr<Symbol> symbol_ref);
+                    std::shared_ptr<Symbol> symbol_ref, std::shared_ptr<ast::Type> type);
 };
 
 /* An allocation of storage space (either stack or heap) with the given type
@@ -323,6 +332,19 @@ public:
 
 typedef std::vector<std::unique_ptr<BasicBlock>> BasicBlockList;
 
+/* a generic function declaration in the ir */
+class GenericFunctionDeclare : public GenericExpression {
+public:
+  std::vector<std::reference_wrapper<Allocation>> argAllocs;
+
+  BasicBlockList body;
+  /* if the function has external linkage */
+  bool is_public;
+
+  GenericFunctionDeclare(const SourceLocation &loc, std::shared_ptr<ast::TypeConstructor> type, std::vector<std::reference_wrapper<Allocation>> argAllocs,
+                         BasicBlockList body, bool is_public);
+};
+
 /* what state function flow metadata is in */
 enum class FunctionEscapeAnalysisState {
   NOT_VISITED,  // no information
@@ -354,7 +376,7 @@ public:
   FunctionDeclare(
       const SourceLocation &loc, const Value &val,
       std::shared_ptr<ast::NamedFunctionType> type,
-      const std::vector<std::reference_wrapper<Allocation>> &argAllocs,
+      std::vector<std::reference_wrapper<Allocation>> argAllocs,
       BasicBlockList body, bool is_public);
 };
 

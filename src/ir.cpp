@@ -87,6 +87,9 @@ void Expression::addFlowMetadata(
   assert(false);
 }
 
+GenericExpression::GenericExpression(const SourceLocation &loc,
+                                     std::shared_ptr<ast::TypeConstructor> type_construct): Instruction(loc), type_construct(std::move(type_construct)) {}
+
 Allocation::Allocation(const SourceLocation &loc, const Value &val,
                        std::shared_ptr<ast::Type> type,
                        AllocationType allocType)
@@ -163,12 +166,16 @@ FieldSelect::FieldSelect(const SourceLocation &loc, const Value &val,
   assert(exprProductType != nullptr);
 }
 
+GenericFunctionDeclare::GenericFunctionDeclare(const SourceLocation &loc, std::shared_ptr<ast::TypeConstructor> type, std::vector<std::reference_wrapper<Allocation>> argAllocs,
+                                               BasicBlockList body, bool is_public)
+    : GenericExpression(loc, std::move(type)), argAllocs(std::move(argAllocs)), body(std::move(body)), is_public(is_public) {}
+
 FunctionDeclare::FunctionDeclare(
     const SourceLocation &loc, const Value &val,
     std::shared_ptr<ast::NamedFunctionType> type,
-    const std::vector<std::reference_wrapper<Allocation>> &argAllocs,
+    std::vector<std::reference_wrapper<Allocation>> argAllocs,
     BasicBlockList body, bool is_public)
-    : Expression(loc, val, std::move(type)), argAllocs(argAllocs),
+    : Expression(loc, val, std::move(type)), argAllocs(std::move(argAllocs)),
       body(std::move(body)), is_public(is_public), flow_metadata(),
       flow_state(FunctionEscapeAnalysisState::NOT_VISITED) {}
 
@@ -262,17 +269,20 @@ Return::Return(const SourceLocation &loc, Expression *expression)
 
 ForwardIdentifier::ForwardIdentifier(const SourceLocation &loc,
                                      const Value &val,
-                                     std::shared_ptr<Symbol> symbol_ref)
-    : Expression(loc, val, symbol_ref->type),
-      symbol_ref(std::move(symbol_ref)) {}
+                                     std::shared_ptr<Symbol> symbol_ref, std::shared_ptr<ast::Type> type)
+    : Expression(loc, val, std::move(type)),
+      symbol_ref(std::move(symbol_ref)) {
+  assert(Expression::type != nullptr);
+}
 
 bool ForwardIdentifier::isAddressable() const {
   if (symbol_ref->ir_decl_instruction != nullptr) {
-    return symbol_ref->ir_decl_instruction->isAddressable();
+    auto ir_expr = dynamic_cast<Expression *>(symbol_ref->ir_decl_instruction);
+    return ir_expr != nullptr && ir_expr->isAddressable();
   } else {
     /* function's aren't addressable, globals are */
-    if (dynamic_cast<ast::FunctionType *>(symbol_ref->type.get()) != nullptr ||
-        dynamic_cast<ast::NamedFunctionType *>(symbol_ref->type.get()) !=
+    if (dynamic_cast<ast::FunctionType *>(type.get()) != nullptr ||
+        dynamic_cast<ast::NamedFunctionType *>(type.get()) !=
             nullptr) {
       return false;
     } else {
@@ -288,17 +298,18 @@ bool ForwardIdentifier::hasFlowMetadata() {
   if (symbol_ref->ir_decl_instruction == nullptr) {
     return false;
   }
-  return symbol_ref->ir_decl_instruction->hasFlowMetadata();
+  auto ir_expr = dynamic_cast<Expression *>(symbol_ref->ir_decl_instruction);
+  return ir_expr != nullptr && ir_expr->hasFlowMetadata();
 }
 
 void ForwardIdentifier::addFlowMetadata(
     FlowList &flows,
     const std::vector<std::reference_wrapper<Expression>> &args,
     Expression &returnExpr) {
-  /* TODO: allow for external identifiers */
-  assert(symbol_ref->ir_decl_instruction != nullptr);
-
-  symbol_ref->ir_decl_instruction->addFlowMetadata(flows, args, returnExpr);
+  /* TODO: load external identifier flow info from symbol tables */
+  auto ir_expr = dynamic_cast<Expression *>(symbol_ref->ir_decl_instruction);
+  assert(ir_expr != nullptr);
+  ir_expr->addFlowMetadata(flows, args, returnExpr);
 }
 
 bool GlobalAllocation::isAddressable() const { return true; }
@@ -309,5 +320,4 @@ GlobalAllocation::GlobalAllocation(const SourceLocation &loc, const Value &val,
                                    std::shared_ptr<Symbol> symbol)
     : Expression(loc, val, std::move(type)), symbol(std::move(symbol)),
       initial_val(initial_val) {}
-
 } // namespace ovid::ir

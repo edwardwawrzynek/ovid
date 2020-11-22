@@ -50,16 +50,23 @@ public:
 class TypeCheckResult {
 public:
   // type of the visited node
-  std::shared_ptr<Type> resultType;
+  std::shared_ptr<Type> resType;
   // instruction corresponding to the result of the expression (null for
   // statements)
-  ir::Expression *resultInstruction;
+  ir::Expression *resExpr;
 
-  TypeCheckResult(std::shared_ptr<Type> resultType,
-                  ir::Expression *resultInstruction)
-      : resultType(std::move(resultType)),
-        resultInstruction(resultInstruction){};
+  // if the result is generic or not
+  bool is_generic;
+  std::shared_ptr<TypeConstructor> genericResType;
+  ir::GenericExpression *genericResExpr;
 
+  TypeCheckResult(std::shared_ptr<Type> resType,
+                  ir::Expression *resExpr)
+      : resType(std::move(resType)), resExpr(resExpr), is_generic(false), genericResType(nullptr), genericResExpr(nullptr){};
+
+  TypeCheckResult(std::shared_ptr<TypeConstructor> genericResType, ir::GenericExpression* genericResExpr): resType(nullptr), resExpr(nullptr), is_generic(true), genericResType(std::move(genericResType)), genericResExpr(genericResExpr) {};
+
+  // check if the result does not contain an expression (null or generic)
   bool isNull() const;
   static TypeCheckResult nullResult();
 };
@@ -185,9 +192,7 @@ public:
             const ScopesRoot &scopes, ir::InstructionList *ir,
             ir::BasicBlockList *basicBlockList)
       : BaseASTVisitor(
-            TypeCheckResult(std::make_shared<ast::VoidType>(
-                                SourceLocation(nullptr, 0, 0, 0, 0, nullptr)),
-                            nullptr)),
+            TypeCheckResult::nullResult()),
         errorMan(errorMan), currentModule(package), package(package),
         scopes(scopes), type_printer(), curInstructionList(ir),
         curBasicBlockList(basicBlockList){};

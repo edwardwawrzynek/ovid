@@ -50,21 +50,22 @@ int ASTPrinter::visitVarDecl(VarDecl &node, const ASTPrinterState &state) {
 
 int ASTPrinter::visitFunctionDecl(FunctionDecl &node,
                                   const ASTPrinterState &state) {
+  auto type = node.getFormalBoundFunctionType();
   state.printIndent(output);
   printLoc(output, node.loc);
   output << " FunctionDecl: " << node.name << "\n";
   state.printIndent(output);
   output << "  retType:\n";
-  typePrinter.visitTypeConstructor(*node.type->retType, state.withIndent());
+  typePrinter.visitTypeConstructor(*type->retType, state.withIndent());
   state.printIndent(output);
   output << "  argNames:";
-  for (auto &argName : node.type->argNames) {
+  for (auto &argName : type->argNames) {
     output << " " << argName;
   }
   output << "\n";
   state.printIndent(output);
   output << "  argTypes:\n";
-  for (auto &type : node.type->argTypes) {
+  for (auto &type : type->argTypes) {
     typePrinter.visitTypeConstructor(*type, state.withIndent());
   }
   state.printIndent(output);

@@ -294,6 +294,12 @@ bool FormalTypeParameter::equal(const Type &other, bool strict) const {
   return expectedParam != nullptr && expectedParam->id == id;
 }
 
+std::shared_ptr<NamedFunctionType> FunctionDecl::getFormalBoundFunctionType() {
+  auto res = std::dynamic_pointer_cast<NamedFunctionType>(type->getFormalBoundType());
+  assert(res != nullptr);
+  return res;
+}
+
 } // namespace ovid::ast
 
 namespace ovid {

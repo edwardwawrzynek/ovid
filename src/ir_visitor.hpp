@@ -8,9 +8,12 @@ namespace ovid::ir {
 template <class T, class S> class BaseIRVisitor {
   T defaultValue;
 
+  virtual T visitGenericExpression(GenericExpression &instruct, const S &state);
   virtual T visitExpression(Expression &instruct, const S &state);
   virtual T visitBasicBlockTerminator(BasicBlockTerminator &instruct,
                                       const S &state);
+
+  virtual T visitGenericFunctionDeclare(GenericFunctionDeclare &instruct, const S &state);
 
   virtual T visitFunctionDeclare(FunctionDeclare &instruct, const S &state);
   virtual T visitIntLiteral(IntLiteral &instruct, const S &state);
@@ -55,6 +58,18 @@ T BaseIRVisitor<T, S>::visitInstruction(Instruction &instruct, const S &state) {
   } else if (dynamic_cast<BasicBlockTerminator *>(&instruct) != nullptr) {
     return visitBasicBlockTerminator(
         dynamic_cast<BasicBlockTerminator &>(instruct), state);
+  } else if (dynamic_cast<GenericExpression *>(&instruct) != nullptr) {
+    return visitGenericExpression(dynamic_cast<GenericExpression&>(instruct), state);
+  }
+
+  assert(false);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitGenericExpression(GenericExpression &instruct,
+                                              const S &state) {
+  if (dynamic_cast<GenericFunctionDeclare *>(&instruct) != nullptr) {
+    return visitGenericFunctionDeclare(dynamic_cast<GenericFunctionDeclare&>(instruct), state);
   }
 
   assert(false);
@@ -112,6 +127,12 @@ T BaseIRVisitor<T, S>::visitBasicBlockTerminator(BasicBlockTerminator &instruct,
   }
 
   assert(false);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitGenericFunctionDeclare(
+    GenericFunctionDeclare &instruct, const S &state) {
+  return std::move(defaultValue);
 }
 
 template <class T, class S>
