@@ -196,15 +196,15 @@ void FlowValue::print(std::ostream &output) const {
   } else if (is_escape == EscapeType::OTHER) {
     output << "ESCAPE";
   } else {
-    if (expr.val.hasSourceName) {
-      auto name = expr.val.sourceName->getFullyScopedName();
+    if (expr.val.id.hasSourceName) {
+      auto name = expr.val.id.sourceName->getFullyScopedName();
       for (size_t i = 0; i < name.size(); i++) {
         output << name[i];
         if (i < name.size() - 1)
           output << ":";
       }
     } else {
-      output << expr.val.id;
+      output << expr.val.id.id;
     }
   }
 
@@ -671,7 +671,7 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
   // print flows
   if (print_flows || print_escapes || print_func_flow_metadata) {
     output << "FUNCTION ";
-    auto name = instruct.val.sourceName->getFullyScopedName();
+    auto name = instruct.val.id.sourceName->getFullyScopedName();
     for (auto &scope : name) {
       output << scope << ":";
     }
@@ -690,7 +690,7 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
   if (print_escapes) {
     visitAllocations(instruct.body, [this](Allocation &alloc) {
       if (AllocationTypeIsHeap(alloc.allocType)) {
-        output << "%" << alloc.val.sourceName->getFullyScopedName()[0]
+        output << "%" << alloc.val.id.sourceName->getFullyScopedName()[0]
                << " escapes\n";
       }
     });

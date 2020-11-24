@@ -319,11 +319,10 @@ int TesterInstance::readToComment() {
 }
 
 int TesterInstance::runParse(ErrorManager &errorMan, ast::StatementList &astRes,
-                             const ScopesRoot &scopes_root) {
+                             const ScopesRoot &scopes_root,
+                             ActiveScopes &scopes) {
   // Parse
   auto lexer = Tokenizer(&filename, &file, errorMan);
-  auto scopes = ActiveScopes(packageName, -1, scopes_root.names.get(),
-                             scopes_root.types.get());
   auto parser = Parser(lexer, errorMan, scopes, packageName);
   astRes = parser.parseProgram();
   parser.removePushedPackageScope();
@@ -523,10 +522,12 @@ int TesterInstance::run() {
   ast::reset_id();
 
   ScopesRoot root_scopes;
+  auto scopes = ActiveScopes(packageName, -1, root_scopes.names.get(),
+                             root_scopes.types.get());
 
   if (modes.count(TestMode::Parse) > 0) {
     ast::StatementList ast;
-    auto parseDidError = runParse(errorMan, ast, root_scopes);
+    auto parseDidError = runParse(errorMan, ast, root_scopes, scopes);
 
     if (modes.count(TestMode::CheckAST) > 0) {
       if (parseDidError || runCheckAST(errorMan, ast))
@@ -540,8 +541,8 @@ int TesterInstance::run() {
         failed = 1;
       } else {
         // generate ir
-        auto ir =
-            ast::typeCheckProduceIR(errorMan, packageName, root_scopes, ast);
+        auto ir = ast::typeCheckProduceIR(errorMan, packageName, root_scopes,
+                                          scopes, ast);
 
         // run check_ir
         if (modes.count(TestMode::CheckIR) > 0) {

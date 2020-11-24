@@ -20,12 +20,20 @@ TypeConstructor::getFormalTypeParameters() const {
   assert(false);
 }
 
+FormalTypeParameterList &TypeConstructor::getFormalTypeParameters() {
+  assert(false);
+}
+
 ScopeTable<TypeAlias> *TypeConstructor::getFormalScopeTable() const {
   assert(false);
 }
 
 std::shared_ptr<Type> TypeConstructor::trivialConstruct() {
   return std::dynamic_pointer_cast<Type>(shared_from_this());
+}
+
+std::shared_ptr<Type> TypeConstructor::noParamConstruct() {
+  return trivialConstruct();
 }
 
 const Type *ast::Type::withoutMutability() const { return this; }
@@ -281,6 +289,10 @@ GenericTypeConstructor::getFormalTypeParameters() const {
   return params;
 }
 
+FormalTypeParameterList &GenericTypeConstructor::getFormalTypeParameters() {
+  return params;
+}
+
 std::shared_ptr<Type> GenericTypeConstructor::getFormalBoundType() const {
   return type;
 }
@@ -289,13 +301,22 @@ ScopeTable<TypeAlias> *GenericTypeConstructor::getFormalScopeTable() const {
   return type_scope.get();
 }
 
+std::shared_ptr<Type> GenericTypeConstructor::noParamConstruct() {
+  if (params.size() == 0) {
+    return type;
+  } else {
+    return nullptr;
+  }
+}
+
 bool FormalTypeParameter::equal(const Type &other, bool strict) const {
   auto expectedParam = dynamic_cast<const FormalTypeParameter *>(&other);
   return expectedParam != nullptr && expectedParam->id == id;
 }
 
 std::shared_ptr<NamedFunctionType> FunctionDecl::getFormalBoundFunctionType() {
-  auto res = std::dynamic_pointer_cast<NamedFunctionType>(type->getFormalBoundType());
+  auto res =
+      std::dynamic_pointer_cast<NamedFunctionType>(type->getFormalBoundType());
   assert(res != nullptr);
   return res;
 }

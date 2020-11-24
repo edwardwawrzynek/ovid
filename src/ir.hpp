@@ -144,24 +144,51 @@ public:
 
 typedef std::vector<Flow> FlowList;
 
-/* a value in the ir -- holds the result of an instruction */
-class Value {
+class Id {
 public:
   /* scoped name from the source code */
   std::shared_ptr<Symbol> sourceName;
-  // if value was unnamed, it is given an id
+  /* if the id is a generic, then typeParams is its actual params */
+  ast::TypeList typeParams;
+
   uint64_t id;
 
-  // if the value has a source location or is using id
+  // if the id has a source name (sourceName and typeParams are set)
   bool hasSourceName;
+
+  explicit Id(std::shared_ptr<Symbol> sourceName);
+  Id(std::shared_ptr<Symbol> sourceName, ast::TypeList typeParams);
+
+  Id();
+};
+
+inline bool operator==(const Id &lhs, const Id &rhs) {
+  return lhs.id == rhs.id;
+}
+
+inline bool operator!=(const Id &lhs, const Id &rhs) { return !(lhs == rhs); }
+
+/* a value in the ir -- holds the result of an instruction */
+class Value {
+public:
+  Id id;
 
   // the generated llvm value (used by llvm_codegen)
   llvm::Value *llvm_value;
 
   explicit Value(std::shared_ptr<Symbol> sourceName);
+  Value(std::shared_ptr<Symbol> sourceName, ast::TypeList typeParams);
 
   Value();
 };
+
+inline bool operator==(const Value &lhs, const Value &rhs) {
+  return lhs.id == rhs.id;
+}
+
+inline bool operator!=(const Value &lhs, const Value &rhs) {
+  return !(lhs == rhs);
+}
 
 /* function flow metadata */
 class FuncFlowValue {
@@ -246,9 +273,12 @@ public:
  * be specialized into one */
 class GenericExpression : public Instruction {
 public:
+  Id id;
+
   std::shared_ptr<ast::TypeConstructor> type_construct;
 
-  GenericExpression(const SourceLocation &loc, std::shared_ptr<ast::TypeConstructor> type_construct);
+  GenericExpression(const SourceLocation &loc, const Id &id,
+                    std::shared_ptr<ast::TypeConstructor> type_construct);
 };
 
 /* a forward declared expression (likely a function or global) */
@@ -264,7 +294,19 @@ public:
                   Expression &returnExpr) override;
 
   ForwardIdentifier(const SourceLocation &loc, const Value &val,
-                    std::shared_ptr<Symbol> symbol_ref, std::shared_ptr<ast::Type> type);
+                    std::shared_ptr<Symbol> symbol_ref,
+                    std::shared_ptr<ast::Type> type);
+};
+
+/* a forward declared generic expression */
+class GenericForwardIdentifier : public GenericExpression {
+public:
+  std::shared_ptr<Symbol> symbol_ref;
+
+  GenericForwardIdentifier(
+      const SourceLocation &loc, const Id &id,
+      std::shared_ptr<Symbol> symbol_ref,
+      std::shared_ptr<ast::TypeConstructor> type_construct);
 };
 
 /* An allocation of storage space (either stack or heap) with the given type
@@ -341,8 +383,11 @@ public:
   /* if the function has external linkage */
   bool is_public;
 
-  GenericFunctionDeclare(const SourceLocation &loc, std::shared_ptr<ast::TypeConstructor> type, std::vector<std::reference_wrapper<Allocation>> argAllocs,
-                         BasicBlockList body, bool is_public);
+  GenericFunctionDeclare(
+      const SourceLocation &loc, const Id &id,
+      std::shared_ptr<ast::TypeConstructor> type,
+      std::vector<std::reference_wrapper<Allocation>> argAllocs,
+      BasicBlockList body, bool is_public);
 };
 
 /* what state function flow metadata is in */
@@ -373,16 +418,27 @@ public:
                   const std::vector<std::reference_wrapper<Expression>> &args,
                   Expression &returnExpr) override;
 
-  FunctionDeclare(
-      const SourceLocation &loc, const Value &val,
-      std::shared_ptr<ast::NamedFunctionType> type,
-      std::vector<std::reference_wrapper<Allocation>> argAllocs,
-      BasicBlockList body, bool is_public);
+  FunctionDeclare(const SourceLocation &loc, const Value &val,
+                  std::shared_ptr<ast::NamedFunctionType> type,
+                  std::vector<std::reference_wrapper<Allocation>> argAllocs,
+                  BasicBlockList body, bool is_public);
 };
 
 size_t
 findIndexOfArg(const std::vector<std::reference_wrapper<Allocation>> &args,
                const Expression &expr);
+
+/* a specialization of a GenericExpression into an Expression by applying type
+ * parameters */
+class Specialize : public Expression {
+public:
+  GenericExpression &expr;
+  ast::TypeList actual_type_params;
+
+  Specialize(const SourceLocation &loc, const Value &val,
+             GenericExpression &expr, ast::TypeList actual_type_params,
+             std::shared_ptr<ast::Type> type);
+};
 
 /* int literal instruction */
 class IntLiteral : public Expression {

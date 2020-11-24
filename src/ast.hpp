@@ -171,11 +171,15 @@ public:
   // get the number of arguments that the type constructor expects
   virtual size_t numTypeParams() const;
 
-  // if this constructor is trivial (0 param + instance of Type), return
+  // if this constructor is trivial (0 param and instance of Type), return
   // construction result (nullptr otherwise)
   virtual std::shared_ptr<Type> trivialConstruct();
+  // if this constructor is 0 param, return construction result (nullptr
+  // otherwise)
+  virtual std::shared_ptr<Type> noParamConstruct();
   // get this constructor's formal type parameters
   virtual const FormalTypeParameterList &getFormalTypeParameters() const;
+  virtual FormalTypeParameterList &getFormalTypeParameters();
   // get this constructor's inner type (with formal parameters in it)
   virtual std::shared_ptr<Type> getFormalBoundType() const;
   // get the formal parameter scope table for this type
@@ -195,8 +199,10 @@ public:
 
   size_t numTypeParams() const override;
   const FormalTypeParameterList &getFormalTypeParameters() const override;
+  FormalTypeParameterList &getFormalTypeParameters() override;
   std::shared_ptr<Type> getFormalBoundType() const override;
   ScopeTable<TypeAlias> *getFormalScopeTable() const override;
+  std::shared_ptr<Type> noParamConstruct() override;
 
   GenericTypeConstructor(const SourceLocation &loc,
                          FormalTypeParameterList params,
@@ -489,9 +495,8 @@ public:
 
   std::shared_ptr<NamedFunctionType> getFormalBoundFunctionType();
 
-  FunctionDecl(const SourceLocation &loc,
-               std::shared_ptr<TypeConstructor> type, const std::string &name,
-               ScopedBlock body)
+  FunctionDecl(const SourceLocation &loc, std::shared_ptr<TypeConstructor> type,
+               const std::string &name, ScopedBlock body)
       : Statement(loc), type(std::move(type)), name(name),
         body(std::move(body)), resolved_symbol(){};
 };
@@ -578,15 +583,17 @@ public:
   /* -- parsed symbol info -- */
   std::vector<std::string> scope;
   std::string id;
-  bool is_root_scope; // if the identifier began with ::
+  bool is_root_scope;   // if the identifier began with ::
   TypeList type_params; // type params passed in :<> operator
   /* -- resolved symbol info -- */
   std::shared_ptr<Symbol> resolved_symbol;
 
   Identifier(const SourceLocation &loc, const std::string &id,
-             std::vector<std::string> scope, bool is_root_scope, TypeList type_params)
+             std::vector<std::string> scope, bool is_root_scope,
+             TypeList type_params)
       : Expression(loc), scope(std::move(scope)), id(id),
-        is_root_scope(is_root_scope), type_params(std::move(type_params)), resolved_symbol() {};
+        is_root_scope(is_root_scope), type_params(std::move(type_params)),
+        resolved_symbol(){};
 };
 
 enum class OperatorType {

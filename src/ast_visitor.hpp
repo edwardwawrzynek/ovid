@@ -239,6 +239,8 @@ private:
   virtual T visitTupleType(TupleType &type, const S &state);
   virtual T visitStructType(StructType &type, const S &state);
 
+  virtual T visitFormalTypeParameter(FormalTypeParameter &type, const S &state);
+
 public:
   explicit BaseTypeVisitor(T defaultValue)
       : defaultValue(std::move(defaultValue)){};
@@ -271,9 +273,8 @@ T BaseTypeVisitor<T, S>::visitType(Type &type, const S &state) {
   } else if (dynamic_cast<ProductType *>(&type) != nullptr) {
     return visitProductType(dynamic_cast<ProductType &>(type), state);
   } else if (dynamic_cast<FormalTypeParameter *>(&type) != nullptr) {
-    // FormalTypeParameter's should only be found in TypeConstructor's, which is
-    // handled by the TypeConstructor visitor
-    assert(false);
+    return visitFormalTypeParameter(dynamic_cast<FormalTypeParameter &>(type),
+                                    state);
   }
 
   assert(false);
@@ -347,10 +348,16 @@ T BaseTypeVisitor<T, S>::visitStructType(StructType &type, const S &state) {
   return std::move(defaultValue);
 }
 
+template <class T, class S>
+T BaseTypeVisitor<T, S>::visitFormalTypeParameter(FormalTypeParameter &type,
+                                                  const S &state) {
+  assert(false);
+  return std::move(defaultValue);
+}
+
 /* base type construct visitor */
 template <class T, class S>
 class BaseTypeConstructorVisitor : public BaseTypeVisitor<T, S> {
-  virtual T visitFormalTypeParameter(FormalTypeParameter &type, const S &state);
   virtual T visitGenericTypeConstructor(GenericTypeConstructor &type_construct,
                                         const S &state);
 
@@ -368,21 +375,12 @@ T BaseTypeConstructorVisitor<T, S>::visitTypeConstructor(
   if (dynamic_cast<GenericTypeConstructor *>(&type_construct) != nullptr) {
     return visitGenericTypeConstructor(
         dynamic_cast<GenericTypeConstructor &>(type_construct), state);
-  } else if (dynamic_cast<FormalTypeParameter *>(&type_construct) != nullptr) {
-    return visitFormalTypeParameter(
-        dynamic_cast<FormalTypeParameter &>(type_construct), state);
   } else if (dynamic_cast<Type *>(&type_construct) != nullptr) {
     return BaseTypeVisitor<T, S>::visitType(
         dynamic_cast<Type &>(type_construct), state);
   }
 
   assert(false);
-}
-
-template <class T, class S>
-T BaseTypeConstructorVisitor<T, S>::visitFormalTypeParameter(
-    FormalTypeParameter &type, const S &state) {
-  return std::move(BaseTypeVisitor<T, S>::defaultValue);
 }
 
 template <class T, class S>

@@ -2,10 +2,10 @@
 
 namespace ovid::ir {
 
-void ovid::ir::IRPrinter::printValue(const ovid::ir::Value &val) {
-  if (val.hasSourceName) {
+void IRPrinter::printId(const Id &id) {
+  if (id.hasSourceName) {
     output << "%";
-    auto name = val.sourceName->getFullyScopedName();
+    auto name = id.sourceName->getFullyScopedName();
     for (size_t i = 0; i < name.size(); i++) {
       auto &scope = name[i];
       output << scope;
@@ -13,13 +13,21 @@ void ovid::ir::IRPrinter::printValue(const ovid::ir::Value &val) {
       if (i < name.size() - 1)
         output << ":";
     }
+    if (!id.typeParams.empty()) {
+      output << type_printer.getGenericTypeList(
+          const_cast<ast::TypeList &>(id.typeParams));
+    }
   } else {
-    output << "%" << val.id;
+    output << "%" << id.id;
   }
 }
 
-int ovid::ir::IRPrinter::visitIntLiteral(
-    ovid::ir::IntLiteral &instruct, const ovid::ast::ASTPrinterState &state) {
+void ovid::ir::IRPrinter::printValue(const ovid::ir::Value &val) {
+  printId(val.id);
+}
+
+int IRPrinter::visitIntLiteral(IntLiteral &instruct,
+                               const ast::ASTPrinterState &state) {
   state.printIndent(output);
 
   ast::printLoc(output, instruct.loc);
@@ -166,7 +174,25 @@ int ovid::ir::IRPrinter::visitFunctionCall(
 
 int IRPrinter::visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
                                            const ast::ASTPrinterState &state) {
+  state.printIndent(output);
 
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printId(instruct.id);
+
+  output << " = GENERICFUNCTIONDECLARE "
+         << type_printer.getFormalTypeParameterList(
+                instruct.type_construct->getFormalTypeParameters())
+         << " "
+         << type_printer.getType(*instruct.type_construct->getFormalBoundType())
+         << " {\n";
+  for (auto &body : instruct.body) {
+    visitInstruction(*body, state.withIndent());
+  }
+  state.printIndent(output);
+  output << "}\n";
+
+  return 0;
 }
 
 int ovid::ir::IRPrinter::visitFunctionDeclare(
@@ -179,9 +205,7 @@ int ovid::ir::IRPrinter::visitFunctionDeclare(
   printValue(instruct.val);
 
   output << " = FUNCTIONDECLARE " << type_printer.getType(*instruct.type)
-         << " ";
-  state.printIndent(output);
-  output << "{\n";
+         << " {\n";
   for (auto &body : instruct.body) {
     visitInstruction(*body, state.withIndent());
   }
@@ -291,6 +315,23 @@ int IRPrinter::visitForwardIdentifier(ForwardIdentifier &instruct,
   return 0;
 }
 
+int IRPrinter::visitGenericForwardIdentifier(
+    GenericForwardIdentifier &instruct, const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printId(instruct.id);
+  output << " = GENERICFORWARDIDENTIFIER "
+         << type_printer.getFormalTypeParameterList(
+                instruct.type_construct->getFormalTypeParameters())
+         << " "
+         << type_printer.getType(*instruct.type_construct->getFormalBoundType())
+         << "\n";
+
+  return 0;
+}
+
 int IRPrinter::visitGlobalAllocation(GlobalAllocation &instruct,
                                      const ast::ASTPrinterState &state) {
   state.printIndent(output);
@@ -303,6 +344,22 @@ int IRPrinter::visitGlobalAllocation(GlobalAllocation &instruct,
          << " ";
   printValue(instruct.initial_val.val);
   output << "\n";
+
+  return 0;
+}
+
+int IRPrinter::visitSpecialize(Specialize &instruct,
+                               const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printValue(instruct.val);
+
+  output << " = SPECIALIZE " << type_printer.getType(*instruct.type) << " ";
+  printId(instruct.expr.id);
+  output << " " << type_printer.getGenericTypeList(instruct.actual_type_params)
+         << "\n";
 
   return 0;
 }

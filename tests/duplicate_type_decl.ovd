@@ -7,7 +7,7 @@ module test
 pub type Test1 = i32
 
 fn test1() -> Test1 {
-    type Test2 = i32 // __error: "type cannot be declared inside a non global scope"
+    type Test2 = i32 // __error: "type cannot be declared inside a non global scope" "declaration of type `Test2` shadows higher declaration"
 }
 
 type Test3 = **i32

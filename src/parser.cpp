@@ -212,15 +212,14 @@ Parser::parseIdentifier(const ParserState &state) {
       ident_type_params = parseTypeParameterList(state);
       end = tokenizer.curTokenLoc;
       break;
-    }
-    else if (tokenizer.curToken.token == T_IDENT) {
+    } else if (tokenizer.curToken.token == T_IDENT) {
       varScopes.push_back(tokenizer.curToken.ident);
       end = tokenizer.curTokenLoc;
       tokenizer.nextToken();
-    }
-    else {
-      return errorMan.logError("expected identifier or '<' after scope operator :",
-                               tokenizer.curTokenLoc, ErrorType::ParseError);
+    } else {
+      return errorMan.logError(
+          "expected identifier or '<' after scope operator :",
+          tokenizer.curTokenLoc, ErrorType::ParseError);
     }
 
     if (tokenizer.curToken.token != T_COLON)
@@ -247,8 +246,9 @@ Parser::parseIdentifier(const ParserState &state) {
     return parseStructLiteral(state, pos.through(end), std::move(type_expr));
   }
 
-  return std::make_unique<ast::Identifier>(
-      pos.through(end), ident, std::move(varScopes), is_root_scoped, std::move(ident_type_params));
+  return std::make_unique<ast::Identifier>(pos.through(end), ident,
+                                           std::move(varScopes), is_root_scoped,
+                                           std::move(ident_type_params));
 }
 
 // parenexpr ::= '(' ')'
@@ -849,14 +849,16 @@ Parser::parseFunctionProto(const ParserState &state,
   // check for generics
   auto generics_loc_start = tokenizer.curTokenLoc;
   ast::FormalTypeParameterList formal_params;
-  if(tokenizer.curToken.token == T_LESS) {
+  if (tokenizer.curToken.token == T_LESS) {
     formal_params = parseFormalTypeParameterList(state, true);
   }
 
   auto type = parseNamedFunctionType(state, argLocs);
-  auto type_construct = std::make_shared<ast::GenericTypeConstructor>(generics_loc_start.through(type->loc), formal_params, std::move(type));
+  auto type_construct = std::make_shared<ast::GenericTypeConstructor>(
+      generics_loc_start.through(type->loc), formal_params, std::move(type));
 
-  return std::make_unique<ast::FunctionPrototype>(std::move(type_construct), name);
+  return std::make_unique<ast::FunctionPrototype>(std::move(type_construct),
+                                                  name);
 }
 
 std::unique_ptr<ast::Statement>
@@ -897,7 +899,8 @@ Parser::parseFunctionDecl(const ParserState &state, bool is_public) {
                         state.current_module, state.in_private_mod);
 
   // add entries in symbol table for arguments
-  auto funcType = dynamic_cast<ast::NamedFunctionType*>(proto->type->getFormalBoundType().get());
+  auto funcType = dynamic_cast<ast::NamedFunctionType *>(
+      proto->type->getFormalBoundType().get());
   assert(funcType != nullptr);
   for (size_t i = 0; i < funcType->argTypes.size(); i++) {
     auto &arg = funcType->argNames[i];

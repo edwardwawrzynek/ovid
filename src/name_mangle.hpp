@@ -27,6 +27,7 @@
 
 namespace ovid::name_mangling {
 
+std::string mangleIdentifier(const ir::Id &id);
 std::string mangleIdentifier(const ir::Value &val);
 std::string mangleIdentifier(const std::shared_ptr<Symbol> &sym);
 std::string mangleType(ast::Type &type);

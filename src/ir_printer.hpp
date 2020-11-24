@@ -10,9 +10,11 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
   std::ostream &output;
   ast::TypePrinter type_printer;
 
+  void printId(const Id &id);
   void printValue(const Value &val);
 
-  int visitGenericFunctionDeclare(GenericFunctionDeclare &instruct, const ast::ASTPrinterState &state) override;
+  int visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
+                                  const ast::ASTPrinterState &state) override;
   int visitFunctionDeclare(FunctionDeclare &instruct,
                            const ast::ASTPrinterState &state) override;
   int visitIntLiteral(IntLiteral &instruct,
@@ -41,6 +43,10 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
                        const ast::ASTPrinterState &state) override;
   int visitForwardIdentifier(ForwardIdentifier &instruct,
                              const ast::ASTPrinterState &state) override;
+  int visitSpecialize(Specialize &instruct,
+                      const ast::ASTPrinterState &state) override;
+  int visitGenericForwardIdentifier(GenericForwardIdentifier &instruct,
+                                    const ast::ASTPrinterState &state) override;
 
   int visitStore(Store &instruct, const ast::ASTPrinterState &state) override;
   int visitBasicBlock(BasicBlock &instruct,

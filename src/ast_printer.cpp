@@ -142,6 +142,13 @@ int ASTPrinter::visitIdentifier(Identifier &node,
   }
   output << node.id;
   output << "\n";
+  if (!node.type_params.empty()) {
+    state.printIndent(output);
+    output << "  type_params:\n";
+    for (auto &type : node.type_params) {
+      typePrinter.visitType(*type, state.withIndent());
+    }
+  }
 
   return 0;
 }

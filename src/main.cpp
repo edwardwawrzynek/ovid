@@ -227,13 +227,16 @@ class CLIDriver {
   PrintingErrorManager errorMan;
   DriverArgs args;
   ScopesRoot root_scopes;
+  ActiveScopes scopes;
   std::vector<std::fstream> files;
 
   ast::StatementList parseFiles();
 
 public:
   CLIDriver(int argc, char **argv)
-      : errorMan(), args(parseCLIArgs(argc, argv)), root_scopes() {
+      : errorMan(), args(parseCLIArgs(argc, argv)), root_scopes(),
+        scopes(args.package_name, args.package_version, root_scopes.names.get(),
+               root_scopes.types.get()) {
     files.reserve(args.in_files.size());
   };
 
@@ -243,8 +246,6 @@ public:
 ast::StatementList CLIDriver::parseFiles() {
   ast::StatementList ast;
 
-  auto scopes = ActiveScopes(args.package_name, args.package_version,
-                             root_scopes.names.get(), root_scopes.types.get());
   for (auto &path : args.in_files) {
     // open file
     files.emplace_back(path);
@@ -286,8 +287,8 @@ int CLIDriver::run() {
     astPrinter.visitNodes(ast, ast::ASTPrinterState());
   }
 
-  auto ir =
-      ast::typeCheckProduceIR(errorMan, args.package_name, root_scopes, ast);
+  auto ir = ast::typeCheckProduceIR(errorMan, args.package_name, root_scopes,
+                                    scopes, ast);
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31mtype checking failed";

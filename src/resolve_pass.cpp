@@ -31,11 +31,7 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
   auto pis_in_global = is_in_global;
   is_in_global = false;
 
-  assert(node.getFormalBoundFunctionType()->resolvedArgs.empty());
-  // add function's generic scope to scope stack and resolve constructor
-  scopes.types.pushScope(node.type->getFormalScopeTable());
   auto resolvedType = resolveTypeConstructor(node.type);
-  scopes.types.popScope();
 
   assert(resolvedType != nullptr);
   node.type = resolvedType;
@@ -43,7 +39,9 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
 
   auto formal_bound_type = node.getFormalBoundFunctionType();
   // mark arguments as declared
-  assert(formal_bound_type->argNames.size() == formal_bound_type->argTypes.size());
+  assert(formal_bound_type->resolvedArgs.empty());
+  assert(formal_bound_type->argNames.size() ==
+         formal_bound_type->argTypes.size());
   for (size_t i = 0; i < formal_bound_type->argNames.size(); i++) {
     auto &name = formal_bound_type->argNames[i];
     // check for shadowing
@@ -58,6 +56,7 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
     formal_bound_type->resolvedArgs.push_back(sym);
   }
 
+  scopes.types.pushScope(node.type->getFormalScopeTable());
   for (auto &child : node.body.statements) {
     if (child != nullptr)
       visitNode(*child, state);
@@ -66,6 +65,7 @@ int ResolvePass::visitFunctionDecl(FunctionDecl &node,
   is_in_global = pis_in_global;
   // pop function's scope
   scopes.names.popScope(node.body.symbols.get());
+  scopes.types.popScope(node.type->getFormalScopeTable());
 
   return 0;
 }
@@ -184,6 +184,11 @@ int ResolvePass::visitIdentifier(Identifier &node,
 
   // change node to refer to sym instead of scope/id strings
   node.resolved_symbol = sym;
+
+  // resolve type params on :<> operator
+  for (size_t i = 0; i < node.type_params.size(); i++) {
+    node.type_params[i] = resolveType(node.type_params[i]);
+  }
 
   return 0;
 }
@@ -340,7 +345,7 @@ ResolvePass::resolveType(const std::shared_ptr<Type> &type) {
 std::shared_ptr<TypeConstructor> ResolvePass::resolveTypeConstructor(
     const std::shared_ptr<TypeConstructor> &type_construct) {
   auto trivial = type_construct->trivialConstruct();
-  if(trivial != nullptr) {
+  if (trivial != nullptr) {
     return resolveType(trivial);
   } else {
     return TypeConstructorPass::resolveTypeConstructor(

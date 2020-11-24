@@ -119,9 +119,11 @@ public:
               const std::vector<std::string> &current_module);
 
   // visit a type constructor and resolve UnresolvedTypes
-  static std::shared_ptr<TypeConstructor> resolveTypeConstructor(const std::shared_ptr<TypeConstructor> &type_construct, ActiveScopes &scopes,
-                                                                 ErrorManager &errorMan, const std::vector<std::string> &package,
-                                                                 const std::vector<std::string> &current_module);
+  static std::shared_ptr<TypeConstructor>
+  resolveTypeConstructor(const std::shared_ptr<TypeConstructor> &type_construct,
+                         ActiveScopes &scopes, ErrorManager &errorMan,
+                         const std::vector<std::string> &package,
+                         const std::vector<std::string> &current_module);
 
   TypeConstructorPass(ActiveScopes &scopes, ErrorManager &errorMan,
                       const std::vector<std::string> &package,

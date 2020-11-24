@@ -75,14 +75,18 @@ std::string mangleIdentifier(const std::shared_ptr<Symbol> &sym) {
   return mangle(sym.get(), MangleType::IDENTIFIER);
 }
 
-std::string mangleIdentifier(const ir::Value &val) {
-  if (val.hasSourceName) {
-    return mangleIdentifier(val.sourceName);
+std::string mangleIdentifier(const ir::Id &id) {
+  if (id.hasSourceName) {
+    return mangleIdentifier(id.sourceName);
   } else {
     std::string res = "_U";
-    res.append(std::to_string(val.id));
+    res.append(std::to_string(id.id));
     return res;
   }
+}
+
+std::string mangleIdentifier(const ir::Value &val) {
+  return mangleIdentifier(val.id);
 }
 
 /* type mangler visitor */

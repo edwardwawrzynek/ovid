@@ -13,7 +13,10 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitBasicBlockTerminator(BasicBlockTerminator &instruct,
                                       const S &state);
 
-  virtual T visitGenericFunctionDeclare(GenericFunctionDeclare &instruct, const S &state);
+  virtual T visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
+                                        const S &state);
+  virtual T visitGenericForwardIdentifier(GenericForwardIdentifier &instruct,
+                                          const S &state);
 
   virtual T visitFunctionDeclare(FunctionDeclare &instruct, const S &state);
   virtual T visitIntLiteral(IntLiteral &instruct, const S &state);
@@ -29,6 +32,7 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitBuiltinCast(BuiltinCast &instruct, const S &state);
   virtual T visitFieldSelect(FieldSelect &instruct, const S &state);
   virtual T visitForwardIdentifier(ForwardIdentifier &instruct, const S &state);
+  virtual T visitSpecialize(Specialize &instruct, const S &state);
 
   virtual T visitStore(Store &instruct, const S &state);
   virtual T visitBasicBlock(BasicBlock &instruct, const S &state);
@@ -59,7 +63,8 @@ T BaseIRVisitor<T, S>::visitInstruction(Instruction &instruct, const S &state) {
     return visitBasicBlockTerminator(
         dynamic_cast<BasicBlockTerminator &>(instruct), state);
   } else if (dynamic_cast<GenericExpression *>(&instruct) != nullptr) {
-    return visitGenericExpression(dynamic_cast<GenericExpression&>(instruct), state);
+    return visitGenericExpression(dynamic_cast<GenericExpression &>(instruct),
+                                  state);
   }
 
   assert(false);
@@ -69,7 +74,11 @@ template <class T, class S>
 T BaseIRVisitor<T, S>::visitGenericExpression(GenericExpression &instruct,
                                               const S &state) {
   if (dynamic_cast<GenericFunctionDeclare *>(&instruct) != nullptr) {
-    return visitGenericFunctionDeclare(dynamic_cast<GenericFunctionDeclare&>(instruct), state);
+    return visitGenericFunctionDeclare(
+        dynamic_cast<GenericFunctionDeclare &>(instruct), state);
+  } else if (dynamic_cast<GenericForwardIdentifier *>(&instruct) != nullptr) {
+    return visitGenericForwardIdentifier(
+        dynamic_cast<GenericForwardIdentifier &>(instruct), state);
   }
 
   assert(false);
@@ -109,6 +118,8 @@ T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
   } else if (dynamic_cast<GlobalAllocation *>(&instruct) != nullptr) {
     return visitGlobalAllocation(dynamic_cast<GlobalAllocation &>(instruct),
                                  state);
+  } else if (dynamic_cast<Specialize *>(&instruct) != nullptr) {
+    return visitSpecialize(dynamic_cast<Specialize &>(instruct), state);
   }
 
   assert(false);
@@ -239,6 +250,17 @@ T BaseIRVisitor<T, S>::visitFloatLiteral(FloatLiteral &instruct,
 }
 
 template <class T, class S>
+T BaseIRVisitor<T, S>::visitGenericForwardIdentifier(
+    GenericForwardIdentifier &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitSpecialize(Specialize &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
 std::vector<T>
 BaseIRVisitor<T, S>::visitInstructions(const InstructionList &instructs,
                                        const S &state) {
@@ -250,7 +272,6 @@ BaseIRVisitor<T, S>::visitInstructions(const InstructionList &instructs,
 
   return res;
 }
-
 } // namespace ovid::ir
 
 #endif

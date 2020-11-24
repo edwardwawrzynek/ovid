@@ -35,12 +35,21 @@ class TypePrinter : public BaseTypeVisitor<int, TypePrinterState> {
   int visitStructType(StructType &type, const TypePrinterState &state) override;
   int visitUnresolvedType(UnresolvedType &type,
                           const TypePrinterState &state) override;
+  int visitFormalTypeParameter(FormalTypeParameter &type,
+                               const TypePrinterState &state) override;
+
+  int visitGenericTypeList(TypeList &type_params,
+                           const TypePrinterState &state);
+  int visitFormalTypeParameterList(FormalTypeParameterList &types,
+                                   const TypePrinterState &state);
 
 public:
   void clear();
   std::string getRes();
 
   std::string getType(Type &type);
+  std::string getGenericTypeList(TypeList &type_params);
+  std::string getFormalTypeParameterList(FormalTypeParameterList &type_params);
 
   explicit TypePrinter() : BaseTypeVisitor(0){};
 };
@@ -60,11 +69,15 @@ public:
   std::shared_ptr<TypeConstructor> genericResType;
   ir::GenericExpression *genericResExpr;
 
-  TypeCheckResult(std::shared_ptr<Type> resType,
-                  ir::Expression *resExpr)
-      : resType(std::move(resType)), resExpr(resExpr), is_generic(false), genericResType(nullptr), genericResExpr(nullptr){};
+  TypeCheckResult(std::shared_ptr<Type> resType, ir::Expression *resExpr)
+      : resType(std::move(resType)), resExpr(resExpr), is_generic(false),
+        genericResType(nullptr), genericResExpr(nullptr){};
 
-  TypeCheckResult(std::shared_ptr<TypeConstructor> genericResType, ir::GenericExpression* genericResExpr): resType(nullptr), resExpr(nullptr), is_generic(true), genericResType(std::move(genericResType)), genericResExpr(genericResExpr) {};
+  TypeCheckResult(std::shared_ptr<TypeConstructor> genericResType,
+                  ir::GenericExpression *genericResExpr)
+      : resType(nullptr), resExpr(nullptr), is_generic(true),
+        genericResType(std::move(genericResType)),
+        genericResExpr(genericResExpr){};
 
   // check if the result does not contain an expression (null or generic)
   bool isNull() const;
@@ -105,7 +118,8 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   ErrorManager &errorMan;
   std::vector<std::string> currentModule;
   const std::vector<std::string> &package;
-  const ScopesRoot &scopes;
+  const ScopesRoot &root_scopes;
+  ActiveScopes &active_scopes;
   TypePrinter type_printer;
 
   /* the current instruction list to be inserted into */
@@ -131,6 +145,11 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   ir::BasicBlock &newBasicBlock(const SourceLocation &loc);
   // insert a basic block to be the current insert point
   void insertBasicBlock(std::unique_ptr<ir::BasicBlock> block);
+
+  // apply actual_params to a type constructor
+  std::shared_ptr<Type>
+  constructType(const std::shared_ptr<TypeConstructor> &type_construct,
+                const TypeList &actual_params);
 
   TypeCheckResult visitVarDecl(VarDecl &node,
                                const TypeCheckState &state) override;
@@ -189,18 +208,18 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
 
 public:
   TypeCheck(ErrorManager &errorMan, const std::vector<std::string> &package,
-            const ScopesRoot &scopes, ir::InstructionList *ir,
-            ir::BasicBlockList *basicBlockList)
-      : BaseASTVisitor(
-            TypeCheckResult::nullResult()),
-        errorMan(errorMan), currentModule(package), package(package),
-        scopes(scopes), type_printer(), curInstructionList(ir),
+            const ScopesRoot &root_scopes, ActiveScopes &active_scopes,
+            ir::InstructionList *ir, ir::BasicBlockList *basicBlockList)
+      : BaseASTVisitor(TypeCheckResult::nullResult()), errorMan(errorMan),
+        currentModule(package), package(package), root_scopes(root_scopes),
+        active_scopes(active_scopes), type_printer(), curInstructionList(ir),
         curBasicBlockList(basicBlockList){};
 };
 
 ir::InstructionList typeCheckProduceIR(ErrorManager &errorMan,
                                        const std::vector<std::string> &package,
-                                       const ScopesRoot &scopes,
+                                       const ScopesRoot &root_scopes,
+                                       ActiveScopes &active_scopes,
                                        const StatementList &ast);
 
 } // namespace ovid::ast

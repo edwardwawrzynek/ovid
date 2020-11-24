@@ -791,8 +791,7 @@ LLVMCodegenPass::visitForwardIdentifier(ForwardIdentifier &instruct,
                                         const LLVMCodegenPassState &state) {
 
   /* TODO: support forward referenced globals */
-  auto funcType =
-      dynamic_cast<ast::NamedFunctionType *>(instruct.symbol_ref->type.get());
+  auto funcType = dynamic_cast<ast::NamedFunctionType *>(instruct.type.get());
   assert(funcType != nullptr);
 
   auto function = visitFunctionPrototype(

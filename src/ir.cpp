@@ -1,5 +1,7 @@
 #include "ir.hpp"
+
 #include "ast.hpp"
+#include <utility>
 
 // ir is mostly header -- see ir.hpp
 
@@ -60,17 +62,23 @@ bool FieldSelect::isAddressable() const {
   return expr.isAddressable();
 }
 
-/* ir instruction constructors
- * some are non trivial and perform checks on their arguments
- */
+/* ir instruction constructors */
+Id::Id(std::shared_ptr<Symbol> sourceName)
+    : sourceName(std::move(sourceName)), id(next_id()), hasSourceName(true) {}
+
+Id::Id() : sourceName(nullptr), id(next_id()), hasSourceName(false) {}
+
+Id::Id(std::shared_ptr<Symbol> sourceName, ast::TypeList typeParams)
+    : sourceName(std::move(sourceName)), typeParams(std::move(typeParams)),
+      id(next_id()), hasSourceName(true) {}
 
 Value::Value(std::shared_ptr<Symbol> sourceName)
-    : sourceName(std::move(sourceName)), id(next_id()), hasSourceName(true),
-      llvm_value(nullptr) {}
+    : id(std::move(sourceName)), llvm_value(nullptr) {}
 
-Value::Value()
-    : sourceName(nullptr), id(next_id()), hasSourceName(false),
-      llvm_value(nullptr) {}
+Value::Value() : id(), llvm_value(nullptr) {}
+
+Value::Value(std::shared_ptr<Symbol> sourceName, ast::TypeList typeParams)
+    : id(std::move(sourceName), std::move(typeParams)), llvm_value(nullptr) {}
 
 Instruction::Instruction(const SourceLocation &loc) : loc(loc) {}
 
@@ -87,8 +95,10 @@ void Expression::addFlowMetadata(
   assert(false);
 }
 
-GenericExpression::GenericExpression(const SourceLocation &loc,
-                                     std::shared_ptr<ast::TypeConstructor> type_construct): Instruction(loc), type_construct(std::move(type_construct)) {}
+GenericExpression::GenericExpression(
+    const SourceLocation &loc, const Id &id,
+    std::shared_ptr<ast::TypeConstructor> type_construct)
+    : Instruction(loc), id(id), type_construct(std::move(type_construct)) {}
 
 Allocation::Allocation(const SourceLocation &loc, const Value &val,
                        std::shared_ptr<ast::Type> type,
@@ -166,9 +176,14 @@ FieldSelect::FieldSelect(const SourceLocation &loc, const Value &val,
   assert(exprProductType != nullptr);
 }
 
-GenericFunctionDeclare::GenericFunctionDeclare(const SourceLocation &loc, std::shared_ptr<ast::TypeConstructor> type, std::vector<std::reference_wrapper<Allocation>> argAllocs,
-                                               BasicBlockList body, bool is_public)
-    : GenericExpression(loc, std::move(type)), argAllocs(std::move(argAllocs)), body(std::move(body)), is_public(is_public) {}
+GenericFunctionDeclare::GenericFunctionDeclare(
+    const SourceLocation &loc, const Id &id,
+    std::shared_ptr<ast::TypeConstructor> type,
+    std::vector<std::reference_wrapper<Allocation>> argAllocs,
+    BasicBlockList body, bool is_public)
+    : GenericExpression(loc, id, std::move(type)),
+      argAllocs(std::move(argAllocs)), body(std::move(body)),
+      is_public(is_public) {}
 
 FunctionDeclare::FunctionDeclare(
     const SourceLocation &loc, const Value &val,
@@ -208,6 +223,13 @@ void FunctionDeclare::addFlowMetadata(
     flows.push_back(flow.toFlow(args, returnExpr));
   }
 }
+
+Specialize::Specialize(const SourceLocation &loc, const Value &val,
+                       GenericExpression &expr,
+                       ast::TypeList actual_type_params,
+                       std::shared_ptr<ast::Type> type)
+    : Expression(loc, val, std::move(type)), expr(expr),
+      actual_type_params(std::move(actual_type_params)) {}
 
 IntLiteral::IntLiteral(const SourceLocation &loc, const Value &val,
                        std::shared_ptr<ast::IntType> type, uint64_t value)
@@ -269,9 +291,9 @@ Return::Return(const SourceLocation &loc, Expression *expression)
 
 ForwardIdentifier::ForwardIdentifier(const SourceLocation &loc,
                                      const Value &val,
-                                     std::shared_ptr<Symbol> symbol_ref, std::shared_ptr<ast::Type> type)
-    : Expression(loc, val, std::move(type)),
-      symbol_ref(std::move(symbol_ref)) {
+                                     std::shared_ptr<Symbol> symbol_ref,
+                                     std::shared_ptr<ast::Type> type)
+    : Expression(loc, val, std::move(type)), symbol_ref(std::move(symbol_ref)) {
   assert(Expression::type != nullptr);
 }
 
@@ -282,8 +304,7 @@ bool ForwardIdentifier::isAddressable() const {
   } else {
     /* function's aren't addressable, globals are */
     if (dynamic_cast<ast::FunctionType *>(type.get()) != nullptr ||
-        dynamic_cast<ast::NamedFunctionType *>(type.get()) !=
-            nullptr) {
+        dynamic_cast<ast::NamedFunctionType *>(type.get()) != nullptr) {
       return false;
     } else {
       assert(symbol_ref->is_global);
@@ -311,6 +332,12 @@ void ForwardIdentifier::addFlowMetadata(
   assert(ir_expr != nullptr);
   ir_expr->addFlowMetadata(flows, args, returnExpr);
 }
+
+GenericForwardIdentifier::GenericForwardIdentifier(
+    const SourceLocation &loc, const Id &id, std::shared_ptr<Symbol> symbol_ref,
+    std::shared_ptr<ast::TypeConstructor> type_construct)
+    : GenericExpression(loc, id, std::move(type_construct)),
+      symbol_ref(std::move(symbol_ref)) {}
 
 bool GlobalAllocation::isAddressable() const { return true; }
 

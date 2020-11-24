@@ -98,7 +98,7 @@ class TesterInstance {
   // run methods:
   // run parse and generate an ast
   int runParse(ErrorManager &errorMan, ast::StatementList &astRes,
-               const ScopesRoot &scopes_root);
+               const ScopesRoot &scopes_root, ActiveScopes &scopes);
   // check ast against expected
   int runCheckAST(ErrorManager &errorMan, const ast::StatementList &ast);
   // check ir against expected
