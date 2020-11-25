@@ -62,33 +62,6 @@ template <typename T> static std::string mangle(const T *sym, MangleType type) {
   }
 }
 
-std::string mangleMainFunc(const ScopeTable<Symbol> *package,
-                           const std::string &name) {
-  std::string scope = mangleScope(package, MangleType::IDENTIFIER);
-  scope.append(std::to_string(name.size()));
-  scope.append(name);
-
-  return scope;
-}
-
-std::string mangleIdentifier(const std::shared_ptr<Symbol> &sym) {
-  return mangle(sym.get(), MangleType::IDENTIFIER);
-}
-
-std::string mangleIdentifier(const ir::Id &id) {
-  if (id.hasSourceName) {
-    return mangleIdentifier(id.sourceName);
-  } else {
-    std::string res = "_U";
-    res.append(std::to_string(id.id));
-    return res;
-  }
-}
-
-std::string mangleIdentifier(const ir::Value &val) {
-  return mangleIdentifier(val.id);
-}
-
 /* type mangler visitor */
 class TypeManglerState {};
 
@@ -180,6 +153,16 @@ class TypeMangler : public ast::BaseTypeVisitor<int, TypeManglerState> {
     return 0;
   }
 
+  int visitTypeList(const ast::TypeList &types, const TypeManglerState &state) {
+    res.push_back('G');
+    for (auto &type : types) {
+      visitType(*type, state);
+    }
+    res.push_back('E');
+
+    return 0;
+  }
+
 public:
   void clear() { res = ""; }
 
@@ -191,11 +174,50 @@ public:
     return res;
   }
 
+  std::string getTypeList(const ast::TypeList &types) {
+    clear();
+    visitTypeList(types, TypeManglerState());
+    return res;
+  }
+
   explicit TypeMangler() : BaseTypeVisitor(0){};
 };
 
 TypeMangler type_mangler;
 
 std::string mangleType(ast::Type &type) { return type_mangler.getType(type); }
+
+std::string mangleMainFunc(const ScopeTable<Symbol> *package,
+                           const std::string &name) {
+  std::string scope = mangleScope(package, MangleType::IDENTIFIER);
+  scope.append(std::to_string(name.size()));
+  scope.append(name);
+
+  return scope;
+}
+
+std::string mangleIdentifier(const std::shared_ptr<Symbol> &sym) {
+  return mangle(sym.get(), MangleType::IDENTIFIER);
+}
+
+std::string mangleIdentifier(const ir::Id &id) {
+  std::string res;
+  if (id.hasSourceName) {
+    res.append(mangleIdentifier(id.sourceName));
+  } else {
+    res.append("_U");
+    res.append(std::to_string(id.id));
+  }
+
+  if (!id.typeParams.empty()) {
+    res.append(type_mangler.getTypeList(id.typeParams));
+  }
+
+  return res;
+}
+
+std::string mangleIdentifier(const ir::Value &val) {
+  return mangleIdentifier(val.id);
+}
 
 } // namespace ovid::name_mangling

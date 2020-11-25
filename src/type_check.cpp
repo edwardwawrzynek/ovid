@@ -1404,11 +1404,11 @@ TypeCheck::doImplicitConversion(const TypeCheckResult &expression,
   return expression;
 }
 
-ir::InstructionList typeCheckProduceIR(ErrorManager &errorMan,
-                                       const std::vector<std::string> &package,
-                                       const ScopesRoot &root_scopes,
-                                       ActiveScopes &active_scopes,
-                                       const StatementList &ast) {
+ir::InstructionList
+TypeCheck::produceIR(ErrorManager &errorMan,
+                     const std::vector<std::string> &package,
+                     const ScopesRoot &root_scopes, ActiveScopes &active_scopes,
+                     const StatementList &ast) {
   ir::InstructionList ir;
   ir::BasicBlockList BBList;
 

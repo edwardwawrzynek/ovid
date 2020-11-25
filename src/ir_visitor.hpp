@@ -265,9 +265,10 @@ std::vector<T>
 BaseIRVisitor<T, S>::visitInstructions(const InstructionList &instructs,
                                        const S &state) {
   std::vector<T> res;
+  size_t len = instructs.size();
 
-  for (auto &i : instructs) {
-    res.push_back(visitInstruction(*i, state));
+  for (size_t i = 0; i < len; i++) {
+    res.push_back(visitInstruction(*instructs[i], state));
   }
 
   return res;

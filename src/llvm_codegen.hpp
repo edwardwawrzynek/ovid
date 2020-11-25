@@ -156,7 +156,8 @@ private:
                                          const std::string &name,
                                          bool is_public,
                                          const LLVMCodegenPassState &state);
-
+  llvm::Function *visitFunctionPrototype(FunctionDeclare &funcDeclare,
+                                         const LLVMCodegenPassState &state);
   /* create the nodes appropriate for using the given value
    * if the value is addressable, this is a load
    * otherwise, nothing */

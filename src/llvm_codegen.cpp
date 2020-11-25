@@ -189,6 +189,18 @@ LLVMCodegenPass::visitFunctionPrototype(ast::NamedFunctionType *proto,
   return function;
 }
 
+llvm::Function *
+LLVMCodegenPass::visitFunctionPrototype(FunctionDeclare &funcDeclare,
+                                        const LLVMCodegenPassState &state) {
+  auto funcType =
+      dynamic_cast<ast::NamedFunctionType *>(funcDeclare.type.get());
+  assert(funcType != nullptr);
+
+  return visitFunctionPrototype(
+      funcType, name_mangling::mangleIdentifier(funcDeclare.val),
+      funcDeclare.is_public, state);
+}
+
 llvm::Value *
 LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                       const LLVMCodegenPassState &state) {
@@ -196,9 +208,7 @@ LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
   auto funcType = dynamic_cast<ast::NamedFunctionType *>(instruct.type.get());
   assert(funcType != nullptr);
 
-  function = visitFunctionPrototype(
-      funcType, name_mangling::mangleIdentifier(instruct.val),
-      instruct.is_public, state);
+  function = visitFunctionPrototype(instruct, state);
 
   /* shouldn't be redefining a function */
   assert(function->empty());
@@ -290,8 +300,16 @@ llvm::Value *LLVMCodegenPass::useValue(Expression &value,
     return builder.CreateLoad(addrValue);
   } else {
     auto val = value.val.llvm_value;
-    assert(val != nullptr);
-    return val;
+    // if value is a forward referenced function, return that
+    auto funcValue = dynamic_cast<FunctionDeclare *>(&value);
+    if (val == nullptr && funcValue != nullptr) {
+      return visitFunctionPrototype(*funcValue, state);
+    }
+    // otherwise the value should have already been visited
+    else {
+      assert(val != nullptr);
+      return val;
+    }
   }
 }
 

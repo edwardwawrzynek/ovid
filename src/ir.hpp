@@ -446,7 +446,7 @@ public:
   uint64_t value;
 
   IntLiteral(const SourceLocation &loc, const Value &val,
-             std::shared_ptr<ast::IntType> type, uint64_t value);
+             std::shared_ptr<ast::Type> type, uint64_t value);
 };
 
 /* boolean literal */
@@ -463,7 +463,7 @@ public:
   double value;
 
   FloatLiteral(const SourceLocation &loc, const Value &val,
-               std::shared_ptr<ast::FloatType> type, double value);
+               std::shared_ptr<ast::Type> type, double value);
 };
 
 /* tuple literal */

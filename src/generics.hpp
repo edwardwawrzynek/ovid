@@ -107,11 +107,14 @@ class TypeConstructorPass {
 
 public:
   // visit a type, replacing formal_params with actual_params
-  // type is not mutated
   std::shared_ptr<Type>
   constructType(const std::shared_ptr<Type> &type,
                 const FormalTypeParameterList &formal_params,
                 const TypeList &actual_params);
+
+  std::shared_ptr<Type> constructTypeConstructor(
+      const std::shared_ptr<TypeConstructor> &type_construct,
+      const TypeList &actual_params);
 
   static std::shared_ptr<Type>
   resolveType(const std::shared_ptr<Type> &type, ActiveScopes &scopes,
@@ -129,6 +132,9 @@ public:
                       const std::vector<std::string> &package,
                       const std::vector<std::string> &current_module);
 };
+
+// compare two TypeList's for value equality
+bool typeListEqual(const TypeList &lhs, const TypeList &rhs);
 
 } // namespace ovid::ast
 

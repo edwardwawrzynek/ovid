@@ -3,6 +3,7 @@
 #include "ast_printer.hpp"
 #include "error.hpp"
 #include "escape_analysis.hpp"
+#include "generics_pass.hpp"
 #include "ir_printer.hpp"
 #include "llvm_codegen.hpp"
 #include "parser.hpp"
@@ -541,8 +542,8 @@ int TesterInstance::run() {
         failed = 1;
       } else {
         // generate ir
-        auto ir = ast::typeCheckProduceIR(errorMan, packageName, root_scopes,
-                                          scopes, ast);
+        auto ir = ast::TypeCheck::produceIR(errorMan, packageName, root_scopes,
+                                            scopes, ast);
 
         // run check_ir
         if (modes.count(TestMode::CheckIR) > 0) {
@@ -552,6 +553,8 @@ int TesterInstance::run() {
 
         if (modes.count(TestMode::Compile) > 0 ||
             modes.count(TestMode::CheckEscape) > 0) {
+          // run generics pass
+          ir = ir::GenericsPass::produceIR(scopes, errorMan, ir);
           // run escape analysis
           if (modes.count(TestMode::CheckEscape) > 0) {
             if (runCheckEscape(errorMan, ir))

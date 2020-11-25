@@ -321,14 +321,7 @@ TypeConstructorPass::structTypeInVisitedStructs(
 
     if (type.getTypeAlias() != visited.type_alias)
       continue;
-    if (actual_generic_params.size() != visited.actual_params.size())
-      continue;
-    bool params_match = true;
-    for (size_t j = 0; j < actual_generic_params.size(); j++) {
-      if (!actual_generic_params[j]->equalStrict(*visited.actual_params[j]))
-        params_match = false;
-    }
-    if (params_match)
+    if (typeListEqual(actual_generic_params, visited.actual_params))
       return &visited;
   }
 
@@ -341,6 +334,14 @@ TypeConstructorPass::constructType(const std::shared_ptr<Type> &type,
                                    const TypeList &actual_params) {
   return visitType(type, TypeConstructorState(formal_params, actual_params))
       .actual_type;
+}
+
+std::shared_ptr<Type> TypeConstructorPass::constructTypeConstructor(
+    const std::shared_ptr<TypeConstructor> &type_construct,
+    const TypeList &actual_params) {
+  return constructType(type_construct->getFormalBoundType(),
+                       type_construct->getFormalTypeParameters(),
+                       actual_params);
 }
 
 std::shared_ptr<Type> TypeConstructorPass::resolveType(
@@ -360,6 +361,18 @@ std::shared_ptr<TypeConstructor> TypeConstructorPass::resolveTypeConstructor(
   auto constructor =
       TypeConstructorPass(scopes, errorMan, package, current_module);
   return constructor.genericResolveTypeConstructor(type_construct);
+}
+
+bool typeListEqual(const TypeList &lhs, const TypeList &rhs) {
+  if (lhs.size() != rhs.size())
+    return false;
+
+  for (size_t i = 0; i < lhs.size(); i++) {
+    if (!lhs[i]->equalStrict(*rhs[i]))
+      return false;
+  }
+
+  return true;
 }
 
 } // namespace ovid::ast

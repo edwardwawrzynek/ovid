@@ -17,6 +17,7 @@ void IRPrinter::printId(const Id &id) {
       output << type_printer.getGenericTypeList(
           const_cast<ast::TypeList &>(id.typeParams));
     }
+    // output << "[" << id.id << "]";
   } else {
     output << "%" << id.id;
   }

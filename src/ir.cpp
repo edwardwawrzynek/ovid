@@ -232,7 +232,7 @@ Specialize::Specialize(const SourceLocation &loc, const Value &val,
       actual_type_params(std::move(actual_type_params)) {}
 
 IntLiteral::IntLiteral(const SourceLocation &loc, const Value &val,
-                       std::shared_ptr<ast::IntType> type, uint64_t value)
+                       std::shared_ptr<ast::Type> type, uint64_t value)
     : Expression(loc, val, std::move(type)), value(value) {}
 
 BoolLiteral::BoolLiteral(const SourceLocation &loc, const Value &val,
@@ -241,7 +241,7 @@ BoolLiteral::BoolLiteral(const SourceLocation &loc, const Value &val,
 }
 
 FloatLiteral::FloatLiteral(const SourceLocation &loc, const Value &val,
-                           std::shared_ptr<ast::FloatType> type, double value)
+                           std::shared_ptr<ast::Type> type, double value)
     : Expression(loc, val, std::move(type)), value(value) {}
 
 BuiltinOperator::BuiltinOperator(const SourceLocation &loc, const Value &val,

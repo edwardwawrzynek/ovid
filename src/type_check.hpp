@@ -214,13 +214,13 @@ public:
         currentModule(package), package(package), root_scopes(root_scopes),
         active_scopes(active_scopes), type_printer(), curInstructionList(ir),
         curBasicBlockList(basicBlockList){};
-};
 
-ir::InstructionList typeCheckProduceIR(ErrorManager &errorMan,
+  static ir::InstructionList produceIR(ErrorManager &errorMan,
                                        const std::vector<std::string> &package,
                                        const ScopesRoot &root_scopes,
                                        ActiveScopes &active_scopes,
                                        const StatementList &ast);
+};
 
 } // namespace ovid::ast
 

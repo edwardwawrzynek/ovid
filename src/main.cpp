@@ -2,6 +2,7 @@
 #include "ast_printer.hpp"
 #include "error.hpp"
 #include "escape_analysis.hpp"
+#include "generics_pass.hpp"
 #include "ir.hpp"
 #include "ir_printer.hpp"
 #include "llvm_codegen.hpp"
@@ -287,13 +288,21 @@ int CLIDriver::run() {
     astPrinter.visitNodes(ast, ast::ASTPrinterState());
   }
 
-  auto ir = ast::typeCheckProduceIR(errorMan, args.package_name, root_scopes,
-                                    scopes, ast);
+  auto ir = ast::TypeCheck::produceIR(errorMan, args.package_name, root_scopes,
+                                      scopes, ast);
 
   if (errorMan.criticalErrorOccurred()) {
     std::cout << "\x1b[1;31mtype checking failed";
     return 1;
   }
+
+  if (args.dump_ir) {
+    std::cout << "\n---- IR ----\n";
+    auto irPrinter = ir::IRPrinter(std::cout);
+    irPrinter.visitInstructions(ir, ast::ASTPrinterState());
+  }
+
+  ir = ir::GenericsPass::produceIR(scopes, errorMan, ir);
 
   if (args.dump_ir) {
     std::cout << "\n---- IR ----\n";
