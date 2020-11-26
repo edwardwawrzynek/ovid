@@ -183,8 +183,9 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   TypeCheckResult visitTuple(Tuple &node, const TypeCheckState &state) override;
   TypeCheckResult visitStructExpr(StructExpr &node,
                                   const TypeCheckState &state) override;
-  /*TypeCheckResult visitTypeAliasDecl(TypeAliasDecl &node, const
- TypeCheckState &state) override;*/
+  TypeCheckResult visitSizeof(Sizeof &node,
+                              const TypeCheckState &state) override;
+
   TypeCheckResult visitFieldAccess(FieldAccess &node,
                                    const TypeCheckState &state) override;
 
@@ -201,6 +202,10 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                            const TypeCheckState &state);
   TypeCheckResult visitCompoundAssignmentCall(const FunctionCall &node,
                                               const TypeCheckState &state);
+  TypeCheckResult visitUnsafePtrCastCall(const FunctionCall &node,
+                                         const TypeCheckState &state);
+  TypeCheckResult visitUnsafePtrAddCall(const FunctionCall &node,
+                                        const TypeCheckState &state);
 
   TypeCheckResult doImplicitConversion(const TypeCheckResult &expression,
                                        const TypeCheckState &state,

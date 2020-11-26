@@ -9,7 +9,7 @@ uint64_t next_id() { return ast_id++; }
 
 void reset_id() { ast_id = 0; }
 
-size_t TypeConstructor::numTypeParams() const { assert(false); }
+size_t TypeConstructor::numTypeParams() const { return 0; }
 
 std::shared_ptr<Type> TypeConstructor::getFormalBoundType() const {
   assert(false);

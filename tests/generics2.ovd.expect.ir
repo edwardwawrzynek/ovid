@@ -1,0 +1,43 @@
+(10:1)	%ovidc_test:test1 = GENERICFUNCTIONDECLARE <T> (arg ovidc_test:Type<T, i32>) -> T {
+    (10:1)	BASICBLOCK @0 {
+        (5:1)	%arg = ALLOCATION ovidc_test:Type<T, i32>
+        (11:6)	%2 = FIELDSELECT *mut i32 1 %arg
+        (11:5)	%3 = DEREFERENCE i32 %2
+        (11:19)	%4 = INTLITERAL i32 5
+        (11:5)	STORE %3 <- %4
+        (12:12)	%5 = FIELDSELECT T 0 %arg
+        (12:5)	RETURN %5
+    }
+}
+(15:1)	%ovidc_test:test2 = GENERICFUNCTIONDECLARE <T> (arg ovidc_test:Type<i8, T>) -> T {
+    (15:1)	BASICBLOCK @7 {
+        (5:1)	%arg = ALLOCATION ovidc_test:Type<i8, T>
+        (16:13)	%9 = FIELDSELECT *mut T 1 %arg
+        (16:12)	%10 = DEREFERENCE T %9
+        (16:5)	RETURN %10
+    }
+}
+(19:5)	%ovidc_test:main = FUNCTIONDECLARE () -> i32 {
+    (19:5)	BASICBLOCK @12 {
+        (20:13)	%13 = INTLITERAL i32 56
+        (20:5)	%b = ALLOCATION i32
+        (20:5)	STORE %b <- %13
+        (22:17)	%15 = INTLITERAL i8 5
+        (23:17)	%16 = ADDRESS *mut i32 %b
+        (21:16)	%17 = TUPLELITERAL ovidc_test:Type<i8, i32> %15 %16
+        (21:5)	%data = ALLOCATION ovidc_test:Type<i8, i32>
+        (21:5)	STORE %data <- %17
+        (25:14)	%ovidc_test:test1<i8> = SPECIALIZE (arg ovidc_test:Type<i8, i32>) -> i8 %ovidc_test:test1 <i8>
+        (25:14)	%20 = FUNCTIONCALL i8 %ovidc_test:test1<i8>(%data)
+        (25:5)	%v1 = ALLOCATION i8
+        (25:5)	STORE %v1 <- %20
+        (26:14)	%ovidc_test:test2<i32> = SPECIALIZE (arg ovidc_test:Type<i8, i32>) -> i32 %ovidc_test:test2 <i32>
+        (26:14)	%23 = FUNCTIONCALL i32 %ovidc_test:test2<i32>(%data)
+        (26:5)	%v2 = ALLOCATION i32
+        (26:5)	STORE %v2 <- %23
+        (25:5)	%25 = BUILTINCAST i32 %v1
+        (27:15)	%26 = BUILTINOPERATOR (i32, i32) -> i32 -
+        (27:12)	%27 = FUNCTIONCALL i32 %26(%25, %v2)
+        (27:5)	RETURN %27
+    }
+}

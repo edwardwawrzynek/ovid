@@ -341,7 +341,7 @@ int GenericsPass::visitBuiltinOperator(BuiltinOperator &instruct,
                                        const GenericsPassState &state) {
   auto newInstruct = std::make_unique<BuiltinOperator>(
       instruct.loc, newValue(instruct.val, state), instruct.opType,
-      instruct.type);
+      fixType(instruct.type, state));
   return addExpr(std::move(newInstruct), instruct, state);
 }
 
@@ -375,6 +375,15 @@ int GenericsPass::visitFieldSelect(FieldSelect &instruct,
       fixType(instruct.type, state));
   return addExpr(std::move(newInstruct), instruct, state);
 }
+
+int GenericsPass::visitSizeof(Sizeof &instruct,
+                              const GenericsPassState &state) {
+  auto newInstruct =
+      std::make_unique<Sizeof>(instruct.loc, newValue(instruct.val, state),
+                               fixType(instruct.sizeof_type, state));
+  return addExpr(std::move(newInstruct), instruct, state);
+}
+
 int GenericsPass::visitStore(Store &instruct, const GenericsPassState &state) {
   auto newInstruct = std::make_unique<Store>(
       instruct.loc, *state.subs.useExpression(&instruct.storage),

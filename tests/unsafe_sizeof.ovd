@@ -1,0 +1,9 @@
+// __ovid_compiler_test
+//__mode: run check_ast check_ir
+//__end_header
+
+pub fn main() -> i32 {
+    val a = __unsafe_sizeof i32
+    val b = __unsafe_sizeof i64
+    return a * 2 - b //__error: "narrowing conversion from type u64 to i32"
+}

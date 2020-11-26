@@ -365,4 +365,15 @@ int IRPrinter::visitSpecialize(Specialize &instruct,
   return 0;
 }
 
+int IRPrinter::visitSizeof(Sizeof &instruct,
+                           const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printValue(instruct.val);
+
+  output << " = SIZEOF " << type_printer.getType(*instruct.sizeof_type) << "\n";
+  return 0;
+}
+
 } // namespace ovid::ir

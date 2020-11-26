@@ -1,0 +1,10 @@
+// __ovid_compiler_test
+//__mode: type_check
+//__end_header
+
+fn test(a *i32) -> *i32 {
+    val b = a __unsafe_ptr_add a //__error: "type of expression *i32 is not expected int type"
+    val c = *a __unsafe_ptr_add 5 //__error: "type of expression i32 is not expected pointer type"
+    val d *i8 = a __unsafe_ptr_add 1 //__error: "type of expression *i32 doesn't match expected type *i8"
+    return a __unsafe_ptr_add 1
+}

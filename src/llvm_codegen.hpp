@@ -135,6 +135,8 @@ private:
                                 const LLVMCodegenPassState &state) override;
   llvm::Value *visitFieldSelect(FieldSelect &instruct,
                                 const LLVMCodegenPassState &state) override;
+  llvm::Value *visitSizeof(Sizeof &instruct,
+                           const LLVMCodegenPassState &state) override;
   llvm::Value *
   visitForwardIdentifier(ForwardIdentifier &instruct,
                          const LLVMCodegenPassState &state) override;

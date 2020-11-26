@@ -394,6 +394,15 @@ TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
     }
   }
 
+  if (node.type_params.size() != node.resolved_symbol->type->numTypeParams()) {
+    errorMan.logError(string_format("invalid number of type parameters for "
+                                    "identifier (expected %zu, found %zu)",
+                                    node.resolved_symbol->type->numTypeParams(),
+                                    node.type_params.size()),
+                      node.loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+
   // insert Specialize node if needed
   if (is_generic) {
     auto constructed_type =
@@ -767,6 +776,10 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
     } else if (opNode.op == OperatorType::ADD_ASSIGN ||
                opNode.op == OperatorType::SUB_ASSIGN) {
       return visitCompoundAssignmentCall(node, state);
+    } else if (opNode.op == OperatorType::UNSAFE_PTR_CAST) {
+      return visitUnsafePtrCastCall(node, state);
+    } else if (opNode.op == OperatorType::UNSAFE_PTR_ADD) {
+      return visitUnsafePtrAddCall(node, state);
     } else {
       return visitFunctionCallOperator(node, state);
     }
@@ -990,7 +1003,7 @@ TypeCheck::visitFunctionCallOperator(const FunctionCall &node,
 
   bool is_first_arg = true;
   for (auto &arg : node.args) {
-    // f opNode expects a boolean, give a type hint
+    // if opNode expects a boolean, give a type hint
     auto typeHint =
         opNode.op == OperatorType::LOG_NOT
             ? std::make_shared<BoolType>(SourceLocation::nullLocation())
@@ -1190,6 +1203,97 @@ TypeCheck::visitCompoundAssignmentCall(const FunctionCall &node,
   return left;
 }
 
+TypeCheckResult TypeCheck::visitUnsafePtrCastCall(const FunctionCall &node,
+                                                  const TypeCheckState &state) {
+  assert(node.args.size() == 1);
+  auto innerRes = visitNode(*node.args[0], state.withoutTypeHint());
+  if (innerRes.isNull())
+    return TypeCheckResult::nullResult();
+
+  // make sure innerRes is a pointer type
+  auto innerPtrType =
+      dynamic_cast<PointerType *>(innerRes.resType->withoutMutability());
+  if (innerPtrType == nullptr) {
+    errorMan.logError(
+        string_format(
+            "type of argument to operator \x1b[1m__unsafe_ptr_cast\x1b[m "
+            "\x1b[1m%s\x1b[m isn't a pointer type",
+            type_printer.getType(*innerRes.resType).c_str()),
+        node.args[0]->loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+  // make sure type hint exists and is a pointer type
+  if (state.typeHint == nullptr) {
+    errorMan.logError("cannot deduce expected pointer type (consider adding a "
+                      "type annotation)",
+                      node.loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+  auto expectedPtrType =
+      std::dynamic_pointer_cast<PointerType>(withoutMutType(state.typeHint));
+  if (expectedPtrType == nullptr) {
+    errorMan.logError(
+        string_format("cannot cast to non pointer type \x1b[1m%s\x1b[m",
+                      type_printer.getType(*state.typeHint).c_str()),
+        node.loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+  // construct cast instruction
+  auto instr = std::make_unique<ir::BuiltinCast>(
+      node.loc, ir::Value(), *innerRes.resExpr, expectedPtrType);
+  auto instrPtr = instr.get();
+  curInstructionList->push_back(std::move(instr));
+  return TypeCheckResult(std::move(expectedPtrType), instrPtr);
+}
+
+TypeCheckResult TypeCheck::visitUnsafePtrAddCall(const FunctionCall &node,
+                                                 const TypeCheckState &state) {
+  assert(node.args.size() == 2);
+  auto leftRes = visitNode(*node.args[0], state.withoutTypeHint());
+  auto rightRes = visitNode(*node.args[1], state.withoutTypeHint());
+  if (leftRes.isNull() || rightRes.isNull())
+    return TypeCheckResult::nullResult();
+
+  // make sure left expression is a pointer type
+  auto leftPtrType =
+      std::dynamic_pointer_cast<PointerType>(withoutMutType(leftRes.resType));
+  if (leftPtrType == nullptr) {
+    errorMan.logError(
+        string_format(
+            "type of expression \x1b[1m%s\x1b[m is not expected pointer type",
+            type_printer.getType(*leftRes.resType).c_str()),
+        node.args[0]->loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+  // make sure right expression is int type
+  auto rightIntType =
+      std::dynamic_pointer_cast<IntType>(withoutMutType(rightRes.resType));
+  if (rightIntType == nullptr) {
+    errorMan.logError(
+        string_format(
+            "type of expression \x1b[1m%s\x1b[m is not expected int type",
+            type_printer.getType(*rightRes.resType).c_str()),
+        node.args[1]->loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+
+  // construct builtin operator node
+  auto opInstr = std::make_unique<ir::BuiltinOperator>(
+      node.funcExpr->loc, ir::Value(), OperatorType::UNSAFE_PTR_ADD,
+      std::make_shared<FunctionType>(
+          node.loc, TypeList({leftPtrType, rightIntType}), leftPtrType));
+  // construct function call node
+  std::vector<std::reference_wrapper<ir::Expression>> args;
+  args.emplace_back(*leftRes.resExpr);
+  args.emplace_back(*rightRes.resExpr);
+  auto callInstr = std::make_unique<ir::FunctionCall>(
+      node.loc, ir::Value(), *opInstr, args, leftPtrType);
+  auto callInstrPtr = callInstr.get();
+  curInstructionList->push_back(std::move(opInstr));
+  curInstructionList->push_back(std::move(callInstr));
+  return TypeCheckResult(leftPtrType, callInstrPtr);
+}
+
 TypeCheckResult TypeCheck::visitReturnStatement(ReturnStatement &node,
                                                 const TypeCheckState &state) {
   assert(state.functionReturnType != nullptr);
@@ -1347,6 +1451,17 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
   // do implicit conversion
   return doImplicitConversion(TypeCheckResult(resType, instructPointer), state,
                               node.loc);
+}
+
+TypeCheckResult TypeCheck::visitSizeof(Sizeof &node,
+                                       const TypeCheckState &state) {
+  auto instruct =
+      std::make_unique<ir::Sizeof>(node.loc, ir::Value(), node.sizeof_type);
+  auto instructPointer = instruct.get();
+
+  curInstructionList->push_back(std::move(instruct));
+  return doImplicitConversion(
+      TypeCheckResult(instructPointer->type, instructPointer), state, node.loc);
 }
 
 /* do an implicit conversion of expression to type state.typeHint, if such a

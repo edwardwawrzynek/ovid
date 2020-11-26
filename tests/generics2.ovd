@@ -1,0 +1,28 @@
+// __ovid_compiler_test
+//__mode: run check_ir
+//__end_header
+
+struct Type<A, B> {
+    field1  A
+    field2  *mut B
+}
+
+fn test1<T>(arg Type<T, i32>) -> T {
+    *arg.field2 = 5
+    return arg.field1
+}
+
+fn test2<T>(arg Type<i8, T>) -> T {
+    return *arg.field2
+}
+
+pub fn main() -> i32 {
+    mut b = 56
+    val data = Type<i8, i32> {
+        field1: 5,
+        field2: &b
+    }
+    val v1 = test1:<i8>(data)
+    val v2 = test2:<i32>(data)
+    return v1 - v2
+}

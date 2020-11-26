@@ -1,0 +1,24 @@
+(5:5) FunctionDecl: main
+  retType:
+    IntType: i32
+  argNames:
+  argTypes:
+  body:
+    (6:5) VarDecl: a
+        (6:13) Sizeof
+            IntType: i32
+    (7:5) VarDecl: b
+        (7:13) Sizeof
+            IntType: i64
+    (8:5) ReturnStatement
+        (8:12) FunctionCall
+          function:
+            (8:18) OperatorSymbol: -
+          args:
+            (8:12) FunctionCall
+              function:
+                (8:14) OperatorSymbol: *
+              args:
+                (8:12) Identifier: a
+                (8:16) IntLiteral: 2
+            (8:20) Identifier: b

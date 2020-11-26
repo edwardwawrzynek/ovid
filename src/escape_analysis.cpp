@@ -923,9 +923,19 @@ int EscapeAnalysisPass::visitReturn(Return &instruct,
 
 int EscapeAnalysisPass::visitBuiltinCast(BuiltinCast &instruct,
                                          const EscapeAnalysisState &state) {
-  // builtin casts shouldn't be casting pointers, so nothing should flow
-  assert(!instruct.type->containsPointer());
-  assert(!instruct.expr.type->containsPointer());
+  // if a pointer flows into a cast, assume it escapes
+  // pointer casts are unsafe, so we can't do complete flow analysis
+  if (instruct.expr.type->containsPointer()) {
+    auto from = FlowValue::getFlowFromExpression(instruct.expr);
+    std::vector<std::vector<int32_t>> selects;
+    selects.emplace_back();
+    selects.emplace_back();
+    auto into = FlowValue(instruct.expr, 1, selects, EscapeType::OTHER);
+    auto flow = Flow(from, into);
+
+    if (!flow.isEmpty())
+      state.curFlowList->push_back(flow);
+  }
 
   return 0;
 }

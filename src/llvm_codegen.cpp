@@ -722,6 +722,15 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
 
     return instruct.val.llvm_value = value;
   }
+  case ast::OperatorType::UNSAFE_PTR_ADD: {
+    /* use getelementptr with int as first argument */
+    std::vector<llvm::Value *> indexes;
+    indexes.push_back(useValue(instruct.arguments[1].get(), state));
+    auto value = builder.CreateInBoundsGEP(
+        useValue(instruct.arguments[0].get(), state), indexes);
+
+    return instruct.val.llvm_value = value;
+  }
   /* compound assignment operators are handled by type check */
   case ast::OperatorType::ADD_ASSIGN:
   case ast::OperatorType::SUB_ASSIGN:
@@ -729,6 +738,9 @@ llvm::Value *LLVMCodegenPass::builtinCall(FunctionCall &instruct,
    */
   case ast::OperatorType::LOG_AND:
   case ast::OperatorType::LOG_OR:
+    /* unsafe_ptr_cast should have been turned into a BuiltinCast by type check
+     */
+  case ast::OperatorType::UNSAFE_PTR_CAST:
   /* deref and address should have been handled by type check */
   case ast::OperatorType::DEREF:
   case ast::OperatorType::ADDR:
@@ -756,6 +768,10 @@ LLVMCodegenPass::visitBuiltinCast(BuiltinCast &instruct,
       dynamic_cast<ast::FloatType *>(instruct.expr.type->withoutMutability());
   auto floatDstType =
       dynamic_cast<ast::FloatType *>(instruct.type->withoutMutability());
+  auto ptrSrcType =
+      dynamic_cast<ast::PointerType *>(instruct.type->withoutMutability());
+  auto ptrDstType =
+      dynamic_cast<ast::PointerType *>(instruct.type->withoutMutability());
 
   if (intSrcType != nullptr) {
     assert(intDstType != nullptr);
@@ -799,9 +815,31 @@ LLVMCodegenPass::visitBuiltinCast(BuiltinCast &instruct,
     } else {
       assert(false);
     }
+  } else if (ptrSrcType != nullptr) {
+    assert(ptrDstType != nullptr);
+    // bitcast pointer types
+    auto value = builder.CreateBitCast(useValue(instruct.expr, state),
+                                       type_gen.visitType(*ptrDstType));
+    return instruct.val.llvm_value = value;
   } else {
     assert(false);
   }
+}
+
+llvm::Value *LLVMCodegenPass::visitSizeof(Sizeof &instruct,
+                                          const LLVMCodegenPassState &state) {
+  /* in order to get the size of the type T, use
+   * getelementptr *T (T, *T null, 1) and then ptrtoint */
+  auto gep_index =
+      llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(llvm_context), 1);
+  auto size_ptr =
+      builder.CreateGEP(llvm::ConstantPointerNull::get(llvm::PointerType::get(
+                            type_gen.visitType(*instruct.sizeof_type), 0)),
+                        gep_index);
+  auto size = builder.CreatePtrToInt(
+      size_ptr, llvm::IntegerType::getInt64Ty(llvm_context));
+
+  return instruct.val.llvm_value = size;
 }
 
 llvm::Value *

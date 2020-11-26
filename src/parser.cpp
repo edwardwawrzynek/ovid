@@ -304,23 +304,38 @@ Parser::parseParenExpr(const ParserState &state) {
  *
  * higher number = lower precedence */
 static std::map<TokenType, int> infixOpPrecedence = {
-    {T_ASSIGN, 20},  {T_ADD_ASSIGN, 20}, {T_SUB_ASSIGN, 20},
-    {T_OR, 30},      {T_AND, 40},        {T_BIN_OR, 50},
-    {T_BIN_XOR, 50}, {T_ADDR, 60},       {T_EQ, 70},
-    {T_NEQ, 70},     {T_GREATER, 80},    {T_GREATER_EQUAL, 80},
-    {T_LESS, 80},    {T_LESS_EQUAL, 80}, {T_LSHF, 90},
-    {T_RSHF, 90},    {T_ADD, 100},       {T_SUB, 100},
-    {T_STAR, 110},   {T_DIV, 110},
+    {T_ASSIGN, 20},
+    {T_ADD_ASSIGN, 20},
+    {T_SUB_ASSIGN, 20},
+    {T_OR, 30},
+    {T_AND, 40},
+    {T_BIN_OR, 50},
+    {T_BIN_XOR, 50},
+    {T_ADDR, 60},
+    {T_EQ, 70},
+    {T_NEQ, 70},
+    {T_GREATER, 80},
+    {T_GREATER_EQUAL, 80},
+    {T_LESS, 80},
+    {T_LESS_EQUAL, 80},
+    {T_LSHF, 90},
+    {T_RSHF, 90},
+    {T_ADD, 100},
+    {T_SUB, 100},
+    {T_UNSAFE_PTR_ADD, 100},
+    {T_STAR, 110},
+    {T_DIV, 110},
 };
 
 static std::map<TokenType, bool> isRightAssoc = {
     {T_ASSIGN, true}, {T_ADD_ASSIGN, true}, {T_SUB_ASSIGN, true},
-    {T_DOT, false},   {T_ADD, false},       {T_SUB, false},
-    {T_STAR, false},  {T_DIV, false}};
+    {T_DOT, false},   {T_ADD, false},       {T_UNSAFE_PTR_ADD, false},
+    {T_SUB, false},   {T_STAR, false},      {T_DIV, false}};
 
 static std::map<TokenType, ast::OperatorType> infixOperatorMap = {
     {T_ADD, ast::OperatorType::ADD},
     {T_ADD_ASSIGN, ast::OperatorType::ADD_ASSIGN},
+    {T_UNSAFE_PTR_ADD, ast::OperatorType::UNSAFE_PTR_ADD},
     {T_SUB, ast::OperatorType::SUB},
     {T_SUB_ASSIGN, ast::OperatorType::SUB_ASSIGN},
     {T_STAR, ast::OperatorType::MUL},
@@ -344,7 +359,8 @@ static std::map<TokenType, ast::OperatorType> prefixOperatorMap = {
     {T_STAR, ast::OperatorType::DEREF},
     {T_ADDR, ast::OperatorType::ADDR},
     {T_NOT, ast::OperatorType::LOG_NOT},
-    {T_BIN_NOT, ast::OperatorType::BIN_NOT}};
+    {T_BIN_NOT, ast::OperatorType::BIN_NOT},
+    {T_UNSAFE_PTR_CAST, ast::OperatorType::UNSAFE_PTR_CAST}};
 
 static std::map<TokenType, ast::OperatorType> postfixOperatorMap = {};
 
@@ -434,15 +450,17 @@ Parser::parseFieldAccess(const ParserState &state,
   tokenizer.nextToken();
 
   if (tokenizer.curToken.token == T_IDENT) {
-    tokenizer.nextToken();
-    return std::make_unique<ast::FieldAccess>(
+    auto res = std::make_unique<ast::FieldAccess>(
         expr->loc.through(tokenizer.curTokenLoc), std::move(expr),
         tokenizer.curToken.ident);
-  } else if (tokenizer.curToken.token == T_INTLITERAL) {
     tokenizer.nextToken();
-    return std::make_unique<ast::FieldAccess>(
+    return std::move(res);
+  } else if (tokenizer.curToken.token == T_INTLITERAL) {
+    auto res = std::make_unique<ast::FieldAccess>(
         expr->loc.through(tokenizer.curTokenLoc), std::move(expr),
         tokenizer.curToken.int_literal);
+    tokenizer.nextToken();
+    return std::move(res);
   } else {
     auto pos = tokenizer.curTokenLoc;
     tokenizer.nextToken();
@@ -492,7 +510,12 @@ Parser::parsePostfixOp(const ParserState &state) {
 std::unique_ptr<ast::Expression>
 Parser::parsePrefixOp(const ParserState &state) {
   auto startPos = tokenizer.curTokenLoc;
-  if (prefixOperatorMap.count(tokenizer.curToken.token) > 0) {
+  // special handling for __unsafe_sizeof
+  if (tokenizer.curToken.token == T_UNSAFE_SIZEOF) {
+    tokenizer.nextToken();
+    auto type = parseType(state);
+    return std::make_unique<ast::Sizeof>(startPos, std::move(type));
+  } else if (prefixOperatorMap.count(tokenizer.curToken.token) > 0) {
     auto op = prefixTokenToOperatorType(tokenizer.curToken.token);
     tokenizer.nextToken();
     auto right = parsePrefixOp(state);

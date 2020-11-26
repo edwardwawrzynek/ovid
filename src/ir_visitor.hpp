@@ -33,6 +33,7 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitFieldSelect(FieldSelect &instruct, const S &state);
   virtual T visitForwardIdentifier(ForwardIdentifier &instruct, const S &state);
   virtual T visitSpecialize(Specialize &instruct, const S &state);
+  virtual T visitSizeof(Sizeof &instruct, const S &state);
 
   virtual T visitStore(Store &instruct, const S &state);
   virtual T visitBasicBlock(BasicBlock &instruct, const S &state);
@@ -120,6 +121,8 @@ T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
                                  state);
   } else if (dynamic_cast<Specialize *>(&instruct) != nullptr) {
     return visitSpecialize(dynamic_cast<Specialize &>(instruct), state);
+  } else if (dynamic_cast<Sizeof *>(&instruct) != nullptr) {
+    return visitSizeof(dynamic_cast<Sizeof &>(instruct), state);
   }
 
   assert(false);
@@ -257,6 +260,11 @@ T BaseIRVisitor<T, S>::visitGenericForwardIdentifier(
 
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitSpecialize(Specialize &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitSizeof(Sizeof &instruct, const S &state) {
   return std::move(defaultValue);
 }
 

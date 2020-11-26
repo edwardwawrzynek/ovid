@@ -621,7 +621,9 @@ enum class OperatorType {
   LESS,
   LESS_EQUAL,
   LEFT_SHIFT,
-  RIGHT_SHIFT
+  RIGHT_SHIFT,
+  UNSAFE_PTR_ADD,
+  UNSAFE_PTR_CAST
 };
 
 class OperatorSymbol : public Expression {
@@ -660,6 +662,14 @@ public:
               int32_t field_num)
       : Expression(loc), lvalue(std::move(lvalue)), field(""),
         field_num(field_num), has_field_num(true){};
+};
+
+class Sizeof : public Expression {
+public:
+  std::shared_ptr<Type> sizeof_type;
+
+  Sizeof(const SourceLocation &loc, std::shared_ptr<Type> sizeof_type)
+      : Expression(loc), sizeof_type(std::move(sizeof_type)){};
 };
 
 class Literal : public Expression {

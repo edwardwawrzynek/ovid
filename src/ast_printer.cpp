@@ -178,7 +178,9 @@ std::map<OperatorType, std::string> printOperatorMap = {
     {OperatorType::LESS, "<"},
     {OperatorType::LESS_EQUAL, "<="},
     {OperatorType::LEFT_SHIFT, "<<"},
-    {OperatorType::RIGHT_SHIFT, ">>"}};
+    {OperatorType::RIGHT_SHIFT, ">>"},
+    {OperatorType::UNSAFE_PTR_ADD, "__unsafe_ptr_add"},
+    {OperatorType::UNSAFE_PTR_CAST, "__unsafe_ptr_cast"}};
 
 int ASTPrinter::visitOperatorSymbol(OperatorSymbol &node,
                                     const ASTPrinterState &state) {
@@ -314,6 +316,14 @@ int ASTPrinter::visitNativeFunctionDecl(NativeFunctionDecl &node,
   }
   output << "\n";
   typePrinter.visitTypeConstructor(*node.sym->type, state.withIndent());
+  return 0;
+}
+
+int ASTPrinter::visitSizeof(Sizeof &node, const ASTPrinterState &state) {
+  state.printIndent(output);
+  printLoc(output, node.loc);
+  output << " Sizeof\n";
+  typePrinter.visitType(*node.sizeof_type, state.withIndent());
   return 0;
 }
 

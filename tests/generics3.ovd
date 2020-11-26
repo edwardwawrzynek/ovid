@@ -1,0 +1,12 @@
+// __ovid_compiler_test
+//__mode: type_check
+//__end_header
+
+fn test1() {}
+fn test2<A, B, C>() {}
+
+pub fn main() -> i32 {
+    test1:<*i32, (i8, *())>() //__error: "invalid number of type parameters for identifier (expected 0, found 2)"
+    test2() //__error: "invalid number of type parameters for identifier (expected 3, found 0)"
+    test2:<i32>() //__error: "invalid number of type parameters for identifier (expected 3, found 1)"
+}

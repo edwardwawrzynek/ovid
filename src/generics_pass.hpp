@@ -117,6 +117,7 @@ class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
                              const GenericsPassState &state) override;
   int visitSpecialize(Specialize &instruct,
                       const GenericsPassState &state) override;
+  int visitSizeof(Sizeof &instruct, const GenericsPassState &state) override;
 
   int visitStore(Store &instruct, const GenericsPassState &state) override;
   int visitBasicBlock(BasicBlock &instruct,

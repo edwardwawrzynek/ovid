@@ -22,6 +22,7 @@ public:
   /* intermediate forms to emit on command line */
   bool dump_ast;
   bool dump_ir;
+  bool dump_mono_ir;
   bool dump_escape_analysis;
   bool dump_llvm;
 
@@ -42,8 +43,9 @@ public:
   bool do_main;
 
   DriverArgs()
-      : dump_ast(false), dump_ir(false), dump_escape_analysis(false),
-        dump_llvm(false), codegen_out(ir::CodegenOutputType::OBJ),
+      : dump_ast(false), dump_ir(false), dump_mono_ir(false),
+        dump_escape_analysis(false), dump_llvm(false),
+        codegen_out(ir::CodegenOutputType::OBJ),
         opt_level(llvm::PassBuilder::OptimizationLevel::O2),
         reloc_model(llvm::Reloc::PIC_), code_model(llvm::CodeModel::Small),
         out_file("ovidc.out"), in_files(), package_name(), package_version(-1),
@@ -75,7 +77,9 @@ void usage() {
          "    static, pic, dynamic-no-pic, ropi, rwpi, ropi-rwpi\n"
          "  --dump-ast             Print the abstract syntax tree for "
          "the source code\n"
-         "  --dump-ir              Print the internal intermediate "
+         "  --dump-ir              Print the intermediate "
+         "representation for the source code\n"
+         "  --dump-mono-ir              Print the monomorphic intermediate "
          "representation for the source code\n"
          "  --dump-escape          Print escape analysis results\n"
          "  --dump-llvm            Print unoptimized llvm ir\n"
@@ -107,6 +111,7 @@ static struct option cli_opts[] = {
     {"no-main", no_argument, nullptr, 8},
     {"dump-llvm", no_argument, nullptr, 9},
     {"package-version", required_argument, nullptr, 10},
+    {"dump-mono-ir", no_argument, nullptr, 11},
     {nullptr, 0, nullptr, 0}};
 
 DriverArgs parseCLIArgs(int argc, char **argv) {
@@ -211,6 +216,9 @@ DriverArgs parseCLIArgs(int argc, char **argv) {
     case 10:
       res.package_version = std::strtol(optarg, nullptr, 10);
       break;
+    case 11:
+      res.dump_mono_ir = true;
+      break;
     case 'h':
     default:
       usage();
@@ -302,10 +310,11 @@ int CLIDriver::run() {
     irPrinter.visitInstructions(ir, ast::ASTPrinterState());
   }
 
+  // run generics pass
   ir = ir::GenericsPass::produceIR(scopes, errorMan, ir);
 
-  if (args.dump_ir) {
-    std::cout << "\n---- IR ----\n";
+  if (args.dump_mono_ir) {
+    std::cout << "\n---- MONOMORPHIC IR ----\n";
     auto irPrinter = ir::IRPrinter(std::cout);
     irPrinter.visitInstructions(ir, ast::ASTPrinterState());
   }

@@ -1,0 +1,11 @@
+// __ovid_compiler_test 
+//__mode: type_check
+//__end_header
+
+fn test(a *i32) -> *i8 {
+    val b = __unsafe_ptr_cast a //__error: "cannot deduce expected pointer type (consider adding a type annotation)"
+    val c i32 = __unsafe_ptr_cast a //__error: "cannot cast to non pointer type i32"
+    val d i32 = __unsafe_ptr_cast *a //__error: "type of argument to operator __unsafe_ptr_cast i32 isn't a pointer type"
+    val e *i8 = __unsafe_ptr_cast a
+    return e
+}

@@ -289,6 +289,12 @@ int ResolvePass::visitFieldAccess(FieldAccess &node,
   return 0;
 }
 
+int ResolvePass::visitSizeof(Sizeof &node, const ResolvePassState &state) {
+  node.sizeof_type = resolveType(node.sizeof_type);
+
+  return 0;
+}
+
 ResolvePass::ResolvePass(ActiveScopes &scopes, ErrorManager &errorMan,
                          const std::vector<std::string> &package)
     : BaseASTVisitor<int, ResolvePassState>(0), errorMan(errorMan),

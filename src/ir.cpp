@@ -255,7 +255,17 @@ void BuiltinOperator::addFlowMetadata(
     FlowList &flows,
     const std::vector<std::reference_wrapper<Expression>> &args,
     Expression &returnExpr) {
-  /* The builtin operator's don't include any flow */
+  /* pointer addition flow */
+  if (opType == ast::OperatorType::UNSAFE_PTR_ADD) {
+    // construct *(arg:0) flows to *(%RETURN)
+    std::vector<std::vector<int32_t>> field_selects;
+    field_selects.emplace_back();
+    field_selects.emplace_back();
+    auto from = FlowValue(args[0].get(), 1, field_selects);
+    auto into = FlowValue(returnExpr, 1, field_selects);
+    flows.push_back(Flow(from, into));
+  }
+  /* other builtin ops don't cause pointer flows */
 }
 
 BuiltinCast::BuiltinCast(const SourceLocation &loc, const Value &val,
@@ -347,4 +357,10 @@ GlobalAllocation::GlobalAllocation(const SourceLocation &loc, const Value &val,
                                    std::shared_ptr<Symbol> symbol)
     : Expression(loc, val, std::move(type)), symbol(std::move(symbol)),
       initial_val(initial_val) {}
+
+Sizeof::Sizeof(const SourceLocation &loc, const Value &val,
+               std::shared_ptr<ast::Type> sizeof_type)
+    : Expression(loc, val, std::make_shared<ast::IntType>(loc, 64, true)),
+      sizeof_type(std::move(sizeof_type)) {}
+
 } // namespace ovid::ir

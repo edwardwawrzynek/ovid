@@ -548,6 +548,16 @@ public:
               int32_t field_index, std::shared_ptr<ast::Type> type);
 };
 
+/* sizeof operator
+ * TODO: implement usize and isize types */
+class Sizeof : public Expression {
+public:
+  std::shared_ptr<ast::Type> sizeof_type;
+
+  Sizeof(const SourceLocation &loc, const Value &val,
+         std::shared_ptr<ast::Type> sizeof_type);
+};
+
 /* A store into a value (has to be a value produced by Allocation)
  */
 class Store : public Instruction {

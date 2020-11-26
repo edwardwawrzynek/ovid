@@ -233,7 +233,7 @@ TypeConstructorPassResult<Type> TypeConstructorPass::visitUnresolvedType(
   if (type->type_params.size() != params_required) {
     errorMan.logError(
         string_format("invalid number of parameters for type constructor "
-                      "`\x1b[1b%s\x1b[m` (expected %zu, found %zu)",
+                      "`\x1b[1m%s\x1b[m` (expected %zu, found %zu)",
                       scopedName.c_str(), params_required,
                       type->type_params.size()),
         type->loc, ErrorType::TypeError);

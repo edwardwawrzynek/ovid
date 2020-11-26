@@ -11,58 +11,61 @@ enum TokenType {
   T_EOF,
   T_UNKNOWN,
 
-  T_IDENT,         // identifier
-  T_INTLITERAL,    // integer literal
-  T_FLOATLITERAL,  // floating point literal
-  T_BOOLLITERAL,   // boolean literal
-  T_CHARLITERAL,   // character literal
-  T_ADD,           // +
-  T_ADD_ASSIGN,    // +=
-  T_SUB,           // -
-  T_SUB_ASSIGN,    // -=
-  T_STAR,          // *
-  T_DIV,           // /
-  T_ADDR,          // &
-  T_NOT,           // !
-  T_BIN_NOT,       // ~
-  T_BIN_OR,        // |
-  T_BIN_XOR,       // ^
-  T_OR,            // ||
-  T_AND,           // &&
-  T_LSHF,          // <<
-  T_RSHF,          // >>
-  T_EQ,            // ==
-  T_NEQ,           // !=
-  T_GREATER,       // >
-  T_GREATER_EQUAL, // >=
-  T_LESS,          // <
-  T_LESS_EQUAL,    // <=
-  T_COMMA,         // ,
-  T_SEMICOLON,     // ;
-  T_COLON,         // :
-  T_DOUBLE_COLON,  // ::
-  T_DOT,           // .
-  T_RIGHT_ARROW,   // ->
-  T_ASSIGN,        // =
-  T_LBRK,          // {
-  T_RBRK,          // }
-  T_LPAREN,        // (
-  T_RPAREN,        // )
-  T_FN,            // fn
-  T_VAL,           // val
-  T_MUT,           // mut
-  T_MODULE,        // module
-  T_IMPORT,        // import
-  T_RETURN,        // return
-  T_PUB,           // pub
-  T_TYPE,          // type
-  T_IF,            // if
-  T_ELSIF,         // elsif
-  T_ELSE,          // else
-  T_NATIVE,        // native
-  T_WHILE,         // while
-  T_STRUCT,        // struct
-  T_IMPL,          // impl
+  T_IDENT,           // identifier
+  T_INTLITERAL,      // integer literal
+  T_FLOATLITERAL,    // floating point literal
+  T_BOOLLITERAL,     // boolean literal
+  T_CHARLITERAL,     // character literal
+  T_ADD,             // +
+  T_ADD_ASSIGN,      // +=
+  T_SUB,             // -
+  T_SUB_ASSIGN,      // -=
+  T_STAR,            // *
+  T_DIV,             // /
+  T_ADDR,            // &
+  T_NOT,             // !
+  T_BIN_NOT,         // ~
+  T_BIN_OR,          // |
+  T_BIN_XOR,         // ^
+  T_OR,              // ||
+  T_AND,             // &&
+  T_LSHF,            // <<
+  T_RSHF,            // >>
+  T_EQ,              // ==
+  T_NEQ,             // !=
+  T_GREATER,         // >
+  T_GREATER_EQUAL,   // >=
+  T_LESS,            // <
+  T_LESS_EQUAL,      // <=
+  T_COMMA,           // ,
+  T_SEMICOLON,       // ;
+  T_COLON,           // :
+  T_DOUBLE_COLON,    // ::
+  T_DOT,             // .
+  T_RIGHT_ARROW,     // ->
+  T_ASSIGN,          // =
+  T_LBRK,            // {
+  T_RBRK,            // }
+  T_LPAREN,          // (
+  T_RPAREN,          // )
+  T_FN,              // fn
+  T_VAL,             // val
+  T_MUT,             // mut
+  T_MODULE,          // module
+  T_IMPORT,          // import
+  T_RETURN,          // return
+  T_PUB,             // pub
+  T_TYPE,            // type
+  T_IF,              // if
+  T_ELSIF,           // elsif
+  T_ELSE,            // else
+  T_NATIVE,          // native
+  T_WHILE,           // while
+  T_STRUCT,          // struct
+  T_IMPL,            // impl
+  T_UNSAFE_PTR_CAST, // __unsafe_ptr_cast
+  T_UNSAFE_PTR_ADD,  // __unsafe_ptr_add
+  T_UNSAFE_SIZEOF,   // __unsafe_sizeof
 };
 
 struct Token {

@@ -1,0 +1,30 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+pub struct Test<A, B> {
+    field1  A
+    field2  B
+    next    *Test<A, B>
+}
+
+pub fn field1<A, B>(test *Test<A, B>) -> A {
+    return test.field1
+}
+
+pub fn get_a<A, B>(test *Test<A, B>, index i32) -> A {
+    val new = (index, 5)
+    if index == 0 {
+        return field1:<A, B>(test)
+    } else {
+        return get_a:<A, B>(test.next, index - 1)
+    }
+}
+
+pub fn test1(test *Test<i32, f64>) -> i32 {
+    return get_a:<i32, f64>(test, 4)
+}
+
+pub fn test2(test *Test<(), Test<i8, u8> >) -> () {
+    return get_a:<(), Test<i8, u8> >(test, 4)
+}
