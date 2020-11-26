@@ -26,6 +26,7 @@ public:
   Expression *useExpression(Expression *old);
   Expression *hasExpression(Expression *old);
   GenericExpression *useGenericExpression(GenericExpression *old);
+  GenericExpression *hasGenericExpression(GenericExpression *old);
 
   explicit GenericSubstitutions(GenericSubstitutions *parent = nullptr)
       : parent(parent), bbSubs(), exprSubs(), genericExprSubs(){};
@@ -46,6 +47,8 @@ public:
   InstructionList *curInstructionList;
   // substitutions to perform on expressions
   GenericSubstitutions &subs;
+
+  GenericsPassState withIsSpecializing(bool specializing) const;
 
   GenericsPassState(bool is_specializing,
                     const ast::FormalTypeParameterList &formal_params,

@@ -9,11 +9,12 @@ GenericsPassState::GenericsPassState(
     BasicBlockList *curBasicBlockList, InstructionList *curInstructionList)
     : is_specializing(is_specializing), formal_params(formal_params),
       actual_params(actual_params), curBasicBlockList(curBasicBlockList),
-      curInstructionList(curInstructionList), subs(subs) {
-  if (!is_specializing) {
-    assert(formal_params.empty());
-    assert(actual_params.empty());
-  }
+      curInstructionList(curInstructionList), subs(subs) {}
+
+GenericsPassState
+GenericsPassState::withIsSpecializing(bool specializing) const {
+  return GenericsPassState(specializing, formal_params, actual_params, subs,
+                           curBasicBlockList, curInstructionList);
 }
 
 void GenericSubstitutions::addBasicBlock(uint64_t old_id, BasicBlock *newBB) {
@@ -74,6 +75,18 @@ GenericSubstitutions::useGenericExpression(GenericExpression *old) {
     return parent->useGenericExpression(old);
   } else {
     assert(genericExprSubs.count(old->id.id) > 0);
+    return genericExprSubs[old->id.id];
+  }
+}
+
+GenericExpression *
+GenericSubstitutions::hasGenericExpression(GenericExpression *old) {
+  if (genericExprSubs.count(old->id.id) == 0) {
+    if (parent == nullptr)
+      return nullptr;
+
+    return parent->hasGenericExpression(old);
+  } else {
     return genericExprSubs[old->id.id];
   }
 }
@@ -176,7 +189,9 @@ int GenericsPass::visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
                                               const GenericsPassState &state) {
   // if we aren't specializing this function, don't visit it
   if (!state.is_specializing) {
-    global_subs.addGenericExpression(instruct, &instruct);
+    if (!global_subs.hasGenericExpression(&instruct)) {
+      global_subs.addGenericExpression(instruct, &instruct);
+    }
     return 0;
   }
   // if formal params aren't set, set them to match the function
@@ -203,7 +218,7 @@ int GenericsPass::visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
   specializations.addSpecialization(instruct.id.id, state.actual_params,
                                     funcDeclare.get());
   // visit the body of the function
-  GenericSubstitutions bodySubs(&global_subs);
+  auto bodySubs = GenericSubstitutions(&global_subs);
   auto bodyState =
       GenericsPassState(state.is_specializing, state.formal_params,
                         state.actual_params, bodySubs, &funcDeclare->body);
@@ -330,9 +345,14 @@ int GenericsPass::visitFunctionCall(FunctionCall &instruct,
   for (auto &expr : instruct.arguments) {
     args.emplace_back(*state.subs.useExpression(&expr.get()));
   }
+  auto funcExpr = state.subs.hasExpression(&instruct.function);
+  if (funcExpr == nullptr) {
+    visitInstruction(instruct.function, state.withIsSpecializing(false));
+    funcExpr = state.subs.useExpression(&instruct.function);
+  }
+
   auto newInstruct = std::make_unique<FunctionCall>(
-      instruct.loc, newValue(instruct.val, state),
-      *state.subs.useExpression(&instruct.function), std::move(args),
+      instruct.loc, newValue(instruct.val, state), *funcExpr, std::move(args),
       fixType(instruct.type, state));
   return addExpr(std::move(newInstruct), instruct, state);
 }
@@ -434,7 +454,7 @@ int GenericsPass::visitForwardIdentifier(ForwardIdentifier &instruct,
 
     auto newDecl = state.subs.hasExpression(ir_decl_expr);
     if (newDecl == nullptr) {
-      visitInstruction(*ir_decl_expr, state);
+      visitInstruction(*ir_decl_expr, state.withIsSpecializing(false));
       newDecl = state.subs.useExpression(ir_decl_expr);
     }
     state.subs.addExpression(instruct, newDecl);
@@ -469,10 +489,14 @@ int GenericsPass::visitSpecialize(Specialize &instruct,
     actual_params.push_back(fixType(param, state));
   }
 
+  auto generic_expr = state.subs.hasGenericExpression(&instruct.expr);
+  if (generic_expr == nullptr) {
+    visitInstruction(instruct.expr, state.withIsSpecializing(false));
+    generic_expr = state.subs.useGenericExpression(&instruct.expr);
+  }
   // if the needed specialization already exists, use it
-  auto &generic_expr = *state.subs.useGenericExpression(&instruct.expr);
   auto existingSpecial =
-      specializations.getSpecialization(generic_expr, actual_params);
+      specializations.getSpecialization(*generic_expr, actual_params);
   // otherwise, visit the generic expression and generate a new specialization
   if (existingSpecial == nullptr) {
     // let visited generic expression set formal params
@@ -480,10 +504,10 @@ int GenericsPass::visitSpecialize(Specialize &instruct,
     auto subs = GenericSubstitutions(&global_subs);
     auto newState =
         GenericsPassState(true, empty_formal_params, actual_params, subs);
-    visitInstruction(generic_expr, newState);
+    visitInstruction(*generic_expr, newState);
     // get generated specialization
     existingSpecial =
-        specializations.getSpecialization(generic_expr, actual_params);
+        specializations.getSpecialization(*generic_expr, actual_params);
     assert(existingSpecial != nullptr);
   }
 

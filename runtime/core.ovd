@@ -1,0 +1,15 @@
+module std:core
+
+native fn abort()
+native fn exit(status i32)
+
+pub fn panic() {
+  std:bootstrap:print_char('p')
+  std:bootstrap:print_char('a')
+  std:bootstrap:print_char('n')
+  std:bootstrap:print_char('i')
+  std:bootstrap:print_char('c')
+  std:bootstrap:print_char('!')
+  std:bootstrap:print_char('\n')
+  abort()
+}

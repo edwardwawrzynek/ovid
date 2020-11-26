@@ -1,0 +1,25 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+module test {
+    type Type = i32
+
+    pub struct Generic {
+       pub field1   Type
+    }
+}
+
+fn test(a test:Generic) -> i32 {
+    return a.field1
+}
+
+module test2 {
+    type Type<T> = T
+
+    pub type Pair<A, B> = (Type<A>, Type<B>)
+}
+
+fn test2(a test2:Pair<i32, f64>) -> f64 {
+    return a.1
+}

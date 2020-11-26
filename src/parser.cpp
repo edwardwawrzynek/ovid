@@ -454,13 +454,13 @@ Parser::parseFieldAccess(const ParserState &state,
         expr->loc.through(tokenizer.curTokenLoc), std::move(expr),
         tokenizer.curToken.ident);
     tokenizer.nextToken();
-    return std::move(res);
+    return res;
   } else if (tokenizer.curToken.token == T_INTLITERAL) {
     auto res = std::make_unique<ast::FieldAccess>(
         expr->loc.through(tokenizer.curTokenLoc), std::move(expr),
         tokenizer.curToken.int_literal);
     tokenizer.nextToken();
-    return std::move(res);
+    return res;
   } else {
     auto pos = tokenizer.curTokenLoc;
     tokenizer.nextToken();

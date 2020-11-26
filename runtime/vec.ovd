@@ -1,0 +1,83 @@
+module std:vec
+
+native fn GC_malloc(size u64) -> *mut i8
+native fn GC_realloc(ptr *mut i8, size u64) -> *mut i8
+
+type usize = u64
+
+/// Dynamic array type
+/// Vec<T> is a growable, continous array type
+pub struct Vec<T> {
+    data    *mut T
+    len     usize
+    cap     usize
+}
+
+/// Return a new empty Vec with initial capacity reserved for cap elements
+pub fn with_cap<T>(cap usize) -> Vec<T> {
+    return Vec<T> {
+        data:   __unsafe_ptr_cast GC_malloc(cap * __unsafe_sizeof T),
+        len:    0,
+        cap:    cap
+    }
+}
+
+/// Return a new empty Vec
+pub fn new<T>() -> Vec<T> {
+    return with_cap:<T>(1)
+}
+
+/// Get the element in the vector at position index
+/// If the index is past the end of the vector, the function panics
+pub fn get<T>(self *Vec<T>, index usize) -> T {
+    if index >= self.len {
+        core:panic()
+    } else {
+        return *(self.data __unsafe_ptr_add index)
+    }
+}
+
+/// Get the number of elements in the vector
+pub fn size<T>(self *Vec<T>) -> usize {
+    return self.len
+}
+
+/// Get the current capacity of the vector
+pub fn cap<T>(self *Vec<T>) -> usize {
+    return self.cap
+}
+
+fn expand<T>(self *mut Vec<T>) {
+    self.cap = self.cap * 2
+    self.data = __unsafe_ptr_cast GC_realloc(__unsafe_ptr_cast self.data, self.cap * __unsafe_sizeof T)
+}
+
+/// Insert a new element at the end of the vector
+pub fn push<T>(self *mut Vec<T>, data T) {
+    if self.len >= self.cap {
+        expand:<T>(self)
+    }
+    *(self.data __unsafe_ptr_add self.len) = data
+    self.len += 1
+}
+
+/// Remove and return the element at the end of the vector
+/// If the vector has no elements, the function panics
+pub fn pop<T>(self *mut Vec<T>) -> T {
+    if self.len == 0 {
+        core:panic()
+    }
+    val res T = *(self.data __unsafe_ptr_add (self.len - 1))
+    self.len -= 1
+    return res
+}
+
+/// Get the element at the beginning of the vector
+pub fn front<T>(self *Vec<T>) -> T {
+    return get:<T>(self, 0)
+}
+
+/// Get the element at the end of the vector
+pub fn back<T>(self *Vec<T>) -> T {
+    return get:<T>(self, size:<T>(self) - 1)
+}
