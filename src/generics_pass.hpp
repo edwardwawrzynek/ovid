@@ -80,11 +80,13 @@ public:
 
 class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
   GenericSpecializations specializations;
-  ast::TypeConstructorPass type_constructor;
   // instruction list in which to insert specialized functions
   InstructionList *rootInstructionList;
   // global allocation + func declare substitutions
   GenericSubstitutions global_subs;
+
+  ErrorManager &errorMan;
+  ActiveScopes &active_scopes;
 
   int visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
                                   const GenericsPassState &state) override;
@@ -147,9 +149,8 @@ public:
   GenericsPass(ActiveScopes &scopes, ErrorManager &errorMan,
                InstructionList *rootInstructionList)
       : BaseIRVisitor(int()), specializations(),
-        type_constructor(scopes, errorMan, std::vector<std::string>(),
-                         std::vector<std::string>()),
-        rootInstructionList(rootInstructionList){};
+        rootInstructionList(rootInstructionList), errorMan(errorMan),
+        active_scopes(scopes){};
 
   static InstructionList produceIR(ActiveScopes &scopes, ErrorManager &errorMan,
                                    const InstructionList &ir);

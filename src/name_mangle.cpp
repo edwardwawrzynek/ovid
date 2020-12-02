@@ -38,7 +38,7 @@ static std::string mangleScope(const ScopeTable<T> *scope, MangleType type) {
     auto ver = version_nums[i];
     if (ver != -1) {
       res.push_back('V');
-      res.append(std::to_string(std::to_string(ver).size() + 3));
+      res.append(std::to_string(std::to_string(ver).size() + 2));
       res.push_back('_');
       res.append(std::to_string(ver));
       res.push_back('_');

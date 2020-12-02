@@ -109,6 +109,8 @@ public:
   ActiveScopes(const std::vector<std::string> &packageName,
                int64_t package_version, ScopeTable<Symbol> *rootNameScope,
                ScopeTable<TypeAlias> *rootTypeScope);
+
+  ActiveScopes();
 };
 
 /* container for root name and type scopes */

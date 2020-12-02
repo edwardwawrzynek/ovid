@@ -3,20 +3,26 @@
 namespace ovid::ast {
 
 TypeConstructorState::TypeConstructorState(
-    const FormalTypeParameterList &formal_params, const TypeList &actual_params)
-    : formal_params(formal_params), actual_params(actual_params), param_map() {
+    const FormalTypeParameterList &formal_params, const TypeList &actual_params,
+    ActiveScopes &scopes, ScopeTable<TypeAlias> *current_module)
+    : formal_params(formal_params), actual_params(actual_params), param_map(),
+      scopes(scopes), current_module(current_module) {
   assert(formal_params.size() == actual_params.size());
   for (size_t i = 0; i < formal_params.size(); i++) {
     param_map.emplace(this->formal_params[i]->id, this->actual_params[i]);
   }
 }
 
+TypeConstructorState TypeConstructorState::withParams(
+    const FormalTypeParameterList &new_formal_params,
+    const TypeList &new_actual_params) const {
+  return TypeConstructorState(new_formal_params, new_actual_params,
+                              this->scopes, this->current_module);
+}
+
 TypeConstructorPass::TypeConstructorPass(
-    ActiveScopes &scopes, ErrorManager &errorMan,
-    const std::vector<std::string> &package,
-    const std::vector<std::string> &current_module)
-    : scopes(scopes), errorMan(errorMan), package(package),
-      current_module(current_module) {}
+    ErrorManager &errorMan, const std::vector<std::string> &package)
+    : errorMan(errorMan), package(package) {}
 
 TypeConstructorPassResult<Type> TypeConstructorPass::visitFormalTypeParameter(
     const std::shared_ptr<FormalTypeParameter> &type,
@@ -173,13 +179,15 @@ TypeConstructorPass::visitStructType(const std::shared_ptr<StructType> &type,
 }
 
 std::shared_ptr<TypeAlias> TypeConstructorPass::lookupUnresolvedType(
-    const std::shared_ptr<UnresolvedType> &type) {
+    const std::shared_ptr<UnresolvedType> &type,
+    const TypeConstructorState &state) {
   // lookup type in type tables
   std::shared_ptr<TypeAlias> sym;
   if (type->is_root_scoped) {
-    sym = scopes.types.getRootScope()->findSymbol(type->scopes, type->name);
+    sym =
+        state.scopes.types.getRootScope()->findSymbol(type->scopes, type->name);
   } else {
-    sym = scopes.types.findSymbol(type->scopes, type->name);
+    sym = state.scopes.types.findSymbol(type->scopes, type->name);
   }
   auto scopedName = scopesAndNameToString(type->scopes, type->name, true);
 
@@ -191,9 +199,8 @@ std::shared_ptr<TypeAlias> TypeConstructorPass::lookupUnresolvedType(
   }
   // check for use of private type
   else if (!checkVisible(
-               *sym, scopes.types.getRootScope()->getScopeTable(package),
-               scopes.types.getRootScope()->getScopeTable(current_module),
-               sym->is_public)) {
+               *sym, state.scopes.types.getRootScope()->getScopeTable(package),
+               state.current_module, sym->is_public)) {
     errorMan.logError(string_format("use of private type `\x1b[1m%s\x1b[m`",
                                     scopedName.c_str()),
                       type->loc, ErrorType::UseOfPrivateType);
@@ -203,15 +210,16 @@ std::shared_ptr<TypeAlias> TypeConstructorPass::lookupUnresolvedType(
 
 std::shared_ptr<TypeConstructor>
 TypeConstructorPass::genericResolveTypeConstructor(
-    const std::shared_ptr<TypeConstructor> &type_construct) {
+    const std::shared_ptr<TypeConstructor> &type_construct,
+    const TypeConstructorState &state) {
   // substitute formal -> formal
   auto formal_params = type_construct->getFormalTypeParameters();
   auto &actual_params = (const TypeList &)formal_params;
-  auto new_state = TypeConstructorState(formal_params, actual_params);
+  auto new_state = state.withParams(formal_params, actual_params);
   // resolve type
-  scopes.types.pushScope(type_construct->getFormalScopeTable());
+  state.scopes.types.pushScope(type_construct->getFormalScopeTable());
   auto res = visitType(type_construct->getFormalBoundType(), new_state);
-  scopes.types.popScope();
+  state.scopes.types.popScope();
   auto new_construct = std::make_shared<GenericTypeConstructor>(
       type_construct->loc, type_construct->getFormalTypeParameters(),
       res.actual_type);
@@ -219,10 +227,38 @@ TypeConstructorPass::genericResolveTypeConstructor(
   return new_construct;
 }
 
+ActiveScopes
+TypeConstructorPass::scopesForAlias(TypeAlias *alias,
+                                    const TypeConstructorState &state) {
+  auto res = ActiveScopes();
+  // construct the chain of ScopeTables for alias
+  std::vector<ScopeTable<TypeAlias> *> tables;
+  auto cur = alias->parent_table;
+  while (cur != nullptr) {
+    tables.push_back(cur);
+    cur = cur->getParent();
+  }
+  // push tables backwards onto scope stack
+  for (size_t i = tables.size(); i-- > 0;) {
+    res.types.pushScope(tables[i]);
+  }
+
+  // go through state's scopes, and push any that have is_func_scope set
+  for (int i = 0; i < state.scopes.types.getNumActiveScopes(); i++) {
+    auto scope = state.scopes.types.getNthScope(i);
+    if (scope->getIsFuncScope()) {
+      assert(scope->getName().empty());
+      res.types.pushScope(scope);
+    }
+  }
+
+  return res;
+}
+
 TypeConstructorPassResult<Type> TypeConstructorPass::visitUnresolvedType(
     const std::shared_ptr<UnresolvedType> &type,
     const TypeConstructorState &state) {
-  auto sym = lookupUnresolvedType(type);
+  auto sym = lookupUnresolvedType(type, state);
   auto scopedName = scopesAndNameToString(type->scopes, type->name, true);
   if (sym == nullptr) {
     return TypeConstructorPassResult<Type>(false, nullptr);
@@ -242,10 +278,18 @@ TypeConstructorPassResult<Type> TypeConstructorPass::visitUnresolvedType(
 
   // if constructor is 0 param and result is cached, use that
   if (params_required == 0 && sym->inner_resolved) {
-    auto res = std::dynamic_pointer_cast<Type>(sym->type);
+    auto res = std::dynamic_pointer_cast<Type>(sym->type->noParamConstruct());
     assert(res != nullptr);
     return TypeConstructorPassResult(false, res);
   }
+
+  // the internal type of the type alias (ie type_construct) may have
+  // UnresolvedTypes in it. They need to be resolved in the scopes at the
+  // alias's declaration location, so we need to generate an ActiveScopes that
+  // matches the alias's declaration location
+  auto new_scopes = scopesForAlias(sym.get(), state);
+  auto newly_scoped_state = TypeConstructorState(
+      state.formal_params, state.actual_params, new_scopes, sym->parent_table);
 
   // if constructor isn't 0 param, then visit it with a formal -> formal
   // param substitution
@@ -253,7 +297,8 @@ TypeConstructorPassResult<Type> TypeConstructorPass::visitUnresolvedType(
   if (params_required != 0 && !sym->inner_resolved &&
       type_construct->getFormalBoundType() != nullptr) {
     sym->inner_resolved = true;
-    sym->type = genericResolveTypeConstructor(type_construct);
+    sym->type =
+        genericResolveTypeConstructor(type_construct, newly_scoped_state);
     type_construct = sym->type;
   }
 
@@ -268,17 +313,18 @@ TypeConstructorPassResult<Type> TypeConstructorPass::visitUnresolvedType(
   }
 
   TypeConstructorPassResult<Type> result_type(false, nullptr);
+
   // check for trivial constructor and use it if available
   auto trivial = type_construct->trivialConstruct();
   if (trivial == nullptr) {
     // call constructor with new formal + actual params
-    auto new_state = TypeConstructorState(
+    auto new_state = newly_scoped_state.withParams(
         type_construct->getFormalTypeParameters(), resolved_type_params);
-    scopes.types.pushScope(type_construct->getFormalScopeTable());
+    state.scopes.types.pushScope(type_construct->getFormalScopeTable());
     result_type = visitType(type_construct->getFormalBoundType(), new_state);
-    scopes.types.popScope();
+    state.scopes.types.popScope();
   } else {
-    result_type = visitType(trivial, state);
+    result_type = visitType(trivial, newly_scoped_state);
   }
 
   // mark the alias as inner_resolved and cache (if 0 parameter)
@@ -328,29 +374,37 @@ TypeConstructorPass::structTypeInVisitedStructs(
   return nullptr;
 }
 
-std::shared_ptr<Type>
-TypeConstructorPass::constructType(const std::shared_ptr<Type> &type,
-                                   const FormalTypeParameterList &formal_params,
-                                   const TypeList &actual_params) {
-  return visitType(type, TypeConstructorState(formal_params, actual_params))
+std::shared_ptr<Type> TypeConstructorPass::constructType(
+    const std::shared_ptr<Type> &type,
+    const FormalTypeParameterList &formal_params, const TypeList &actual_params,
+    ActiveScopes &scopes, ErrorManager &errorMan,
+    const std::vector<std::string> &package,
+    const std::vector<std::string> &current_module) {
+  auto constructor = TypeConstructorPass(errorMan, package);
+  return constructor
+      .visitType(
+          type, TypeConstructorState(
+                    formal_params, actual_params, scopes,
+                    scopes.types.getRootScope()->getScopeTable(current_module)))
       .actual_type;
 }
 
 std::shared_ptr<Type> TypeConstructorPass::constructTypeConstructor(
     const std::shared_ptr<TypeConstructor> &type_construct,
-    const TypeList &actual_params) {
+    const TypeList &actual_params, ActiveScopes &scopes, ErrorManager &errorMan,
+    const std::vector<std::string> &package,
+    const std::vector<std::string> &current_module) {
   return constructType(type_construct->getFormalBoundType(),
-                       type_construct->getFormalTypeParameters(),
-                       actual_params);
+                       type_construct->getFormalTypeParameters(), actual_params,
+                       scopes, errorMan, package, current_module);
 }
 
 std::shared_ptr<Type> TypeConstructorPass::resolveType(
     const std::shared_ptr<Type> &type, ActiveScopes &scopes,
     ErrorManager &errorMan, const std::vector<std::string> &package,
     const std::vector<std::string> &current_module) {
-  auto constructor =
-      TypeConstructorPass(scopes, errorMan, package, current_module);
-  return constructor.constructType(type, FormalTypeParameterList(), TypeList());
+  return constructType(type, FormalTypeParameterList(), TypeList(), scopes,
+                       errorMan, package, current_module);
 }
 
 std::shared_ptr<TypeConstructor> TypeConstructorPass::resolveTypeConstructor(
@@ -358,9 +412,12 @@ std::shared_ptr<TypeConstructor> TypeConstructorPass::resolveTypeConstructor(
     ActiveScopes &scopes, ErrorManager &errorMan,
     const std::vector<std::string> &package,
     const std::vector<std::string> &current_module) {
-  auto constructor =
-      TypeConstructorPass(scopes, errorMan, package, current_module);
-  return constructor.genericResolveTypeConstructor(type_construct);
+  auto constructor = TypeConstructorPass(errorMan, package);
+  return constructor.genericResolveTypeConstructor(
+      type_construct,
+      TypeConstructorState(
+          FormalTypeParameterList(), TypeList(), scopes,
+          scopes.types.getRootScope()->getScopeTable(current_module)));
 }
 
 bool typeListEqual(const TypeList &lhs, const TypeList &rhs) {

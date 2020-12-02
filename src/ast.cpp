@@ -362,6 +362,8 @@ ActiveScopes::ActiveScopes(const std::vector<std::string> &packageName,
   curTypeScope->setVersionInt(package_version);
 }
 
+ActiveScopes::ActiveScopes() : names(), types() {}
+
 std::vector<std::string> Symbol::getFullyScopedName() const {
   size_t scopes_size = 1;
   auto tmp = parent_table;

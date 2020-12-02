@@ -67,11 +67,9 @@ void TypeCheck::insertBasicBlock(std::unique_ptr<ir::BasicBlock> block) {
 std::shared_ptr<Type>
 TypeCheck::constructType(const std::shared_ptr<TypeConstructor> &type_construct,
                          const TypeList &actual_params) {
-  auto construct =
-      TypeConstructorPass(active_scopes, errorMan, package, currentModule);
-  return construct.constructType(type_construct->getFormalBoundType(),
-                                 type_construct->getFormalTypeParameters(),
-                                 actual_params);
+  return TypeConstructorPass::constructTypeConstructor(
+      type_construct, actual_params, active_scopes, errorMan, package,
+      currentModule);
 }
 
 TypeCheckResult TypeCheck::visitBoolLiteral(BoolLiteral &node,

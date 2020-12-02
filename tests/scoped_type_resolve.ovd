@@ -2,6 +2,18 @@
 //__mode: compile
 //__end_header
 
+module test3 {
+    fn test3(a TestType) -> i32 {
+        return a.field1
+    }
+
+    type TestType = test:Generic
+}
+
+fn test2(a test2:Pair<i32, f64>) -> f64 {
+    return a.1
+}
+
 module test {
     type Type = i32
 
@@ -18,8 +30,4 @@ module test2 {
     type Type<T> = T
 
     pub type Pair<A, B> = (Type<A>, Type<B>)
-}
-
-fn test2(a test2:Pair<i32, f64>) -> f64 {
-    return a.1
 }

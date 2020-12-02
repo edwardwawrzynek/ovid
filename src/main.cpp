@@ -79,7 +79,7 @@ void usage() {
          "the source code\n"
          "  --dump-ir              Print the intermediate "
          "representation for the source code\n"
-         "  --dump-mono-ir              Print the monomorphic intermediate "
+         "  --dump-mono-ir         Print the monomorphic intermediate "
          "representation for the source code\n"
          "  --dump-escape          Print escape analysis results\n"
          "  --dump-llvm            Print unoptimized llvm ir\n"

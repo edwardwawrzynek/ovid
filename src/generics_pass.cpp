@@ -132,8 +132,9 @@ GenericsPass::fixType(const std::shared_ptr<ast::Type> &type,
   if (!state.is_specializing) {
     return type;
   } else {
-    return type_constructor.constructType(type, state.formal_params,
-                                          state.actual_params);
+    return ast::TypeConstructorPass::constructType(
+        type, state.formal_params, state.actual_params, active_scopes, errorMan,
+        std::vector<std::string>(), std::vector<std::string>());
   }
 }
 
@@ -205,8 +206,9 @@ int GenericsPass::visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
   }
 
   // construct specialized function type
-  auto constructedType = type_constructor.constructTypeConstructor(
-      instruct.type_construct, state.actual_params);
+  auto constructedType = ast::TypeConstructorPass::constructTypeConstructor(
+      instruct.type_construct, state.actual_params, active_scopes, errorMan,
+      std::vector<std::string>(), std::vector<std::string>());
   auto funcType =
       std::dynamic_pointer_cast<ast::NamedFunctionType>(constructedType);
   assert(funcType != nullptr);

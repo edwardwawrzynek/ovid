@@ -47,18 +47,26 @@ public:
   // map of formal type parameter id's to actual params
   std::unordered_map<uint64_t, std::shared_ptr<Type>> param_map;
 
+  // current scopes to resolve type in
+  ActiveScopes &scopes;
+  // current module
+  ScopeTable<TypeAlias> *current_module;
+
   TypeConstructorState(const FormalTypeParameterList &formal_params,
-                       const TypeList &actual_params);
+                       const TypeList &actual_params, ActiveScopes &scopes,
+                       ScopeTable<TypeAlias> *current_module);
+
+  TypeConstructorState
+  withParams(const FormalTypeParameterList &new_formal_params,
+             const TypeList &new_actual_params) const;
 };
 
 /* Generic type construction pass
  * The pass visits TypeConstructors and replaces FormalTypeParameter's with
  * concrete types */
 class TypeConstructorPass {
-  ActiveScopes &scopes;
   ErrorManager &errorMan;
   const std::vector<std::string> &package;
-  const std::vector<std::string> &current_module;
   // stack of visited struct type's type aliases
   // used to detect cycles in the type graph and resolve them
   // structs are the only types that can form cycles
@@ -99,22 +107,33 @@ class TypeConstructorPass {
   // visit a type constructor and resolve UnresolvedTypes inside of it
   // does not apply the constructor
   std::shared_ptr<TypeConstructor> genericResolveTypeConstructor(
-      const std::shared_ptr<TypeConstructor> &type_construct);
+      const std::shared_ptr<TypeConstructor> &type_construct,
+      const TypeConstructorState &state);
 
   // lookup unresolved type in type tables
   std::shared_ptr<TypeAlias>
-  lookupUnresolvedType(const std::shared_ptr<UnresolvedType> &type);
+  lookupUnresolvedType(const std::shared_ptr<UnresolvedType> &type,
+                       const TypeConstructorState &state);
+
+  // generate an ActiveScopes with types set to match the alias's declaration
+  // location
+  ActiveScopes scopesForAlias(TypeAlias *alias,
+                              const TypeConstructorState &state);
 
 public:
   // visit a type, replacing formal_params with actual_params
-  std::shared_ptr<Type>
+  static std::shared_ptr<Type>
   constructType(const std::shared_ptr<Type> &type,
                 const FormalTypeParameterList &formal_params,
-                const TypeList &actual_params);
+                const TypeList &actual_params, ActiveScopes &scopes,
+                ErrorManager &errorMan, const std::vector<std::string> &package,
+                const std::vector<std::string> &current_module);
 
-  std::shared_ptr<Type> constructTypeConstructor(
+  static std::shared_ptr<Type> constructTypeConstructor(
       const std::shared_ptr<TypeConstructor> &type_construct,
-      const TypeList &actual_params);
+      const TypeList &actual_params, ActiveScopes &scopes,
+      ErrorManager &errorMan, const std::vector<std::string> &package,
+      const std::vector<std::string> &current_module);
 
   static std::shared_ptr<Type>
   resolveType(const std::shared_ptr<Type> &type, ActiveScopes &scopes,
@@ -128,9 +147,8 @@ public:
                          const std::vector<std::string> &package,
                          const std::vector<std::string> &current_module);
 
-  TypeConstructorPass(ActiveScopes &scopes, ErrorManager &errorMan,
-                      const std::vector<std::string> &package,
-                      const std::vector<std::string> &current_module);
+  TypeConstructorPass(ErrorManager &errorMan,
+                      const std::vector<std::string> &package);
 };
 
 // compare two TypeList's for value equality

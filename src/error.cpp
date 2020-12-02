@@ -11,6 +11,7 @@ ErrorPrintLevel errorTypeToPrintLevel(ErrorType type) {
   case ErrorType::Note:
     return ErrorPrintLevel::Note;
   case ErrorType::VarDeclareShadowed:
+  case ErrorType::TypeDeclShadowed:
   case ErrorType::NarrowingConversion:
   case ErrorType::NameConvention:
     return ErrorPrintLevel::Warning;

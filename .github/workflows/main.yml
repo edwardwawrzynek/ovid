@@ -40,5 +40,5 @@ jobs:
       working-directory: ${{ runner.workspace }}/ovid
 
     - name: Ovidc Test Framework
-      run: cd build && ./runUnitTests && OVIDC_TESTSUITE_PATH=`pwd`/../tests ./runTests
+      run: ./build/runUnitTests && ./build/runTests tests/
       working-directory: ${{ runner.workspace }}/ovid

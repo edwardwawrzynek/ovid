@@ -363,6 +363,9 @@ public:
   // get number of active scopes (for debugging)
   int getNumActiveScopes();
 
+  // get the scope at the specified index
+  ScopeTable<T> *getNthScope(size_t n);
+
   ActiveScope() : scopes(){};
 };
 
@@ -456,6 +459,10 @@ void ActiveScope<T>::popComponentScopesByNameFromRoot(
 
 template <class T> ScopeTable<T> *ActiveScope<T>::getTopScope() {
   return scopes[scopes.size() - 1];
+}
+
+template <class T> ScopeTable<T> *ActiveScope<T>::getNthScope(size_t n) {
+  return scopes[n];
 }
 
 // convert a set of scopes and a name to a printable string

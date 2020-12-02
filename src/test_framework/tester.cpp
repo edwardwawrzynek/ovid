@@ -10,6 +10,7 @@
 #include "resolve_pass.hpp"
 #include "tokenizer.hpp"
 #include "type_check.hpp"
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -642,62 +643,14 @@ void TesterInstance::putback(int c) {
 
   file.putback(c);
 }
-
-// run test instances on all files in a directory
-int testDirectory(const std::string &dirPath) {
-  int failed = 0;
-
-  std::cout << "\x1b[1m[ .... ]\x1b[m Starting the Ovid Compiler Test "
-               "Framework on testsuite "
-            << dirPath << "\n";
-
-  int numTests = 0;
-  for (auto &entry : std::filesystem::directory_iterator(dirPath)) {
-    auto path = entry.path().string();
-    if (!path.compare(path.size() - 4, 4, ".ovd"))
-      numTests++;
-  }
-
-  std::cout << "         " << numTests << " tests to run\n\n";
-
-  for (auto &entry : std::filesystem::directory_iterator(dirPath)) {
-    auto path = entry.path().string();
-    if (path.compare(path.size() - 4, 4, ".ovd"))
-      continue;
-
-    std::cout << "\x1b[1m[ .... ]\x1b[m " << entry.path().string()
-              << ": beginning test\n";
-
-    auto tester = TesterInstance(path);
-    auto res = tester.run();
-    if (res == 0) {
-      std::cout << "\x1b[1m[  \x1b[32mOK\x1b[0;1m  ]\x1b[m";
-    } else {
-      failed++;
-      std::cout << "\x1b[1m[ \x1b[31mFAIL\x1b[0;1m ]\x1b[m";
-    }
-
-    std::cout << " " << path << ": test " << ((res == 0) ? "passed" : "failed")
-              << "\n\n";
-  }
-
-  if (failed > 0) {
-    std::cout << "\x1b[1m[ \x1b[31mFAIL\x1b[0;1m ]\x1b[m " << failed << "/"
-              << numTests << " tests failed\n";
-  } else {
-    std::cout << "\x1b[1m[  \x1b[32mOK\x1b[0;1m  ]\x1b[m " << numTests << "/"
-              << numTests << " tests passed\n";
-  }
-
-  return failed > 0 ? 1 : 0;
-}
-
 } // namespace ovid::tester
 
-int main() {
-  const char *env_path = std::getenv("OVIDC_TESTSUITE_PATH");
-  if (env_path == nullptr) {
-    return ovid::tester::testDirectory("../tests");
+int main(int argc, char **argv) {
+  if (argc != 2) {
+    std::cerr << "usage: " << argv[0] << " test.ovd\n";
+    return 1;
   }
-  return ovid::tester::testDirectory(env_path);
+
+  auto tester = ovid::tester::TesterInstance(std::string(argv[1]));
+  return tester.run();
 }

@@ -326,6 +326,8 @@ bool ResolvePass::checkTypeShadowed(
   if (shadowed) {
     auto scoped_name =
         scopesAndNameToString(current_module, name, is_in_global);
+    // TODO: print
+    auto shadowed_name = shadowed->getFullyScopedName();
 
     errorMan.logError(
         string_format(
@@ -348,6 +350,7 @@ ResolvePass::resolveType(const std::shared_ptr<Type> &type) {
   return TypeConstructorPass::resolveType(type, scopes, errorMan, package,
                                           current_module);
 }
+
 std::shared_ptr<TypeConstructor> ResolvePass::resolveTypeConstructor(
     const std::shared_ptr<TypeConstructor> &type_construct) {
   auto trivial = type_construct->trivialConstruct();

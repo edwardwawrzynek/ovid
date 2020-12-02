@@ -1,7 +1,8 @@
 include_directories(../)
 
 set(UNIT_TESTS misc_unit.cpp)
-set(TEST_FRAMEWORK tester.cpp)
+set(RUN_TESTS_TEST_CASE tester.cpp)
+set(RUN_TESTS run_tests.cpp)
 
 # Download and install GoogleTest
 include(ExternalProject)
@@ -26,9 +27,13 @@ add_test(NAME runUnitTests
         COMMAND runUnitTests)
 
 # Custom Test Framework
-add_executable(runTests ${TEST_FRAMEWORK})
-target_link_libraries(runTests ovidc_core ${REQ_LLVM_LIBRARIES})
+add_executable(runTestsTestCase ${RUN_TESTS_TEST_CASE})
+target_link_libraries(runTestsTestCase ovidc_core ${REQ_LLVM_LIBRARIES})
+
+add_executable(runTests ${RUN_TESTS})
+add_dependencies(runTests runTestsTestCase)
+
 add_test(NAME runTests
         COMMAND runTests)
 
-install(TARGETS runTests runUnitTests DESTINATION ${CMAKE_BINARY_DIR})
+install(TARGETS runTests runTestsTestCase runUnitTests DESTINATION ${CMAKE_BINARY_DIR})

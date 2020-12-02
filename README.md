@@ -35,7 +35,7 @@ cmake -DENABLE_TESTING=ON ..
 cmake --build .
 sudo cmake --install .
 ./runUnitTests
-OVIDC_TESTSUITE_PATH=`pwd`/../tests ./runTests
+./runTests ../tests
 ```
 
 ## Usage
