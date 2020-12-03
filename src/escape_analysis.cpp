@@ -198,11 +198,7 @@ void FlowValue::print(std::ostream &output) const {
   } else {
     if (expr.val.id.hasSourceName) {
       auto name = expr.val.id.sourceName->getFullyScopedName();
-      for (size_t i = 0; i < name.size(); i++) {
-        output << name[i];
-        if (i < name.size() - 1)
-          output << ":";
-      }
+      output << scopedNameToString(name);
     } else {
       output << expr.val.id.id;
     }
@@ -690,7 +686,7 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
   if (print_escapes) {
     visitAllocations(instruct.body, [this](Allocation &alloc) {
       if (AllocationTypeIsHeap(alloc.allocType)) {
-        output << "%" << alloc.val.id.sourceName->getFullyScopedName()[0]
+        output << "%" << scopedNameToString(alloc.val.id.sourceName->getFullyScopedName())
                << " escapes\n";
       }
     });

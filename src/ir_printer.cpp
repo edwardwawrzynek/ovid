@@ -1,4 +1,5 @@
 #include "ir_printer.hpp"
+#include "ast.hpp"
 
 namespace ovid::ir {
 
@@ -6,13 +7,7 @@ void IRPrinter::printId(const Id &id) {
   if (id.hasSourceName) {
     output << "%";
     auto name = id.sourceName->getFullyScopedName();
-    for (size_t i = 0; i < name.size(); i++) {
-      auto &scope = name[i];
-      output << scope;
-
-      if (i < name.size() - 1)
-        output << ":";
-    }
+    output << scopedNameToString(name);
     if (!id.typeParams.empty()) {
       output << type_printer.getGenericTypeList(
           const_cast<ast::TypeList &>(id.typeParams));

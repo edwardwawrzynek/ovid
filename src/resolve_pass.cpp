@@ -264,7 +264,7 @@ bool ResolvePass::checkShadowed(const SourceLocation &pos,
         pos, ErrorType::VarDeclareShadowed, false);
     errorMan.logError(
         string_format("shadowed declaration of `\x1b[1m%s\x1b[m` here",
-                      scoped_name.c_str()),
+                      scopedNameToString(shadowed->getFullyScopedName()).c_str()),
         shadowed->decl_loc, ErrorType::Note);
   }
 
@@ -336,7 +336,7 @@ bool ResolvePass::checkTypeShadowed(
         pos, ErrorType::TypeDeclShadowed, false);
     errorMan.logError(
         string_format("shadowed declaration of type `\x1b[1m%s\x1b[m` here",
-                      scoped_name.c_str()),
+                      scopedNameToString(shadowed->getFullyScopedName()).c_str()),
         shadowed->decl_loc, ErrorType::Note);
   }
 

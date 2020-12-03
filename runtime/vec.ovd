@@ -6,7 +6,7 @@ native fn GC_realloc(ptr *mut i8, size u64) -> *mut i8
 type usize = u64
 
 /// Dynamic array type
-/// Vec<T> is a growable, continous array type
+/// Vec<T> is a growable, continuous array type
 pub struct Vec<T> {
     data    *mut T
     len     usize
@@ -24,7 +24,16 @@ pub fn with_cap<T>(cap usize) -> Vec<T> {
 
 /// Return a new empty Vec
 pub fn new<T>() -> Vec<T> {
-    return with_cap:<T>(1)
+    // limit initial capacity allocation to 32 bytes max
+    if __unsafe_sizeof T <= 4 {
+        return with_cap:<T>(8)
+    } elsif __unsafe_sizeof T <= 8 {
+        return with_cap:<T>(4)
+    } elsif __unsafe_sizeof T <= 16 {
+        return with_cap:<T>(2)
+    } else {
+        return with_cap:<T>(1)
+    }
 }
 
 /// Get the element in the vector at position index
@@ -47,18 +56,58 @@ pub fn cap<T>(self *Vec<T>) -> usize {
     return self.cap
 }
 
-fn expand<T>(self *mut Vec<T>) {
-    self.cap = self.cap * 2
+/// Set the capacity of the vector to the specified size
+pub fn set_cap<T>(self *mut Vec<T>, cap usize) {
+    if cap < self.len {
+        core:panic()
+    }
+    self.cap = cap
     self.data = __unsafe_ptr_cast GC_realloc(__unsafe_ptr_cast self.data, self.cap * __unsafe_sizeof T)
+}
+
+/// Double the capacity of the vector
+fn expand<T>(self *mut Vec<T>) {
+    set_cap:<T>(self, self.cap * 2)
+}
+
+/// Expand the vector if needed to fit the given number of elements
+fn expand_to_fit<T>(self *mut Vec<T>, size usize) {
+    if size > self.cap {
+        expand:<T>(self)
+    }
 }
 
 /// Insert a new element at the end of the vector
 pub fn push<T>(self *mut Vec<T>, data T) {
-    if self.len >= self.cap {
-        expand:<T>(self)
-    }
+    expand_to_fit:<T>(self, self.len + 1)
     *(self.data __unsafe_ptr_add self.len) = data
     self.len += 1
+}
+
+/// Insert an element at the specified index in the vector
+/// Panics if index > size()
+pub fn insert<T>(self *mut Vec<T>, index usize, data T) {
+    if index > self.len {
+        core:panic()
+    }
+    self.len += 1
+    // expand capacity if needed
+    expand_to_fit:<T>(self, self.len)
+    // move section after insertion location to make room
+    mem:unsafe_move:<T>(self.data __unsafe_ptr_add (index + 1), self.data __unsafe_ptr_add index, self.len - index - 1)
+    // insert data
+    *(self.data __unsafe_ptr_add index) = data
+}
+
+/// Remove the element at the specified index in the vector
+/// Panics if index >= size()
+pub fn remove<T>(self *mut Vec<T>, index usize) {
+    if index >= self.len {
+        core:panic()
+    }
+    self.len -= 1
+    // move section after element to remove backwards
+    mem:unsafe_move:<T>(self.data __unsafe_ptr_add index, self.data __unsafe_ptr_add (index + 1), self.len - index)
 }
 
 /// Remove and return the element at the end of the vector

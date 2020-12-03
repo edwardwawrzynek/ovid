@@ -94,6 +94,9 @@ public:
   std::vector<std::string> getFullyScopedName() const;
 };
 
+/* convert a std::vector<std::string> scoped name to a single string seperated by : */
+std::string scopedNameToString(const std::vector<std::string>& scopes);
+
 // name and type symbol tables
 class ActiveScopes {
 public:

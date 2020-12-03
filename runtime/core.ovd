@@ -3,6 +3,8 @@ module std:core
 native fn abort()
 native fn exit(status i32)
 
+/// print 'panic!' and abort the current program
+/// panic should be called when a program reaches an unrecoverable error
 pub fn panic() {
   std:bootstrap:print_char('p')
   std:bootstrap:print_char('a')
@@ -13,3 +15,43 @@ pub fn panic() {
   std:bootstrap:print_char('\n')
   abort()
 }
+
+/// assert that the given condition is true
+/// if the condition is false, assert calls panic
+pub fn assert(condition bool) {
+    if !condition {
+        std:bootstrap:print_char('a')
+        std:bootstrap:print_char('s')
+        std:bootstrap:print_char('s')
+        std:bootstrap:print_char('s')
+        std:bootstrap:print_char('e')
+        std:bootstrap:print_char('r')
+        std:bootstrap:print_char('t')
+        std:bootstrap:print_char(' ')
+        std:bootstrap:print_char('f')
+        std:bootstrap:print_char('a')
+        std:bootstrap:print_char('i')
+        std:bootstrap:print_char('l')
+        std:bootstrap:print_char('u')
+        std:bootstrap:print_char('r')
+        std:bootstrap:print_char('e')
+        std:bootstrap:print_char('\n')
+        core:panic()
+    }
+}
+
+/** Integral conversions (unsafe - narrowing conversions) **/
+fn u8(input u64) -> u8 { return input }
+fn u16(input u64) -> u16 { return input }
+fn u32(input u64) -> u32 { return input }
+fn u64(input u64) -> u64 { return input }
+
+fn i8(input i64) -> i8 { return input }
+fn i16(input i64) -> i16 { return input }
+fn i32(input i64) -> i32 { return input }
+fn i64(input i64) -> i64 { return input }
+
+/** Floating point conversions **/
+fn f32(input f64) -> f32 { return input }
+fn f64(input f32) -> f64 { return input }
+

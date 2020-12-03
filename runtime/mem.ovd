@@ -1,0 +1,30 @@
+module std:mem
+
+type usize = u64
+
+native fn memcpy(dst *mut (), src *(), n usize)
+native fn memmove(dst *mut (), src *mut (), n usize)
+
+/// Copy the chunk of memory src with length size to dst
+/// src and dst should not overlap
+/// equivalent to memcpy in c
+pub fn unsafe_copy<T>(dst *mut T, src *T, size usize) {
+    if size == 0 { return }
+
+    val dst_voidptr *mut () = __unsafe_ptr_cast dst
+    val src_voidptr *() = __unsafe_ptr_cast src
+
+    memcpy(dst_voidptr, src_voidptr, size * __unsafe_sizeof T)
+}
+
+/// Move the chunk of memory src with length size to dst
+/// src and dst can overlap
+/// equivalent to memmove in c
+pub fn unsafe_move<T>(dst *mut T, src *mut T, size usize) {
+    if size == 0 { return }
+
+    val dst_voidptr *mut () = __unsafe_ptr_cast dst
+    val src_voidptr *mut () = __unsafe_ptr_cast src
+
+    memcpy(dst_voidptr, src_voidptr, size * __unsafe_sizeof T)
+}

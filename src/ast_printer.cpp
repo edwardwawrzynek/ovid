@@ -309,12 +309,7 @@ int ASTPrinter::visitNativeFunctionDecl(NativeFunctionDecl &node,
   printLoc(output, node.loc);
   output << " NativeFunctionDecl ";
   auto name = node.sym->getFullyScopedName();
-  for (size_t i = 0; i < name.size(); i++) {
-    output << name[i];
-    if (i < name.size() - 1)
-      output << ":";
-  }
-  output << "\n";
+  output << scopedNameToString(name) << "\n";
   typePrinter.visitTypeConstructor(*node.sym->type, state.withIndent());
   return 0;
 }
@@ -439,12 +434,7 @@ int ASTTypePrinter::visitStructType(StructType &type,
   state.printIndent(output);
   output << "StructType ";
   auto name = type.getTypeAlias()->getFullyScopedName();
-  for (size_t i = 0; i < name.size(); i++) {
-    output << name[i];
-    if (i < name.size() - 1)
-      output << ":";
-  }
-  output << "\n";
+  output << scopedNameToString(name) << "\n";
   // if present, print generic type params
   auto &params = type.actual_generic_params;
   if (!params.empty()) {

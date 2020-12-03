@@ -406,4 +406,16 @@ std::vector<std::string> TypeAlias::getFullyScopedName() const {
   return fullName;
 }
 
+std::string scopedNameToString(const std::vector<std::string>& scopes) {
+  std::string res;
+  for(size_t i = 0; i < scopes.size(); i++) {
+    res.append(scopes[i]);
+    if(i < scopes.size() - 1) {
+      res.push_back(':');
+    }
+  }
+
+  return res;
+}
+
 } // namespace ovid
