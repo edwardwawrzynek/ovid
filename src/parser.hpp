@@ -119,6 +119,9 @@ class Parser {
   std::unique_ptr<ast::Statement> parseVarDecl(const ParserState &state,
                                                bool is_public);
 
+  std::unique_ptr<ast::ImplStatement>
+  parseImplStatement(const ParserState &state);
+
   bool expectEndStatement();
   bool isEndStatement();
 

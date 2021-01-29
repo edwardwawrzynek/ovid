@@ -1,6 +1,8 @@
 #include "ast.hpp"
 #include "generics.hpp"
 
+#include <functional>
+
 namespace ovid::ast {
 
 static uint64_t ast_id = 0;
@@ -269,18 +271,25 @@ bool StructType::hasPublicConstructor() const {
   return true;
 }
 
+// construct a flat scope table from a vector of formal type parameters (name ->
+// formal param)
+std::unique_ptr<ScopeTable<TypeAlias>>
+scopeTableFromFormalTypeParams(const FormalTypeParameterList &params) {
+  auto table =
+      std::make_unique<ScopeTable<TypeAlias>>(false, nullptr, "", true);
+  for (const auto &param : params) {
+    auto type_alias = std::make_shared<TypeAlias>(param->loc, param, false);
+    table->addSymbol(param->name, std::move(type_alias));
+  }
+
+  return table;
+}
+
 GenericTypeConstructor::GenericTypeConstructor(const SourceLocation &loc,
                                                FormalTypeParameterList params,
                                                std::shared_ptr<Type> type)
     : TypeConstructor(loc), params(std::move(params)), type(std::move(type)),
-      type_scope(
-          std::make_unique<ScopeTable<TypeAlias>>(false, nullptr, "", true)) {
-  // construct scope table from type parameters
-  for (auto &param : this->params) {
-    auto type_alias = std::make_shared<TypeAlias>(param->loc, param, false);
-    type_scope->addSymbol(param->name, std::move(type_alias));
-  }
-}
+      type_scope(scopeTableFromFormalTypeParams(this->params)) {}
 
 size_t GenericTypeConstructor::numTypeParams() const { return params.size(); }
 
@@ -318,6 +327,100 @@ std::shared_ptr<NamedFunctionType> FunctionDecl::getFormalBoundFunctionType() {
   auto res =
       std::dynamic_pointer_cast<NamedFunctionType>(type->getFormalBoundType());
   assert(res != nullptr);
+  return res;
+}
+
+ImplStatement::ImplStatement(const SourceLocation &loc,
+                             FormalTypeParameterList type_params,
+                             std::shared_ptr<Type> type, StatementList body)
+    : Statement(loc), type_params(std::move(type_params)),
+      type(std::move(type)), body(std::move(body)),
+      type_scope(scopeTableFromFormalTypeParams(this->type_params)) {}
+
+// Random hash values for each type -- for each type, its hash is its
+// random value combined with the value of its subtree
+const std::size_t int_hash = 15653828285635008617ULL;
+const std::size_t uint_hash = 18039289428081990911ULL;
+const std::size_t float_hash = 12766205717137727273ULL;
+const std::size_t bool_hash = 6813291328063854507ULL;
+const std::size_t void_hash = 11591015837194168803ULL;
+const std::size_t mut_hash = 12155074924612969154ULL;
+const std::size_t pointer_hash = 2799149878986810139ULL;
+const std::size_t function_hash = 632868945383080845ULL;
+const std::size_t tuple_hash = 11072401693384440110ULL;
+const std::size_t struct_hash = 18441784286747023263ULL;
+const std::size_t formal_type_param_hash = 8481408178564299622ULL;
+const std::size_t hash_prime = 31;
+
+std::size_t Type::hash() const {
+  // Type shouldn't be hashed
+  assert(false);
+}
+
+std::size_t FormalTypeParameter::hash() const {
+  return formal_type_param_hash + id;
+}
+
+std::size_t VoidType::hash() const { return void_hash; }
+
+std::size_t BoolType::hash() const { return bool_hash; }
+
+std::size_t IntType::hash() const {
+  return (int_hash * (size - 1)) ^ (isUnsigned ? uint_hash : 0);
+}
+
+std::size_t FloatType::hash() const { return float_hash * (size - 1); }
+
+std::size_t MutType::hash() const {
+  return mut_hash + type->hash() * hash_prime;
+}
+
+std::size_t PointerType::hash() const {
+  return pointer_hash + type->hash() * hash_prime;
+}
+
+std::size_t FunctionType::hash() const {
+  std::size_t res = 0;
+  for (const auto &arg : argTypes) {
+    res += arg->hash();
+    res *= hash_prime;
+  }
+  res += retType->hash();
+  res *= hash_prime;
+  res += function_hash;
+
+  return res;
+}
+
+std::size_t TupleType::hash() const {
+  std::size_t res = 0;
+  for (const auto &field : types) {
+    res += field->hash();
+    res *= hash_prime;
+  }
+  res += tuple_hash;
+
+  return res;
+}
+
+std::size_t StructType::hash() const {
+  // TODO: hashing just the struct name may not differentiate between
+  // differently versioned modules
+  std::size_t res = 0;
+  for (const auto &param : actual_generic_params) {
+    res += param->hash();
+    res *= hash_prime;
+  }
+  // add struct name to hash
+  std::string name;
+  auto scoped_name = type_alias->getFullyScopedName();
+  for (const auto &comp : scoped_name) {
+    name += comp;
+  }
+  res *= std::hash<std::string>{}(name);
+  res *= hash_prime;
+  res += struct_hash;
+
   return res;
 }
 
@@ -406,11 +509,11 @@ std::vector<std::string> TypeAlias::getFullyScopedName() const {
   return fullName;
 }
 
-std::string scopedNameToString(const std::vector<std::string>& scopes) {
+std::string scopedNameToString(const std::vector<std::string> &scopes) {
   std::string res;
-  for(size_t i = 0; i < scopes.size(); i++) {
+  for (size_t i = 0; i < scopes.size(); i++) {
     res.append(scopes[i]);
-    if(i < scopes.size() - 1) {
+    if (i < scopes.size() - 1) {
       res.push_back(':');
     }
   }

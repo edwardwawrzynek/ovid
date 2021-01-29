@@ -24,6 +24,7 @@ template <class T, class S> class BaseASTVisitor {
   virtual T visitIfStatement(IfStatement &node, const S &state);
   virtual T visitWhileStatement(WhileStatement &node, const S &state);
   virtual T visitReturnStatement(ReturnStatement &node, const S &state);
+  virtual T visitImplStatement(ImplStatement &node, const S &state);
 
   virtual T visitFunctionCall(FunctionCall &node, const S &state);
   virtual T visitIdentifier(Identifier &node, const S &state);
@@ -76,6 +77,8 @@ T BaseASTVisitor<T, S>::visitStatement(Statement &node, const S &state) {
     return visitWhileStatement(dynamic_cast<WhileStatement &>(node), state);
   } else if (dynamic_cast<ReturnStatement *>(&node) != nullptr) {
     return visitReturnStatement(dynamic_cast<ReturnStatement &>(node), state);
+  } else if (dynamic_cast<ImplStatement *>(&node) != nullptr) {
+    return visitImplStatement(dynamic_cast<ImplStatement &>(node), state);
   } else if (dynamic_cast<Expression *>(&node) != nullptr) {
     return visitExpression(dynamic_cast<Expression &>(node), state);
   }
@@ -221,6 +224,12 @@ T BaseASTVisitor<T, S>::visitStructExpr(StructExpr &node, const S &state) {
 
 template <class T, class S>
 T BaseASTVisitor<T, S>::visitSizeof(Sizeof &node, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseASTVisitor<T, S>::visitImplStatement(ImplStatement &node,
+                                           const S &state) {
   return std::move(defaultValue);
 }
 

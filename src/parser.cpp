@@ -1485,6 +1485,46 @@ Parser::parseStructStatement(const ParserState &state, bool is_public) {
   return std::make_unique<ast::TypeAliasDecl>(pos, name, alias);
 }
 
+// impl ::= impl formaltypeparams type '{' statement* '}'
+std::unique_ptr<ast::ImplStatement>
+Parser::parseImplStatement(const ParserState &state) {
+  auto beginPos = tokenizer.curTokenLoc;
+  // consume 'impl'
+  tokenizer.nextToken();
+  // check for type parameters list (beginning with '<')
+  ast::FormalTypeParameterList type_params;
+  if (tokenizer.curToken.token == T_LESS) {
+    type_params = parseFormalTypeParameterList(state, false);
+  }
+
+  auto type = parseType(state);
+  auto endPos = tokenizer.curTokenLoc;
+
+  if (tokenizer.curToken.token != T_LBRK) {
+    errorMan.logError("expected '{' to begin impl block", tokenizer.curTokenLoc,
+                      ErrorType::ParseError);
+  }
+  tokenizer.nextToken();
+
+  ast::StatementList stats;
+  while (tokenizer.curToken.token != T_RBRK) {
+    auto stat = parseStatement(state);
+    if (!stat && tokenizer.curToken.token != T_RBRK)
+      return errorMan.logError("expected '}' to end block",
+                               tokenizer.curTokenLoc, ErrorType::ParseError);
+    if (!dynamic_cast<ast::FunctionDecl *>(stat.get()))
+      return errorMan.logError(
+          "only function declarations are allowed in impl blocks", stat->loc,
+          ErrorType::ParseError);
+    stats.push_back(std::move(stat));
+  }
+  tokenizer.nextToken();
+
+  return std::make_unique<ast::ImplStatement>(
+      beginPos.through(endPos), std::move(type_params), std::move(type),
+      std::move(stats));
+}
+
 // check if parser is currently at an end of statement
 bool Parser::isEndStatement() {
   return tokenizer.curToken.token == T_SEMICOLON ||
@@ -1565,6 +1605,8 @@ Parser::parseStatement(const ParserState &state) {
   case T_PUB:
   case T_STRUCT:
     return parsePossiblePubStatement(state, false);
+  case T_IMPL:
+    return parseImplStatement(state);
   case T_NATIVE: {
     auto res = parseNativeStatement(state);
     expectEndStatement();

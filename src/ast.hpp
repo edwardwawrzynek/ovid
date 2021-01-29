@@ -4,6 +4,7 @@
 #include "symbols.hpp"
 #include "tokenizer.hpp"
 #include "llvm/IR/DerivedTypes.h"
+#include <cstddef>
 #include <iostream>
 #include <memory>
 #include <utility>
@@ -94,8 +95,9 @@ public:
   std::vector<std::string> getFullyScopedName() const;
 };
 
-/* convert a std::vector<std::string> scoped name to a single string seperated by : */
-std::string scopedNameToString(const std::vector<std::string>& scopes);
+/* convert a std::vector<std::string> scoped name to a single string seperated
+ * by : */
+std::string scopedNameToString(const std::vector<std::string> &scopes);
 
 // name and type symbol tables
 class ActiveScopes {
@@ -228,6 +230,8 @@ public:
   bool equalStrict(const Type &other) const;
   // check if a type is or containsFrom a pointer
   virtual bool containsPointer() const;
+  // produce a hash of the type
+  virtual std::size_t hash() const;
 
   virtual const Type *withoutMutability() const;
   virtual Type *withoutMutability();
@@ -247,6 +251,7 @@ public:
   // are turned into concrete types
   uint64_t id;
   bool equal(const Type &expected, bool strict) const override;
+  std::size_t hash() const override;
 
   FormalTypeParameter(const SourceLocation &loc, const std::string &name)
       : Type(loc), name(name), id(next_id()){};
@@ -276,6 +281,7 @@ public:
 class VoidType : public Type {
 public:
   bool equal(const Type &expected, bool strict) const override;
+  std::size_t hash() const override;
 
   VoidType(const SourceLocation &loc) : Type(loc){};
 };
@@ -283,6 +289,7 @@ public:
 class BoolType : public Type {
 public:
   bool equal(const Type &expected, bool strict) const override;
+  std::size_t hash() const override;
 
   BoolType(const SourceLocation &loc) : Type(loc){};
 };
@@ -293,6 +300,7 @@ public:
   bool isUnsigned;
 
   bool equal(const Type &expected, bool strict) const override;
+  std::size_t hash() const override;
 
   IntType(const SourceLocation &loc, int size, bool isUnsigned)
       : Type(loc), size(size), isUnsigned(isUnsigned){};
@@ -303,6 +311,7 @@ public:
   int size; // in bits
 
   bool equal(const Type &expected, bool strict) const override;
+  std::size_t hash() const override;
 
   explicit FloatType(const SourceLocation &loc, int size)
       : Type(loc), size(size){};
@@ -316,6 +325,7 @@ public:
   Type *withoutMutability() override;
 
   bool equal(const Type &expected, bool strict) const override;
+  std::size_t hash() const override;
 
   bool containsPointer() const override;
 
@@ -328,6 +338,7 @@ public:
   std::shared_ptr<Type> type;
 
   bool equal(const Type &expected, bool strict) const override;
+  std::size_t hash() const override;
 
   bool containsPointer() const override;
 
@@ -341,6 +352,7 @@ public:
   std::shared_ptr<Type> retType;
 
   bool equal(const Type &expected, bool strict) const override;
+  std::size_t hash() const override;
 
   FunctionType(const SourceLocation &loc, TypeList argTypes,
                std::shared_ptr<Type> retType)
@@ -386,6 +398,7 @@ public:
   TypeList types;
 
   bool equal(const Type &expected, bool strict) const override;
+  std::size_t hash() const override;
 
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
   size_t getNumFields() const override;
@@ -416,6 +429,7 @@ public:
   ast::TypeList actual_generic_params;
 
   bool equal(const Type &expected, bool strict) const override;
+  std::size_t hash() const override;
 
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
   size_t getNumFields() const override;
@@ -446,6 +460,10 @@ public:
         llvm_type(nullptr), constructed(constructed),
         actual_generic_params(std::move(actual_generic_params)){};
 };
+
+inline bool operator==(const Type &lhs, const Type &rhs) {
+  return lhs.equalStrict(rhs);
+}
 
 class FunctionPrototype {
 public:
@@ -565,6 +583,19 @@ public:
   ReturnStatement(const SourceLocation &loc,
                   std::unique_ptr<Expression> expression)
       : Statement(loc), expression(std::move(expression)){};
+};
+
+class ImplStatement : public Statement {
+public:
+  FormalTypeParameterList type_params;
+  std::shared_ptr<Type> type;
+  StatementList body;
+
+  // scope table mapping type params names -> alias decls
+  std::unique_ptr<ScopeTable<TypeAlias>> type_scope;
+
+  ImplStatement(const SourceLocation &loc, FormalTypeParameterList type_params,
+                std::shared_ptr<Type> type, StatementList body);
 };
 
 /* ast expressions */
@@ -739,5 +770,12 @@ public:
 };
 
 } // namespace ovid::ast
+
+// hashing implementation for types
+namespace std {
+template <> struct hash<ovid::ast::Type> {
+  std::size_t operator()(const ovid::ast::Type &type) { return type.hash(); }
+};
+} // namespace std
 
 #endif

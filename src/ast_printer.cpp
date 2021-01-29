@@ -77,6 +77,29 @@ int ASTPrinter::visitFunctionDecl(FunctionDecl &node,
   return 0;
 }
 
+int ASTPrinter::visitImplStatement(ImplStatement &node,
+                                   const ASTPrinterState &state) {
+  state.printIndent(output);
+  printLoc(output, node.loc);
+  output << " ImplStatement\n";
+  state.printIndent(output);
+  output << "  type_params:";
+  for (const auto &param : node.type_params) {
+    output << " " << param->name;
+  }
+  output << "\n";
+  state.printIndent(output);
+  output << "  type:\n";
+  typePrinter.visitType(*node.type, state.withIndent());
+  state.printIndent(output);
+  output << "  body:\n";
+  for (auto &body : node.body) {
+    visitNode(*body, state.withIndent());
+  }
+
+  return 0;
+}
+
 int ASTPrinter::visitIfStatement(IfStatement &node,
                                  const ASTPrinterState &state) {
   state.printIndent(output);
