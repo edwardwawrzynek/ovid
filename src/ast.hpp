@@ -140,9 +140,13 @@ class FormalTypeParameter;
 typedef std::vector<std::unique_ptr<Expression>> ExpressionList;
 typedef std::vector<std::unique_ptr<Statement>> StatementList;
 typedef std::vector<std::shared_ptr<Type>> TypeList;
+typedef std::vector<std::shared_ptr<const Type>> ConstTypeList;
 typedef std::vector<std::unique_ptr<TypeConstructor>> TypeConstructorList;
 typedef std::vector<std::shared_ptr<FormalTypeParameter>>
     FormalTypeParameterList;
+typedef std::function<bool(const FormalTypeParameter &param,
+                           const Type &expected)>
+    TypeParamEqualPredicate;
 
 /* id generation for type parameters */
 uint64_t next_id();
@@ -219,7 +223,15 @@ public:
 /* a concrete type -- a type that can be created */
 class Type : public TypeConstructor {
 public:
-  virtual bool equal(const Type &expected, bool strict) const;
+  // Check if this and expected are of the same type. If strict is false, mut ->
+  // non mut transformed types are considered equal (ex: if strict, *mut i32 !=
+  // *i32, if not strict, *mut i32 == *i32). typeParamFunc is called when this
+  // is a FormalTypeParameter. It should return true if the this and expected
+  // should be considered equal. if typeParamFunc is null, then only matching
+  // FormalTypeParameter's are considered equal. typeParamFunc is useful for
+  // checking + building param substitutions.
+  virtual bool equal(const Type &expected, bool strict,
+                     const TypeParamEqualPredicate *typeParamFunc) const;
   // check if a type is equivalent to the given expected type
   // if this type has a mut (anywhere in the chain) that isn't in expected,
   // valid (mut -> non mut is valid) if the expected type has a mut that this
@@ -250,7 +262,8 @@ public:
   // for equality checks to replace type parameters when GenericTypeConstructors
   // are turned into concrete types
   uint64_t id;
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
   std::size_t hash() const override;
 
   FormalTypeParameter(const SourceLocation &loc, const std::string &name)
@@ -269,7 +282,8 @@ public:
   // if the type began with ::
   bool is_root_scoped;
 
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
 
   UnresolvedType(const SourceLocation &loc, std::vector<std::string> scopes,
                  const std::string &name, bool is_root_scoped,
@@ -280,7 +294,8 @@ public:
 
 class VoidType : public Type {
 public:
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
   std::size_t hash() const override;
 
   VoidType(const SourceLocation &loc) : Type(loc){};
@@ -288,7 +303,8 @@ public:
 
 class BoolType : public Type {
 public:
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
   std::size_t hash() const override;
 
   BoolType(const SourceLocation &loc) : Type(loc){};
@@ -299,7 +315,8 @@ public:
   int size; // in bits
   bool isUnsigned;
 
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
   std::size_t hash() const override;
 
   IntType(const SourceLocation &loc, int size, bool isUnsigned)
@@ -310,7 +327,8 @@ class FloatType : public Type {
 public:
   int size; // in bits
 
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
   std::size_t hash() const override;
 
   explicit FloatType(const SourceLocation &loc, int size)
@@ -324,7 +342,8 @@ public:
   const Type *withoutMutability() const override;
   Type *withoutMutability() override;
 
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
   std::size_t hash() const override;
 
   bool containsPointer() const override;
@@ -337,7 +356,8 @@ class PointerType : public Type {
 public:
   std::shared_ptr<Type> type;
 
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
   std::size_t hash() const override;
 
   bool containsPointer() const override;
@@ -351,7 +371,8 @@ public:
   TypeList argTypes;
   std::shared_ptr<Type> retType;
 
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
   std::size_t hash() const override;
 
   FunctionType(const SourceLocation &loc, TypeList argTypes,
@@ -364,7 +385,8 @@ public:
   std::vector<std::string> argNames;
   std::vector<std::shared_ptr<Symbol>> resolvedArgs;
 
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
 
   NamedFunctionType(const SourceLocation &loc, TypeList argTypes,
                     std::shared_ptr<Type> retType,
@@ -397,7 +419,8 @@ class TupleType : public ProductType {
 public:
   TypeList types;
 
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
   std::size_t hash() const override;
 
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;
@@ -428,7 +451,8 @@ public:
   // needed for name mangling + type equality checking
   ast::TypeList actual_generic_params;
 
-  bool equal(const Type &expected, bool strict) const override;
+  bool equal(const Type &expected, bool strict,
+             const TypeParamEqualPredicate *typeParamFunc) const override;
   std::size_t hash() const override;
 
   std::shared_ptr<Type> getTypeOfField(int32_t field_index) const override;

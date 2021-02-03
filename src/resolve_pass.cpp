@@ -23,6 +23,23 @@ int ResolvePass::visitVarDecl(VarDecl &node, const ResolvePassState &state) {
   return 0;
 }
 
+int ResolvePass::visitImplStatement(ImplStatement &node,
+                                    const ResolvePassState &state) {
+  // push formal type parameter scope
+  scopes.types.pushScope(node.type_scope.get());
+  // fixup impl type
+  auto resolvedType = resolveType(node.type);
+  assert(resolvedType != nullptr);
+  node.type = resolvedType;
+  // visit function decls
+  for (auto &child : node.body) {
+    visitNode(*child, state);
+  }
+  scopes.types.popScope(node.type_scope.get());
+
+  return 0;
+}
+
 int ResolvePass::visitFunctionDecl(FunctionDecl &node,
                                    const ResolvePassState &state) {
   // add this function's scope to the active scope stack
@@ -327,8 +344,7 @@ bool ResolvePass::checkTypeShadowed(
   if (shadowed) {
     auto scoped_name =
         scopesAndNameToString(current_module, name, is_in_global);
-    // TODO: print
-    auto shadowed_name = shadowed->getFullyScopedName();
+    auto shadowed_name = scopedNameToString(shadowed->getFullyScopedName());
 
     errorMan.logError(
         string_format(
@@ -336,9 +352,8 @@ bool ResolvePass::checkTypeShadowed(
             scoped_name.c_str()),
         pos, ErrorType::TypeDeclShadowed, false);
     errorMan.logError(
-        string_format(
-            "shadowed declaration of type `\x1b[1m%s\x1b[m` here",
-            scopedNameToString(shadowed->getFullyScopedName()).c_str()),
+        string_format("shadowed declaration of type `\x1b[1m%s\x1b[m` here",
+                      shadowed_name.c_str()),
         shadowed->decl_loc, ErrorType::Note);
   }
 

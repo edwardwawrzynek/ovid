@@ -14,7 +14,7 @@ llvm_map_components_to_libnames(REQ_LLVM_LIBRARIES native passes)
 # Main sources shared by all executables
 set(SOURCES ast.cpp ast_printer.cpp error.cpp escape_analysis.cpp ir.cpp ir_printer.cpp llvm_codegen.cpp name_mangle.cpp parser.cpp resolve_pass.cpp tokenizer.cpp type_check.cpp generics.cpp generics_pass.cpp)
 
-# ovidc command line diver
+# ovidc command line driver
 set(DRIVER main.cpp)
 
 # ovidc lib

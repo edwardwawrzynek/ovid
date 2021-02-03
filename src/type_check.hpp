@@ -54,6 +54,19 @@ public:
   explicit TypePrinter() : BaseTypeVisitor(0){};
 };
 
+/* Check if type matches pattern. Pattern is a type bound over the formal
+ * parameters formal_params. The formal parameters in pattern are allowed to
+ * match any type in type. If type matches pattern, the function returns a list
+ * of formal param -> concrete type substitutions that create the match. For
+ * example, given the pattern: (i32, *mut T) bound on formal parameter T, the
+ * type: (i32, *mut Vec<u64>) matches with the substitution T -> Vec<u64>.
+ *
+ * Returns std::pair(true, substitutions) if the pattern matches,
+ * std::pair(false, _) otherwise. */
+std::pair<bool, ConstTypeList>
+checkTypePattern(const Type &type, const Type &pattern,
+                 const FormalTypeParameterList &formal_params);
+
 /* The result of a type checker visit to a node
  * The type of the node and the ir it generated*/
 class TypeCheckResult {

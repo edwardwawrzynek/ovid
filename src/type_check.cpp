@@ -24,6 +24,61 @@ TypeCheckState TypeCheckState::withoutFunctionReturnType() const {
   return TypeCheckState(typeHint, nullptr);
 }
 
+std::pair<bool, ConstTypeList>
+checkTypePattern(const Type &type, const Type &pattern,
+                 const FormalTypeParameterList &formal_params) {
+  ConstTypeList subs;
+  for ([[maybe_unused]] const auto &param : formal_params) {
+    subs.push_back(nullptr);
+  }
+
+  const TypeParamEqualPredicate predicate =
+      [&formal_params, &subs](const FormalTypeParameter &param,
+                              const Type &other) -> bool {
+    // find param in formal_params
+    size_t index = 0;
+    bool found = false;
+    for (size_t i = 0; i < formal_params.size(); i++) {
+      if (formal_params[i]->id == param.id) {
+        index = i;
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      // if the param isn't bound in pattern, then just compare it normally
+      // this may happen if we have nested formal parameter scopes (ex: generic
+      // function inside generic impl)
+      return param.equal(other, true, nullptr);
+    } else {
+      // check if we've already made a substitution for this param
+      if (subs[index] != nullptr) {
+        // if other matches the previous substitution, then pattern is still
+        // good
+        return other.equal(*subs[index], true, nullptr);
+      } else {
+        // add the new substitution
+        auto other_ptr =
+            std::dynamic_pointer_cast<const Type>(other.shared_from_this());
+        assert(other_ptr != nullptr);
+        subs[index] = other_ptr;
+        return true;
+      }
+    }
+  };
+
+  // equal call: because typeParamFunc is called when this is a formal type
+  // param, we need to use type as expected and pattern as this. This is
+  // backwards for mut -> non mut subs, but we don't need to match them.
+  auto matches = pattern.equal(type, false, &predicate);
+  if (matches) {
+    return std::pair(true, std::move(subs));
+  } else {
+    return std::pair(false, ConstTypeList());
+  }
+}
+
 std::shared_ptr<Type> TypeCheck::addMutType(const std::shared_ptr<Type> &type,
                                             bool is_mut) {
   std::shared_ptr<Type> res;
