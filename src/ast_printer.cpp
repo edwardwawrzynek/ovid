@@ -84,13 +84,13 @@ int ASTPrinter::visitImplStatement(ImplStatement &node,
   output << " ImplStatement\n";
   state.printIndent(output);
   output << "  type_params:";
-  for (const auto &param : node.type_params) {
+  for (const auto &param : node.header->type_params) {
     output << " " << param->name;
   }
   output << "\n";
   state.printIndent(output);
   output << "  type:\n";
-  typePrinter.visitType(*node.type, state.withIndent());
+  typePrinter.visitType(*node.header->type, state.withIndent());
   state.printIndent(output);
   output << "  body:\n";
   for (auto &body : node.body) {

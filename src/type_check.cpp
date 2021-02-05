@@ -1687,11 +1687,7 @@ int TypePrinter::visitStructType(StructType &type,
   assert(type.getTypeAlias() != nullptr);
   auto name = type.getTypeAlias()->getFullyScopedName();
 
-  for (size_t i = 0; i < name.size(); i++) {
-    res.append(name[i]);
-    if (i < name.size() - 1)
-      res.push_back(':');
-  }
+  res.append(scopedNameToString(name));
 
   // if present, print generic type params
   auto &params = type.actual_generic_params;

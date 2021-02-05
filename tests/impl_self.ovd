@@ -1,0 +1,21 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+struct Type<T> {
+    value T
+}
+
+impl<T> Type<T> {
+    fn get_value(self) -> T {
+        return self.value
+    }
+
+    fn get_value_ptr(*self) -> *T {
+        return &self.value
+    }
+
+    fn set_value(*mut self, new T) {
+        self.value = new
+    }
+}

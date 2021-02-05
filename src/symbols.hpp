@@ -10,6 +10,11 @@
 #include <unordered_map>
 #include <vector>
 
+// forward declare
+namespace ovid::ast {
+class ImplHeader;
+}
+
 namespace ovid {
 /**
  * Symbol tables stored for ovid:
@@ -121,6 +126,11 @@ template <class T> class ScopeTable {
   // versioning number for this scope (package version hash)
   int64_t version_int;
 
+  // if this is the scope contained in an impl block, then impl is that block
+  // if impl is not nullptr, then parent is the scope containing the impl (not
+  // the scope through which the impl is addressed)
+  std::shared_ptr<ast::ImplHeader> impl;
+
 public:
   // return the SymbolTable associated with this scope
   SymbolTable<T> &getDirectScopeTable();
@@ -156,16 +166,18 @@ public:
 
   std::string getName() const;
   ScopeTable<T> *getParent() const;
+  std::shared_ptr<ast::ImplHeader> getImpl() const;
   int getVersionInt() const;
   void setVersionInt(int64_t version);
   bool getIsPublic() const;
   bool getIsFuncScope() const;
 
   ScopeTable(bool is_public, ScopeTable<T> *parent, const std::string &name,
-             bool is_func_scope = false, int64_t version_int = -1)
+             bool is_func_scope = false, int64_t version_int = -1,
+             std::shared_ptr<ast::ImplHeader> impl = nullptr)
       : symbols(std::make_unique<SymbolTable<T>>()), scopes(),
         is_public(is_public), is_func_scope(is_func_scope), parent(parent),
-        name(name), version_int(version_int){};
+        name(name), version_int(version_int), impl(std::move(impl)){};
 };
 
 template <class T> SymbolTable<T> &ScopeTable<T>::getDirectScopeTable() {
@@ -316,6 +328,10 @@ template <class T> bool ScopeTable<T>::getIsPublic() const { return is_public; }
 
 template <class T> bool ScopeTable<T>::getIsFuncScope() const {
   return is_func_scope;
+}
+template <class T>
+std::shared_ptr<ast::ImplHeader> ScopeTable<T>::getImpl() const {
+  return impl;
 }
 
 /* the active scopes and symbol tables

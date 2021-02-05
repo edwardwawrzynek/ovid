@@ -27,15 +27,18 @@ int ResolvePass::visitImplStatement(ImplStatement &node,
                                     const ResolvePassState &state) {
   // push formal type parameter scope
   scopes.types.pushScope(node.type_scope.get());
+  // push scope for fn decl's in body
+  scopes.names.pushScope(node.fn_scope.get());
   // fixup impl type
-  auto resolvedType = resolveType(node.type);
+  auto resolvedType = resolveType(node.header->type);
   assert(resolvedType != nullptr);
-  node.type = resolvedType;
+  node.header->type = resolvedType;
   // visit function decls
   for (auto &child : node.body) {
     visitNode(*child, state);
   }
   scopes.types.popScope(node.type_scope.get());
+  scopes.names.popScope(node.fn_scope.get());
 
   return 0;
 }

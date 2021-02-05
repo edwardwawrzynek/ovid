@@ -21,6 +21,18 @@ class Instruction;
 }
 
 namespace ovid {
+/* a component of a scope path */
+struct ScopeComponent {
+public:
+  std::string ident;
+  std::shared_ptr<ast::ImplHeader> impl;
+  bool is_ident;
+
+  ScopeComponent(std::string ident) : ident(ident), is_ident(true){};
+  ScopeComponent(std::shared_ptr<ast::ImplHeader> impl)
+      : impl(std::move(impl)), is_ident(false){};
+};
+
 /* a symbol and it's metadata (type, etc) */
 struct Symbol {
 public:
@@ -37,7 +49,7 @@ public:
   /* if the symbol is mutable
    * only applicable for variables */
   bool is_mut;
-  /* the symbol's declaration instructionin the ir
+  /* the symbol's declaration instruction in the ir
    * set. Used by the type checker */
   ir::Instruction *ir_decl_instruction;
   /* if the symbol is in a global scope */
@@ -62,7 +74,7 @@ public:
         parent_table(nullptr){};
 
   /* get this symbol's fully scoped name */
-  std::vector<std::string> getFullyScopedName() const;
+  std::vector<ScopeComponent> getFullyScopedName() const;
 };
 /* a type alias and its metadata */
 struct TypeAlias {
@@ -92,12 +104,12 @@ public:
         inner_resolved(false), name(), parent_table(nullptr){};
 
   /* get this symbol's fully scoped name */
-  std::vector<std::string> getFullyScopedName() const;
+  std::vector<ScopeComponent> getFullyScopedName() const;
 };
 
 /* convert a std::vector<std::string> scoped name to a single string seperated
  * by : */
-std::string scopedNameToString(const std::vector<std::string> &scopes);
+std::string scopedNameToString(const std::vector<ScopeComponent> &scopes);
 
 // name and type symbol tables
 class ActiveScopes {
@@ -609,17 +621,31 @@ public:
       : Statement(loc), expression(std::move(expression)){};
 };
 
-class ImplStatement : public Statement {
+// ImplHeader is just the impl type and generic parameters.
+// body is part of ImplStatement
+class ImplHeader {
 public:
   FormalTypeParameterList type_params;
   std::shared_ptr<Type> type;
+
+  ImplHeader(FormalTypeParameterList type_params, std::shared_ptr<Type> type);
+};
+
+class ImplStatement : public Statement {
+public:
+  std::shared_ptr<ImplHeader> header;
   StatementList body;
 
   // scope table mapping type params names -> alias decls
   std::unique_ptr<ScopeTable<TypeAlias>> type_scope;
 
-  ImplStatement(const SourceLocation &loc, FormalTypeParameterList type_params,
-                std::shared_ptr<Type> type, StatementList body);
+  // scope table for body fn decl's
+  // this table has no parent -- it's impl is linked to header
+  std::unique_ptr<ScopeTable<Symbol>> fn_scope;
+
+  ImplStatement(const SourceLocation &loc, std::shared_ptr<ImplHeader> header,
+                std::unique_ptr<ScopeTable<Symbol>> fn_scope,
+                StatementList body);
 };
 
 /* ast expressions */

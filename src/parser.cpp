@@ -798,6 +798,55 @@ void Parser::addTypeAlias(const ParserState &state, const std::string &name,
   }
 }
 
+const std::string self_arg_ident = "self";
+
+// selfParamDecl ::= ('*' 'mut'?)? 'self'
+std::shared_ptr<ast::Type>
+Parser::parseSelfParamDecl(const ParserState &state) {
+  auto res = state.impl_type;
+
+  // check for * and mut
+  SourceLocation ptr_loc = SourceLocation::nullLocation();
+  SourceLocation mut_loc = SourceLocation::nullLocation();
+  bool is_ptr = false;
+  bool is_mut_ptr = false;
+  if (tokenizer.curToken.token == T_STAR) {
+    is_ptr = true;
+    ptr_loc = tokenizer.curTokenLoc;
+    tokenizer.nextToken();
+    if (tokenizer.curToken.token == T_MUT) {
+      is_mut_ptr = true;
+      mut_loc = tokenizer.curTokenLoc;
+      tokenizer.nextToken();
+    }
+  }
+
+  // make sure 'self' is present
+  if (tokenizer.curToken.token == T_IDENT &&
+      tokenizer.curToken.ident == self_arg_ident) {
+    auto self_loc = tokenizer.curTokenLoc;
+    tokenizer.nextToken();
+    assert(!is_mut_ptr || is_ptr);
+    if (is_mut_ptr) {
+      res = std::make_shared<ast::MutType>(mut_loc, std::move(res));
+    }
+    if (is_ptr) {
+      res = std::make_shared<ast::PointerType>(ptr_loc, std::move(res));
+    }
+
+    if (state.impl_type == nullptr) {
+      return errorMan.logError(
+          "Cannot declare a 'self' parameter outside of an 'impl' block",
+          self_loc, ErrorType::TypeError);
+    }
+
+    return res;
+  } else {
+    return errorMan.logError("Expected argument name", tokenizer.curTokenLoc,
+                             ErrorType::ParseError);
+  }
+}
+
 // namedFunctionType ::= '(' (arg typeExpr ',')* arg typeExpr ')' ('->'
 //// typeExpr)?
 // argLocs is an empty vector to put the location of each arg declare
@@ -821,19 +870,36 @@ Parser::parseNamedFunctionType(const ParserState &state,
     if (tokenizer.curToken.token == T_RPAREN)
       break;
 
-    // read argument name
-    if (tokenizer.curToken.token != T_IDENT)
-      return errorMan.logError("Expected argument name", tokenizer.curTokenLoc,
-                               ErrorType::ParseError);
-    argNames.push_back(tokenizer.curToken.ident);
-    if (argLocs)
-      argLocs->push_back(tokenizer.curTokenLoc);
-    tokenizer.nextToken();
-    // read types
-    auto type = parseType(state);
-    if (!type)
-      return nullptr;
-    argTypes.push_back(std::move(type));
+    // check for self param -- if token is "self" or "*", it begins a self decl
+    // (*self, *mut self)
+    if ((tokenizer.curToken.token == T_IDENT &&
+         tokenizer.curToken.ident == self_arg_ident) ||
+        tokenizer.curToken.token == T_STAR) {
+      auto start_loc = tokenizer.curTokenLoc;
+      auto type = parseSelfParamDecl(state);
+      if (type == nullptr)
+        break;
+      auto loc = start_loc.until(tokenizer.curTokenLoc);
+
+      argNames.push_back(self_arg_ident);
+      argTypes.push_back(std::move(type));
+      if (argLocs)
+        argLocs->push_back(loc);
+    } else {
+      // regular argument -- read name
+      if (tokenizer.curToken.token != T_IDENT)
+        return errorMan.logError("Expected argument name",
+                                 tokenizer.curTokenLoc, ErrorType::ParseError);
+      argNames.push_back(tokenizer.curToken.ident);
+      if (argLocs)
+        argLocs->push_back(tokenizer.curTokenLoc);
+      tokenizer.nextToken();
+      // read types
+      auto type = parseType(state);
+      if (!type)
+        return nullptr;
+      argTypes.push_back(std::move(type));
+    }
   } while (tokenizer.curToken.token == T_COMMA);
 
   if (tokenizer.curToken.token != T_RPAREN)
@@ -1500,6 +1566,16 @@ Parser::parseImplStatement(const ParserState &state) {
   auto type = parseType(state);
   auto endPos = tokenizer.curTokenLoc;
 
+  auto header = std::make_shared<ast::ImplHeader>(std::move(type_params), type);
+  // the scope table for fn decl's is linked back to the impl itself
+  auto bodyScope = std::make_unique<ScopeTable<Symbol>>(
+      true, state.current_scope, "", false, -1, header);
+  // add scope table + impl type (for linking self params -> impl type) to state
+  ParserState bodyState(state.is_global_level, bodyScope.get(),
+                        state.current_type_scope, state.current_module,
+                        state.in_private_mod, state.struct_literals_allowed,
+                        type);
+
   if (tokenizer.curToken.token != T_LBRK) {
     errorMan.logError("expected '{' to begin impl block", tokenizer.curTokenLoc,
                       ErrorType::ParseError);
@@ -1508,7 +1584,7 @@ Parser::parseImplStatement(const ParserState &state) {
 
   ast::StatementList stats;
   while (tokenizer.curToken.token != T_RBRK) {
-    auto stat = parseStatement(state);
+    auto stat = parseStatement(bodyState);
     if (!stat && tokenizer.curToken.token != T_RBRK)
       return errorMan.logError("expected '}' to end block",
                                tokenizer.curTokenLoc, ErrorType::ParseError);
@@ -1521,7 +1597,7 @@ Parser::parseImplStatement(const ParserState &state) {
   tokenizer.nextToken();
 
   return std::make_unique<ast::ImplStatement>(
-      beginPos.through(endPos), std::move(type_params), std::move(type),
+      beginPos.through(endPos), std::move(header), std::move(bodyScope),
       std::move(stats));
 }
 
@@ -1634,6 +1710,9 @@ Parser::parseStatement(const ParserState &state) {
     auto res = parseWhileStatement(state);
     expectEndStatement();
     return res;
+  }
+  case T_EOF: {
+    return nullptr;
   }
   default: {
     auto res = parseExpr(state);
@@ -1767,6 +1846,13 @@ ParserState ParserState::allowStructLiterals() const {
 ParserState ParserState::disallowStructLiterals() const {
   return ParserState(is_global_level, current_scope, current_type_scope,
                      current_module, in_private_mod, false);
+}
+
+ParserState
+ParserState::withImplType(std::shared_ptr<ast::Type> new_impl_type) const {
+  return ParserState(is_global_level, current_scope, current_type_scope,
+                     current_module, in_private_mod, struct_literals_allowed,
+                     std::move(new_impl_type));
 }
 
 } // namespace ovid

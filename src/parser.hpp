@@ -28,18 +28,28 @@ struct ParserState {
   // literals are disallowed in some positions
   bool struct_literals_allowed;
 
+  // if we are in an impl block, the impl type (the type of self)
+  std::shared_ptr<ast::Type> impl_type;
+
   ParserState allowStructLiterals() const;
   ParserState disallowStructLiterals() const;
+
+  ParserState withImplType(std::shared_ptr<ast::Type> new_impl_type) const;
 
   ParserState(bool is_global_level, ScopeTable<Symbol> *current_scope,
               ScopeTable<TypeAlias> *current_type_scope,
               const std::vector<std::string> &current_module,
-              bool in_private_mod, bool struct_literals_allowed = true)
+              bool in_private_mod, bool struct_literals_allowed = true,
+              std::shared_ptr<ast::Type> impl_type = nullptr)
       : is_global_level(is_global_level), in_private_mod(in_private_mod),
         current_scope(current_scope), current_type_scope(current_type_scope),
         current_module(current_module),
-        struct_literals_allowed(struct_literals_allowed){};
+        struct_literals_allowed(struct_literals_allowed),
+        impl_type(std::move(impl_type)){};
 };
+
+// the name of the self param ("self")
+extern const std::string self_arg_ident;
 
 class Parser {
   Tokenizer &tokenizer;
@@ -103,6 +113,8 @@ class Parser {
 
   std::unique_ptr<ast::Statement> parseFunctionDecl(const ParserState &state,
                                                     bool is_public);
+
+  std::shared_ptr<ast::Type> parseSelfParamDecl(const ParserState &state);
 
   std::shared_ptr<ast::NamedFunctionType>
   parseNamedFunctionType(const ParserState &state,

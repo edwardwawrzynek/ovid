@@ -1,0 +1,30 @@
+// __ovid_compiler_test
+//__mode: parse
+//__end_header
+
+impl i32 {
+    fn abs(self) -> i32 {
+        priv_impl:abs(self) //__error: "use of private identifier `priv_impl:abs`"
+        return pub_impl:abs(self)
+    }
+}
+
+module pub_impl {
+    pub fn abs(num i32) -> i32 {
+        if num < 0 {
+            return -num
+        } else {
+            return num
+        }
+    }
+}
+
+module priv_impl {
+    fn abs(num i32) -> i32 {
+        if num < 0 {
+            return -num
+        } else {
+            return num
+        }
+    }
+}

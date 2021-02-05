@@ -1,5 +1,6 @@
 #include "ast.hpp"
 #include "generics.hpp"
+#include "type_check.hpp"
 
 #include <functional>
 
@@ -353,12 +354,19 @@ std::shared_ptr<NamedFunctionType> FunctionDecl::getFormalBoundFunctionType() {
   return res;
 }
 
+ImplHeader::ImplHeader(FormalTypeParameterList type_params,
+                       std::shared_ptr<Type> type)
+    : type_params(std::move(type_params)), type(std::move(type)) {}
+
 ImplStatement::ImplStatement(const SourceLocation &loc,
-                             FormalTypeParameterList type_params,
-                             std::shared_ptr<Type> type, StatementList body)
-    : Statement(loc), type_params(std::move(type_params)),
-      type(std::move(type)), body(std::move(body)),
-      type_scope(scopeTableFromFormalTypeParams(this->type_params)) {}
+                             std::shared_ptr<ImplHeader> header,
+                             std::unique_ptr<ScopeTable<Symbol>> fn_scope,
+                             StatementList body)
+    : Statement(loc), header(std::move(header)), body(std::move(body)),
+      type_scope(scopeTableFromFormalTypeParams(this->header->type_params)),
+      fn_scope(std::move(fn_scope)) {
+  assert(this->fn_scope->getImpl() == this->header);
+}
 
 // Random hash values for each type -- for each type, its hash is its
 // random value combined with the value of its subtree
@@ -486,52 +494,80 @@ ActiveScopes::ActiveScopes(const std::vector<std::string> &packageName,
 
 ActiveScopes::ActiveScopes() : names(), types() {}
 
-std::vector<std::string> Symbol::getFullyScopedName() const {
+std::vector<ScopeComponent> Symbol::getFullyScopedName() const {
   size_t scopes_size = 1;
   auto tmp = parent_table;
-  while (tmp != nullptr && !tmp->getName().empty()) {
+  while (tmp != nullptr &&
+         (!tmp->getName().empty() || tmp->getImpl() != nullptr)) {
     scopes_size++;
-    tmp = tmp->getParent();
+    if (tmp->getImpl() == nullptr) {
+      tmp = tmp->getParent();
+    } else {
+      tmp = nullptr;
+    }
   }
 
-  std::vector<std::string> fullName(scopes_size, "");
+  std::vector<ScopeComponent> fullName(scopes_size, ScopeComponent(""));
 
   fullName[scopes_size - 1] = name;
   tmp = parent_table;
-  while (tmp != nullptr && !tmp->getName().empty()) {
+  while (tmp != nullptr &&
+         (!tmp->getName().empty() || tmp->getImpl() != nullptr)) {
     scopes_size--;
-    fullName[scopes_size - 1] = tmp->getName();
-    tmp = tmp->getParent();
+    if (tmp->getImpl() == nullptr) {
+      fullName[scopes_size - 1] = tmp->getName();
+      tmp = tmp->getParent();
+    } else {
+      fullName[scopes_size - 1] = tmp->getImpl();
+      tmp = nullptr;
+    }
   }
 
   return fullName;
 }
 
-std::vector<std::string> TypeAlias::getFullyScopedName() const {
+std::vector<ScopeComponent> TypeAlias::getFullyScopedName() const {
   size_t scopes_size = 1;
   auto tmp = parent_table;
-  while (tmp != nullptr && !tmp->getName().empty()) {
+  while (tmp != nullptr &&
+         (!tmp->getName().empty() || tmp->getImpl() != nullptr)) {
     scopes_size++;
-    tmp = tmp->getParent();
+    if (tmp->getImpl() == nullptr) {
+      tmp = tmp->getParent();
+    } else {
+      tmp = nullptr;
+    }
   }
 
-  std::vector<std::string> fullName(scopes_size, "");
+  std::vector<ScopeComponent> fullName(scopes_size, ScopeComponent(""));
 
   fullName[scopes_size - 1] = name;
   tmp = parent_table;
-  while (tmp != nullptr && !tmp->getName().empty()) {
+  while (tmp != nullptr &&
+         (!tmp->getName().empty() || tmp->getImpl() != nullptr)) {
     scopes_size--;
-    fullName[scopes_size - 1] = tmp->getName();
-    tmp = tmp->getParent();
+    if (tmp->getImpl() == nullptr) {
+      fullName[scopes_size - 1] = tmp->getName();
+      tmp = tmp->getParent();
+    } else {
+      fullName[scopes_size - 1] = tmp->getImpl();
+      tmp = nullptr;
+    }
   }
 
   return fullName;
 }
 
-std::string scopedNameToString(const std::vector<std::string> &scopes) {
+std::string scopedNameToString(const std::vector<ScopeComponent> &scopes) {
   std::string res;
   for (size_t i = 0; i < scopes.size(); i++) {
-    res.append(scopes[i]);
+    if (scopes[i].is_ident) {
+      res.append(scopes[i].ident);
+    } else {
+      res.push_back('[');
+      res.append(ast::TypePrinter().getType(*scopes[i].impl->type));
+      res.push_back(']');
+    }
     if (i < scopes.size() - 1) {
       res.push_back(':');
     }

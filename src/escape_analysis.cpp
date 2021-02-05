@@ -668,10 +668,7 @@ int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
   if (print_flows || print_escapes || print_func_flow_metadata) {
     output << "FUNCTION ";
     auto name = instruct.val.id.sourceName->getFullyScopedName();
-    for (auto &scope : name) {
-      output << scope << ":";
-    }
-    output << "\n";
+    output << scopedNameToString(name) << ":\n";
   }
   if (print_flows) {
     for (auto &flow : flows) {
