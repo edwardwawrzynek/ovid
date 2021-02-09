@@ -281,6 +281,52 @@ public:
                     std::shared_ptr<ast::TypeConstructor> type_construct);
 };
 
+/* a impl block constructor -- generic impl
+ */
+class GenericImpl : public GenericExpression {
+public:
+  // component function declarations
+  // Instruction b/c function declares may be GenericExpression
+  InstructionList fn_decls;
+
+  GenericImpl(const SourceLocation &loc, const Id &id, InstructionList fn_decls,
+              const ast::ImplHeader &header);
+};
+
+/* an impl block on a concrete type
+ */
+class Impl : public Expression {
+public:
+  // component function declarations
+  InstructionList fn_decls;
+
+  Impl(const SourceLocation &loc, const Value &val, InstructionList fn_decls,
+       const ast::ImplHeader &header);
+};
+
+/* a function selection on an impl block
+ * ie -- extract a function expression from an impl given it's id */
+class ImplFnExtract : public Expression {
+public:
+  Expression &impl;
+  uint64_t extract_id;
+
+  ImplFnExtract(const SourceLocation &loc, const Value &val, Expression &impl,
+                uint64_t extract_id, std::shared_ptr<ast::Type> type);
+};
+
+/* a generic function selection on an impl block
+ * same as ImplFnExtract, but selects a generic function */
+class ImplGenericFnExtract : public GenericExpression {
+public:
+  Expression &impl;
+  uint64_t extract_id;
+
+  ImplGenericFnExtract(const SourceLocation &loc, const Id &id,
+                       Expression &impl, uint64_t extract_id,
+                       std::shared_ptr<ast::TypeConstructor> type);
+};
+
 /* a forward declared expression (likely a function or global) */
 class ForwardIdentifier : public Expression {
 public:

@@ -100,6 +100,32 @@ GenericExpression::GenericExpression(
     std::shared_ptr<ast::TypeConstructor> type_construct)
     : Instruction(loc), id(id), type_construct(std::move(type_construct)) {}
 
+GenericImpl::GenericImpl(const SourceLocation &loc, const Id &id,
+                         InstructionList fn_decls,
+                         const ast::ImplHeader &header)
+    : GenericExpression(loc, id,
+                        std::make_shared<ast::GenericTypeConstructor>(
+                            header.type->loc, header.type_params, header.type)),
+      fn_decls(std::move(fn_decls)) {}
+
+Impl::Impl(const SourceLocation &loc, const Value &val,
+           InstructionList fn_decls, const ast::ImplHeader &header)
+    : Expression(loc, val, header.type), fn_decls(std::move(fn_decls)) {
+  assert(header.type_params.empty());
+}
+
+ImplFnExtract::ImplFnExtract(const SourceLocation &loc, const Value &val,
+                             Expression &impl, uint64_t extract_id,
+                             std::shared_ptr<ast::Type> type)
+    : Expression(loc, val, std::move(type)), impl(impl),
+      extract_id(extract_id) {}
+
+ImplGenericFnExtract::ImplGenericFnExtract(
+    const SourceLocation &loc, const Id &id, Expression &impl,
+    uint64_t extract_id, std::shared_ptr<ast::TypeConstructor> type)
+    : GenericExpression(loc, id, std::move(type)), impl(impl),
+      extract_id(extract_id) {}
+
 Allocation::Allocation(const SourceLocation &loc, const Value &val,
                        std::shared_ptr<ast::Type> type,
                        AllocationType allocType)

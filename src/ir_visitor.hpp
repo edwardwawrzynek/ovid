@@ -17,7 +17,12 @@ template <class T, class S> class BaseIRVisitor {
                                         const S &state);
   virtual T visitGenericForwardIdentifier(GenericForwardIdentifier &instruct,
                                           const S &state);
+  virtual T visitGenericImpl(GenericImpl &instruct, const S &state);
+  virtual T visitImplGenericFnExtract(ImplGenericFnExtract &instruct,
+                                      const S &state);
 
+  virtual T visitImpl(Impl &instruct, const S &state);
+  virtual T visitImplFnExtract(ImplFnExtract &instruct, const S &state);
   virtual T visitFunctionDeclare(FunctionDeclare &instruct, const S &state);
   virtual T visitIntLiteral(IntLiteral &instruct, const S &state);
   virtual T visitBoolLiteral(BoolLiteral &instruct, const S &state);
@@ -80,6 +85,11 @@ T BaseIRVisitor<T, S>::visitGenericExpression(GenericExpression &instruct,
   } else if (dynamic_cast<GenericForwardIdentifier *>(&instruct) != nullptr) {
     return visitGenericForwardIdentifier(
         dynamic_cast<GenericForwardIdentifier &>(instruct), state);
+  } else if (dynamic_cast<GenericImpl *>(&instruct) != nullptr) {
+    return visitGenericImpl(dynamic_cast<GenericImpl &>(instruct), state);
+  } else if (dynamic_cast<ImplGenericFnExtract *>(&instruct) != nullptr) {
+    return visitImplGenericFnExtract(
+        dynamic_cast<ImplGenericFnExtract &>(instruct), state);
   }
 
   assert(false);
@@ -123,6 +133,10 @@ T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
     return visitSpecialize(dynamic_cast<Specialize &>(instruct), state);
   } else if (dynamic_cast<Sizeof *>(&instruct) != nullptr) {
     return visitSizeof(dynamic_cast<Sizeof &>(instruct), state);
+  } else if (dynamic_cast<Impl *>(&instruct) != nullptr) {
+    return visitImpl(dynamic_cast<Impl &>(instruct), state);
+  } else if (dynamic_cast<ImplFnExtract *>(&instruct) != nullptr) {
+    return visitImplFnExtract(dynamic_cast<ImplFnExtract &>(instruct), state);
   }
 
   assert(false);
@@ -265,6 +279,28 @@ T BaseIRVisitor<T, S>::visitSpecialize(Specialize &instruct, const S &state) {
 
 template <class T, class S>
 T BaseIRVisitor<T, S>::visitSizeof(Sizeof &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitGenericImpl(GenericImpl &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitImplGenericFnExtract(ImplGenericFnExtract &instruct,
+                                                 const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitImpl(Impl &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitImplFnExtract(ImplFnExtract &instruct,
+                                          const S &state) {
   return std::move(defaultValue);
 }
 

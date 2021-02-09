@@ -371,4 +371,73 @@ int IRPrinter::visitSizeof(Sizeof &instruct,
   return 0;
 }
 
+int IRPrinter::visitImpl(Impl &instruct, const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printValue(instruct.val);
+
+  output << " = IMPL " << type_printer.getType(*instruct.type) << " {\n";
+  for (auto &fn : instruct.fn_decls) {
+    visitInstruction(*fn, state.withIndent());
+  }
+  state.printIndent(output);
+  output << "}\n";
+
+  return 0;
+}
+
+int IRPrinter::visitGenericImpl(GenericImpl &instruct,
+                                const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printId(instruct.id);
+
+  output << " = GENERICIMPL "
+         << type_printer.getFormalTypeParameterList(
+                instruct.type_construct->getFormalTypeParameters())
+         << " "
+         << type_printer.getType(*instruct.type_construct->getFormalBoundType())
+         << " {\n";
+  for (auto &fn : instruct.fn_decls) {
+    visitInstruction(*fn, state.withIndent());
+  }
+  state.printIndent(output);
+  output << "}\n";
+
+  return 0;
+}
+
+int IRPrinter::visitImplFnExtract(ImplFnExtract &instruct,
+                                  const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printValue(instruct.val);
+
+  output << " = EXTRACT " << type_printer.getType(*instruct.type) << " ";
+  printId(instruct.impl.val.id);
+  output << " " << instruct.extract_id << "\n";
+  return 0;
+}
+
+int IRPrinter::visitImplGenericFnExtract(ImplGenericFnExtract &instruct,
+                                         const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printId(instruct.id);
+
+  output << " = GENERICEXTRACT "
+         << type_printer.getFormalTypeParameterList(
+                instruct.type_construct->getFormalTypeParameters())
+         << " "
+         << type_printer.getType(*instruct.type_construct->getFormalBoundType())
+         << " ";
+  printId(instruct.impl.val.id);
+  output << " " << instruct.extract_id << "\n";
+  return 0;
+}
+
 } // namespace ovid::ir

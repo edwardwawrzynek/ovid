@@ -192,10 +192,9 @@ int ResolvePass::visitIdentifier(Identifier &node,
         node.loc, ErrorType::UndeclaredIdentifier);
   }
   // error on usage of inaccessible (private) symbol
-  else if (!checkVisible(
-               *sym, scopes.names.getRootScope()->getScopeTable(package),
-               scopes.names.getRootScope()->getScopeTable(current_module),
-               sym->is_public)) {
+  else if (!checkVisible(*sym,
+                         scopes.names.getRootScope()->getScopeTable(package),
+                         scopes.names.getTopNonFuncScope(), sym->is_public)) {
     errorMan.logError(
         string_format("use of private identifier `\x1b[1m%s\x1b[m`",
                       scopedName.c_str()),

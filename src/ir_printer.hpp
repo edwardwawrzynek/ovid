@@ -48,6 +48,13 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
   int visitSizeof(Sizeof &instruct, const ast::ASTPrinterState &state) override;
   int visitGenericForwardIdentifier(GenericForwardIdentifier &instruct,
                                     const ast::ASTPrinterState &state) override;
+  int visitImpl(Impl &instruct, const ast::ASTPrinterState &state) override;
+  int visitGenericImpl(GenericImpl &instruct,
+                       const ast::ASTPrinterState &state) override;
+  int visitImplFnExtract(ImplFnExtract &instruct,
+                         const ast::ASTPrinterState &state) override;
+  int visitImplGenericFnExtract(ImplGenericFnExtract &instruct,
+                                const ast::ASTPrinterState &state) override;
 
   int visitStore(Store &instruct, const ast::ASTPrinterState &state) override;
   int visitBasicBlock(BasicBlock &instruct,

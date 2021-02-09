@@ -106,12 +106,18 @@ public:
   /* expected function return type */
   std::shared_ptr<Type> functionReturnType;
 
-  TypeCheckState() : typeHint(nullptr), functionReturnType(nullptr){};
+  /* impl block current function is in */
+  ir::Instruction *impl_block;
+
+  TypeCheckState()
+      : typeHint(nullptr), functionReturnType(nullptr), impl_block(nullptr){};
 
   explicit TypeCheckState(std::shared_ptr<Type> typeHint,
-                          std::shared_ptr<Type> functionReturnType)
+                          std::shared_ptr<Type> functionReturnType,
+                          ir::Instruction *impl_block)
       : typeHint(std::move(typeHint)),
-        functionReturnType(std::move(functionReturnType)){};
+        functionReturnType(std::move(functionReturnType)),
+        impl_block(impl_block){};
 
   // return the state will a null typeHint
   TypeCheckState withoutTypeHint() const;
@@ -121,6 +127,9 @@ public:
   // return the state with a function ret type set
   TypeCheckState withFunctionReturnType(std::shared_ptr<Type> returnType) const;
   TypeCheckState withoutFunctionReturnType() const;
+
+  // return the state with higher_formal_params set
+  TypeCheckState withImplBlock(ir::Instruction *new_impl_block) const;
 };
 
 /*
@@ -176,6 +185,8 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                                       const TypeCheckState &state) override;
   TypeCheckResult visitReturnStatement(ReturnStatement &node,
                                        const TypeCheckState &state) override;
+  TypeCheckResult visitImplStatement(ImplStatement &node,
+                                     const TypeCheckState &state) override;
 
   TypeCheckResult visitFunctionCall(FunctionCall &node,
                                     const TypeCheckState &state) override;

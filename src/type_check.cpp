@@ -7,21 +7,25 @@
 namespace ovid::ast {
 
 TypeCheckState TypeCheckState::withoutTypeHint() const {
-  return TypeCheckState(nullptr, functionReturnType);
+  return TypeCheckState(nullptr, functionReturnType, impl_block);
 }
 
 TypeCheckState
 TypeCheckState::withTypeHint(const std::shared_ptr<Type> &hint) const {
-  return TypeCheckState(hint, functionReturnType);
+  return TypeCheckState(hint, functionReturnType, impl_block);
 }
 
 TypeCheckState
 TypeCheckState::withFunctionReturnType(std::shared_ptr<Type> returnType) const {
-  return TypeCheckState(typeHint, std::move(returnType));
+  return TypeCheckState(typeHint, std::move(returnType), impl_block);
 }
 
 TypeCheckState TypeCheckState::withoutFunctionReturnType() const {
-  return TypeCheckState(typeHint, nullptr);
+  return TypeCheckState(typeHint, nullptr, impl_block);
+}
+TypeCheckState
+TypeCheckState::withImplBlock(ir::Instruction *new_impl_block) const {
+  return TypeCheckState(typeHint, functionReturnType, new_impl_block);
 }
 
 std::pair<bool, ConstTypeList>
@@ -276,7 +280,7 @@ TypeCheckResult TypeCheck::visitIntLiteral(IntLiteral &node,
                                            const TypeCheckState &state) {
   std::shared_ptr<IntType> resType;
   /* if no type hint is present or type hint isn't IntType, default to i32
-   * TOOD: switch to i64 if doesn't fit in i32 */
+   * TODO: switch to i64 if doesn't fit in i32 */
   if (state.typeHint == nullptr ||
       dynamic_cast<IntType *>(state.typeHint.get()) == nullptr) {
     resType = std::make_shared<IntType>(node.loc, 32, false);
@@ -595,6 +599,45 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
 
     curInstructionList->push_back(std::move(instr));
     return TypeCheckResult(formal_bound_type, instrPointer);
+  }
+}
+
+TypeCheckResult TypeCheck::visitImplStatement(ImplStatement &node,
+                                              const TypeCheckState &state) {
+  // create empty impl block
+  std::unique_ptr<ir::Impl> mono_impl;
+  std::unique_ptr<ir::GenericImpl> generic_impl;
+  bool is_generic = !node.header->type_params.empty();
+  if (is_generic) {
+    generic_impl = std::make_unique<ir::GenericImpl>(
+        node.loc, ir::Id(), ir::InstructionList(), *node.header);
+  } else {
+    mono_impl = std::make_unique<ir::Impl>(node.loc, ir::Value(),
+                                           ir::InstructionList(), *node.header);
+  }
+  ir::Instruction *impl = is_generic ? (ir::Instruction *)(generic_impl.get())
+                                     : (ir::Instruction *)(mono_impl.get());
+  ir::InstructionList *ir_list =
+      is_generic ? &generic_impl->fn_decls : &mono_impl->fn_decls;
+
+  // set new state + instruction list to body of impl
+  auto pCurInstructionList = curInstructionList;
+  curInstructionList = ir_list;
+  auto bodyState = state.withoutTypeHint().withImplBlock(impl);
+  for (auto &fn_decl : node.body) {
+    visitNode(*fn_decl, bodyState);
+  }
+
+  curInstructionList = pCurInstructionList;
+  auto mono_impl_ptr = mono_impl.get();
+  auto generic_impl_ptr = generic_impl.get();
+
+  if (is_generic) {
+    curInstructionList->push_back(std::move(generic_impl));
+    return TypeCheckResult(nullptr, generic_impl_ptr);
+  } else {
+    curInstructionList->push_back(std::move(mono_impl));
+    return TypeCheckResult(nullptr, mono_impl_ptr);
   }
 }
 

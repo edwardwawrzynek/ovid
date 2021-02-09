@@ -1,0 +1,21 @@
+// __ovid_compiler_test
+//__mode: parse
+//__end_header
+
+impl i32 {
+    fn zero() -> i32 {
+        return 0
+    }
+
+    fn abs(self) -> i32 {
+        if self < zero() {
+            return -self
+        } else {
+            return self
+        }
+    }
+
+    fn inc(*mut self) {
+        *self = self + zero() + 1
+    }
+}

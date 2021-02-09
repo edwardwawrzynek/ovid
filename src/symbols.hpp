@@ -382,6 +382,13 @@ public:
   // get the scope at the specified index
   ScopeTable<T> *getNthScope(size_t n);
 
+  // get the most recently pushed scope matching the specified predicate
+  ScopeTable<T> *getTopScopeWhere(
+      const std::function<bool(const ScopeTable<T> *table)> &predicate);
+
+  // get the most recently pushed scope that is not a function scope table
+  ScopeTable<T> *getTopNonFuncScope();
+
   ActiveScope() : scopes(){};
 };
 
@@ -479,6 +486,22 @@ template <class T> ScopeTable<T> *ActiveScope<T>::getTopScope() {
 
 template <class T> ScopeTable<T> *ActiveScope<T>::getNthScope(size_t n) {
   return scopes[n];
+}
+
+template <class T>
+ScopeTable<T> *ActiveScope<T>::getTopScopeWhere(
+    const std::function<bool(const ScopeTable<T> *)> &predicate) {
+  for (size_t i = scopes.size(); i-- > 0;) {
+    auto scope = scopes[i];
+    if (predicate(scope))
+      return scope;
+  }
+  return nullptr;
+}
+
+template <class T> ScopeTable<T> *ActiveScope<T>::getTopNonFuncScope() {
+  return getTopScopeWhere(
+      [](const ScopeTable<T> *t) -> bool { return !t->getIsFuncScope(); });
 }
 
 // convert a set of scopes and a name to a printable string
