@@ -33,6 +33,18 @@ public:
       : impl(std::move(impl)), is_ident(false){};
 };
 
+/* a reference to a declaration entity in the ir
+ * this contains both the declaring instruction + the impl block it is contained
+ * in (if present) */
+class IrDecl {
+public:
+  ir::Instruction *instr;
+  ir::Instruction *impl;
+
+  IrDecl(ir::Instruction *instr, ir::Instruction *impl)
+      : instr(instr), impl(impl){};
+};
+
 /* a symbol and it's metadata (type, etc) */
 struct Symbol {
 public:
@@ -51,7 +63,7 @@ public:
   bool is_mut;
   /* the symbol's declaration instruction in the ir
    * set. Used by the type checker */
-  ir::Instruction *ir_decl_instruction;
+  IrDecl ir_decl;
   /* if the symbol is in a global scope */
   bool is_global;
   /* the symbol's name and containing table (used for generating fully scoped
@@ -64,13 +76,13 @@ public:
          bool resolve_pass_declared_yet, bool is_mut, bool is_global)
       : decl_loc(decl_loc), type(), is_public(is_public),
         resolve_pass_declared_yet(resolve_pass_declared_yet), is_mut(is_mut),
-        ir_decl_instruction(nullptr), is_global(is_global), name(),
+        ir_decl(nullptr, nullptr), is_global(is_global), name(),
         parent_table(nullptr){};
 
   explicit Symbol(const SourceLocation &decl_loc)
       : decl_loc(decl_loc), type(), is_public(false),
         resolve_pass_declared_yet(false), is_mut(false),
-        ir_decl_instruction(nullptr), is_global(false), name(),
+        ir_decl(nullptr, nullptr), is_global(false), name(),
         parent_table(nullptr){};
 
   /* get this symbol's fully scoped name */

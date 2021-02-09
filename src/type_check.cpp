@@ -23,9 +23,35 @@ TypeCheckState::withFunctionReturnType(std::shared_ptr<Type> returnType) const {
 TypeCheckState TypeCheckState::withoutFunctionReturnType() const {
   return TypeCheckState(typeHint, nullptr, impl_block);
 }
+
 TypeCheckState
 TypeCheckState::withImplBlock(ir::Instruction *new_impl_block) const {
   return TypeCheckState(typeHint, functionReturnType, new_impl_block);
+}
+
+ImplHeader *TypeCheckState::implHeader() const {
+  if (impl_block == nullptr) {
+    return nullptr;
+  }
+  auto generic_impl = dynamic_cast<ir::GenericImpl *>(impl_block);
+  if (generic_impl != nullptr) {
+    return generic_impl->header.get();
+  } else {
+    auto mono_impl = dynamic_cast<ir::Impl *>(impl_block);
+    assert(mono_impl != nullptr);
+    return mono_impl->header.get();
+  }
+}
+
+FormalTypeParameterList empty_formal_param_list{};
+
+const FormalTypeParameterList &TypeCheckState::implFormalParams() const {
+  auto header = implHeader();
+  if (header == nullptr) {
+    return empty_formal_param_list;
+  } else {
+    return header->type_params;
+  }
 }
 
 std::pair<bool, ConstTypeList>
@@ -379,7 +405,8 @@ TypeCheckResult TypeCheck::visitVarDecl(VarDecl &node,
   }
 
   // set symbol table entry for variable to refer to ir alloc
-  node.resolved_symbol->ir_decl_instruction = allocPointer;
+  node.resolved_symbol->ir_decl.instr = allocPointer;
+  node.resolved_symbol->ir_decl.impl = nullptr;
 
   // if variable is mutable, add MutType wrapper
   auto varType = addMutType(initialType, node.resolved_symbol->is_mut);
@@ -410,6 +437,56 @@ TypeCheckResult TypeCheck::visitModuleDecl(ModuleDecl &node,
   return TypeCheckResult::nullResult();
 }
 
+ir::Instruction *TypeCheck::genIrDecl(IrDecl ir_decl, const SourceLocation &loc,
+                                      const TypeCheckState &state,
+                                      const TypeList &actual_params) {
+  assert(ir_decl.instr != nullptr);
+  if (ir_decl.impl == nullptr) {
+    return ir_decl.instr;
+  } else {
+    // check for a generic impl and specialize if present
+    ir::Expression *specialized_impl;
+    auto generic_impl = dynamic_cast<ir::GenericImpl *>(ir_decl.impl);
+    if (generic_impl != nullptr) {
+      assert(generic_impl->header->type_params.size() == actual_params.size());
+      auto specialize = std::make_unique<ir::Specialize>(
+          loc, ir::Value(generic_impl->id, actual_params), *generic_impl,
+          actual_params,
+          constructType(generic_impl->type_construct, actual_params));
+      specialized_impl = specialize.get();
+      curInstructionList->push_back(std::move(specialize));
+    } else {
+      auto mono_impl = dynamic_cast<ir::Impl *>(ir_decl.impl);
+      assert(mono_impl != nullptr);
+      specialized_impl = mono_impl;
+    }
+    // select function from impl
+    auto generic_fn = dynamic_cast<ir::GenericFunctionDeclare *>(ir_decl.instr);
+    auto mono_fn = dynamic_cast<ir::FunctionDeclare *>(ir_decl.instr);
+    if (generic_fn != nullptr) {
+      // use ImplGenericFnExtract
+      const auto &select_id = generic_fn->id;
+      auto select = std::make_unique<ir::ImplGenericFnExtract>(
+          loc, ir::Id(select_id), *specialized_impl, select_id.id,
+          generic_fn->type_construct);
+      auto select_ptr = select.get();
+      curInstructionList->push_back(std::move(select));
+      return select_ptr;
+    } else if (mono_fn != nullptr) {
+      // use normal ImplFnExtract
+      const auto &select_id = mono_fn->val.id;
+      auto select = std::make_unique<ir::ImplFnExtract>(
+          loc, ir::Value(select_id), *specialized_impl, select_id.id,
+          mono_fn->type);
+      auto select_ptr = select.get();
+      curInstructionList->push_back(std::move(select));
+      return select_ptr;
+    } else {
+      assert(false);
+    }
+  }
+}
+
 TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
                                            const TypeCheckState &state) {
   assert(node.resolved_symbol != nullptr);
@@ -420,7 +497,8 @@ TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
   ir::GenericExpression *generic_alloc_node;
   // If a variable is forward referenced (or in another compilation unit),
   // insert a ForwardIdentifier node
-  if (node.resolved_symbol->ir_decl_instruction == nullptr) {
+  if (node.resolved_symbol->ir_decl.instr == nullptr) {
+    assert(node.resolved_symbol->ir_decl.impl == nullptr);
     if (!is_generic) {
       auto forwardIdent = std::make_unique<ir::ForwardIdentifier>(
           node.loc, ir::Value(node.resolved_symbol), node.resolved_symbol,
@@ -436,12 +514,14 @@ TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
     }
   } else {
     assert(node.resolved_symbol->type != nullptr);
-    // use of the identifier doesn't generate any ir -- it just selects the
-    // appropriate node
-    auto ir_decl_expr = dynamic_cast<ir::Expression *>(
-        node.resolved_symbol->ir_decl_instruction);
-    auto ir_generic_decl_expr = dynamic_cast<ir::GenericExpression *>(
-        node.resolved_symbol->ir_decl_instruction);
+    // load the appropriate node
+    // if the symbol is a function decl inside an impl, the actual params to
+    // specialize the impl on are just the impl's formal params
+    auto decl_instr = genIrDecl(node.resolved_symbol->ir_decl, node.loc, state,
+                                (const TypeList &)state.implFormalParams());
+    auto ir_decl_expr = dynamic_cast<ir::Expression *>(decl_instr);
+    auto ir_generic_decl_expr =
+        dynamic_cast<ir::GenericExpression *>(decl_instr);
     if (!is_generic) {
       assert(ir_decl_expr != nullptr);
       alloc_node = ir_decl_expr;
@@ -465,7 +545,7 @@ TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
     auto constructed_type =
         constructType(node.resolved_symbol->type, node.type_params);
     auto specialize = std::make_unique<ir::Specialize>(
-        node.loc, ir::Value(node.resolved_symbol, node.type_params),
+        node.loc, ir::Value(generic_alloc_node->id, node.type_params),
         *generic_alloc_node, node.type_params, constructed_type);
     alloc_node = specialize.get();
     curInstructionList->push_back(std::move(specialize));
@@ -564,7 +644,8 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
     curInstructionList->push_back(std::move(argAlloc));
     argAllocs.emplace_back(*argAllocPointer);
     // set symbol table entries to refer to ir nodes
-    formal_bound_type->resolvedArgs[i]->ir_decl_instruction = argAllocPointer;
+    formal_bound_type->resolvedArgs[i]->ir_decl =
+        IrDecl(argAllocPointer, nullptr);
   }
 
   // visit body
@@ -586,7 +667,7 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
         node.loc, ir::Id(node.resolved_symbol), node.type, argAllocs,
         std::move(body), node.resolved_symbol->is_public);
     auto instrPointer = instr.get();
-    node.resolved_symbol->ir_decl_instruction = instrPointer;
+    node.resolved_symbol->ir_decl = IrDecl(instrPointer, state.impl_block);
 
     curInstructionList->push_back(std::move(instr));
     return TypeCheckResult(node.type, instrPointer);
@@ -595,7 +676,7 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
         node.loc, ir::Value(node.resolved_symbol), formal_bound_type, argAllocs,
         std::move(body), node.resolved_symbol->is_public);
     auto instrPointer = instr.get();
-    node.resolved_symbol->ir_decl_instruction = instrPointer;
+    node.resolved_symbol->ir_decl = IrDecl(instrPointer, state.impl_block);
 
     curInstructionList->push_back(std::move(instr));
     return TypeCheckResult(formal_bound_type, instrPointer);
@@ -610,10 +691,10 @@ TypeCheckResult TypeCheck::visitImplStatement(ImplStatement &node,
   bool is_generic = !node.header->type_params.empty();
   if (is_generic) {
     generic_impl = std::make_unique<ir::GenericImpl>(
-        node.loc, ir::Id(), ir::InstructionList(), *node.header);
+        node.loc, ir::Id(), ir::InstructionList(), node.header);
   } else {
     mono_impl = std::make_unique<ir::Impl>(node.loc, ir::Value(),
-                                           ir::InstructionList(), *node.header);
+                                           ir::InstructionList(), node.header);
   }
   ir::Instruction *impl = is_generic ? (ir::Instruction *)(generic_impl.get())
                                      : (ir::Instruction *)(mono_impl.get());
@@ -1629,7 +1710,6 @@ TypeCheck::produceIR(ErrorManager &errorMan,
 
   return ir;
 }
-
 /* --- type printer --- */
 void TypePrinter::clear() { res = ""; }
 

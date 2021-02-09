@@ -158,6 +158,8 @@ public:
 
   explicit Id(std::shared_ptr<Symbol> sourceName);
   Id(std::shared_ptr<Symbol> sourceName, ast::TypeList typeParams);
+  Id(const Id &old_id, ast::TypeList new_type_params);
+  explicit Id(const Id &old_id);
 
   Id();
 };
@@ -178,6 +180,8 @@ public:
 
   explicit Value(std::shared_ptr<Symbol> sourceName);
   Value(std::shared_ptr<Symbol> sourceName, ast::TypeList typeParams);
+  Value(const Id &old_id, ast::TypeList new_type_params);
+  explicit Value(const Id &old_id);
 
   Value();
 };
@@ -288,9 +292,10 @@ public:
   // component function declarations
   // Instruction b/c function declares may be GenericExpression
   InstructionList fn_decls;
+  std::shared_ptr<ast::ImplHeader> header;
 
   GenericImpl(const SourceLocation &loc, const Id &id, InstructionList fn_decls,
-              const ast::ImplHeader &header);
+              std::shared_ptr<ast::ImplHeader> header);
 };
 
 /* an impl block on a concrete type
@@ -299,9 +304,10 @@ class Impl : public Expression {
 public:
   // component function declarations
   InstructionList fn_decls;
+  std::shared_ptr<ast::ImplHeader> header;
 
   Impl(const SourceLocation &loc, const Value &val, InstructionList fn_decls,
-       const ast::ImplHeader &header);
+       std::shared_ptr<ast::ImplHeader> header);
 };
 
 /* a function selection on an impl block

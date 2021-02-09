@@ -72,6 +72,14 @@ Id::Id(std::shared_ptr<Symbol> sourceName, ast::TypeList typeParams)
     : sourceName(std::move(sourceName)), typeParams(std::move(typeParams)),
       id(next_id()), hasSourceName(true) {}
 
+Id::Id(const Id &old_id, ast::TypeList new_type_params)
+    : sourceName(old_id.sourceName), typeParams(std::move(new_type_params)),
+      id(next_id()), hasSourceName(old_id.hasSourceName) {}
+
+Id::Id(const Id &old_id)
+    : sourceName(old_id.sourceName), typeParams(old_id.typeParams),
+      id(next_id()), hasSourceName(old_id.hasSourceName) {}
+
 Value::Value(std::shared_ptr<Symbol> sourceName)
     : id(std::move(sourceName)), llvm_value(nullptr) {}
 
@@ -79,6 +87,11 @@ Value::Value() : id(), llvm_value(nullptr) {}
 
 Value::Value(std::shared_ptr<Symbol> sourceName, ast::TypeList typeParams)
     : id(std::move(sourceName), std::move(typeParams)), llvm_value(nullptr) {}
+
+Value::Value(const Id &old_id, ast::TypeList new_type_params)
+    : id(old_id, std::move(new_type_params)), llvm_value(nullptr) {}
+
+Value::Value(const Id &old_id) : id(old_id), llvm_value(nullptr) {}
 
 Instruction::Instruction(const SourceLocation &loc) : loc(loc) {}
 
@@ -102,16 +115,18 @@ GenericExpression::GenericExpression(
 
 GenericImpl::GenericImpl(const SourceLocation &loc, const Id &id,
                          InstructionList fn_decls,
-                         const ast::ImplHeader &header)
-    : GenericExpression(loc, id,
-                        std::make_shared<ast::GenericTypeConstructor>(
-                            header.type->loc, header.type_params, header.type)),
-      fn_decls(std::move(fn_decls)) {}
+                         std::shared_ptr<ast::ImplHeader> header)
+    : GenericExpression(
+          loc, id,
+          std::make_shared<ast::GenericTypeConstructor>(
+              header->type->loc, header->type_params, header->type)),
+      fn_decls(std::move(fn_decls)), header(std::move(header)) {}
 
 Impl::Impl(const SourceLocation &loc, const Value &val,
-           InstructionList fn_decls, const ast::ImplHeader &header)
-    : Expression(loc, val, header.type), fn_decls(std::move(fn_decls)) {
-  assert(header.type_params.empty());
+           InstructionList fn_decls, std::shared_ptr<ast::ImplHeader> header)
+    : Expression(loc, val, header->type), fn_decls(std::move(fn_decls)),
+      header(std::move(header)) {
+  assert(this->header->type_params.empty());
 }
 
 ImplFnExtract::ImplFnExtract(const SourceLocation &loc, const Value &val,
@@ -334,8 +349,8 @@ ForwardIdentifier::ForwardIdentifier(const SourceLocation &loc,
 }
 
 bool ForwardIdentifier::isAddressable() const {
-  if (symbol_ref->ir_decl_instruction != nullptr) {
-    auto ir_expr = dynamic_cast<Expression *>(symbol_ref->ir_decl_instruction);
+  if (symbol_ref->ir_decl.instr != nullptr) {
+    auto ir_expr = dynamic_cast<Expression *>(symbol_ref->ir_decl.instr);
     return ir_expr != nullptr && ir_expr->isAddressable();
   } else {
     /* function's aren't addressable, globals are */
@@ -352,10 +367,10 @@ bool ForwardIdentifier::isAddressable() const {
 
 bool ForwardIdentifier::hasFlowMetadata() {
   /* TODO: load external identifier flow info from symbol tables */
-  if (symbol_ref->ir_decl_instruction == nullptr) {
+  if (symbol_ref->ir_decl.instr == nullptr) {
     return false;
   }
-  auto ir_expr = dynamic_cast<Expression *>(symbol_ref->ir_decl_instruction);
+  auto ir_expr = dynamic_cast<Expression *>(symbol_ref->ir_decl.instr);
   return ir_expr != nullptr && ir_expr->hasFlowMetadata();
 }
 
@@ -364,7 +379,7 @@ void ForwardIdentifier::addFlowMetadata(
     const std::vector<std::reference_wrapper<Expression>> &args,
     Expression &returnExpr) {
   /* TODO: load external identifier flow info from symbol tables */
-  auto ir_expr = dynamic_cast<Expression *>(symbol_ref->ir_decl_instruction);
+  auto ir_expr = dynamic_cast<Expression *>(symbol_ref->ir_decl.instr);
   assert(ir_expr != nullptr);
   ir_expr->addFlowMetadata(flows, args, returnExpr);
 }

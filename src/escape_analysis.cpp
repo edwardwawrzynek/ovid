@@ -939,8 +939,8 @@ int EscapeAnalysisPass::visitForwardIdentifier(
     ForwardIdentifier &instruct, const EscapeAnalysisState &state) {
   /* if an ir declaration node isn't set, identifier is external (and should
    * already have escape analysis metadata calculated) */
-  if (instruct.symbol_ref->ir_decl_instruction != nullptr) {
-    return visitInstruction(*instruct.symbol_ref->ir_decl_instruction, state);
+  if (instruct.symbol_ref->ir_decl.instr != nullptr) {
+    return visitInstruction(*instruct.symbol_ref->ir_decl.instr, state);
   } else {
     return 0;
   }

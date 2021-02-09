@@ -449,9 +449,10 @@ int GenericsPass::visitForwardIdentifier(ForwardIdentifier &instruct,
                                          const GenericsPassState &state) {
   // if the forward identifier is resolved, just use what it resolves to.
   // otherwise just copy the node
-  if (instruct.symbol_ref->ir_decl_instruction != nullptr) {
+  if (instruct.symbol_ref->ir_decl.instr != nullptr) {
+    assert(false); // TODO: insert ImplFnExtract if needed
     auto ir_decl_expr =
-        dynamic_cast<Expression *>(instruct.symbol_ref->ir_decl_instruction);
+        dynamic_cast<Expression *>(instruct.symbol_ref->ir_decl.instr);
     assert(ir_decl_expr != nullptr);
 
     auto newDecl = state.subs.hasExpression(ir_decl_expr);
@@ -474,9 +475,10 @@ int GenericsPass::visitGenericForwardIdentifier(
     GenericForwardIdentifier &instruct, const GenericsPassState &state) {
   // generic forward identifiers should always resolve to an ir node.
   // ie: no external/native generic functions
-  assert(instruct.symbol_ref->ir_decl_instruction != nullptr);
-  auto ir_decl_generic_expr = dynamic_cast<GenericExpression *>(
-      instruct.symbol_ref->ir_decl_instruction);
+  assert(false); // TODO: Insert ImplFnExtract if needed
+  assert(instruct.symbol_ref->ir_decl.instr != nullptr);
+  auto ir_decl_generic_expr =
+      dynamic_cast<GenericExpression *>(instruct.symbol_ref->ir_decl.instr);
   assert(ir_decl_generic_expr != nullptr);
 
   state.subs.addGenericExpression(instruct, ir_decl_generic_expr);

@@ -130,6 +130,14 @@ public:
 
   // return the state with higher_formal_params set
   TypeCheckState withImplBlock(ir::Instruction *new_impl_block) const;
+
+  // get the impl header associated with impl_block, or nullptr if impl_block is
+  // nullptr
+  ImplHeader *implHeader() const;
+
+  // get the type params the current impl is bound over, or an empty list if not
+  // in an impl block
+  const FormalTypeParameterList &implFormalParams() const;
 };
 
 /*
@@ -172,6 +180,14 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   std::shared_ptr<Type>
   constructType(const std::shared_ptr<TypeConstructor> &type_construct,
                 const TypeList &actual_params);
+
+  // convert a IrDecl into a selection of an ir node
+  // a sequence of instr -> (Specialize? ->
+  // (ImplFnExtract|ImplGenericFnExtract)?)? actual_params are the params to
+  // specialize the impl type on (if ir_decl is inside an impl block)
+  ir::Instruction *genIrDecl(IrDecl ir_decl, const SourceLocation &loc,
+                             const TypeCheckState &state,
+                             const TypeList &actual_params);
 
   TypeCheckResult visitVarDecl(VarDecl &node,
                                const TypeCheckState &state) override;
