@@ -880,25 +880,39 @@ Parser::parseNamedFunctionType(const ParserState &state,
       if (type == nullptr)
         break;
       auto loc = start_loc.until(tokenizer.curTokenLoc);
-
-      argNames.push_back(self_arg_ident);
-      argTypes.push_back(std::move(type));
-      if (argLocs)
-        argLocs->push_back(loc);
+      if (!argNames.empty()) {
+        errorMan.logError(
+            "`\x1b[1mself\x1b[m` can only be the first argument to a function",
+            loc, ErrorType::ParseError);
+      } else {
+        argNames.push_back(self_arg_ident);
+        argTypes.push_back(std::move(type));
+        if (argLocs)
+          argLocs->push_back(loc);
+      }
     } else {
       // regular argument -- read name
       if (tokenizer.curToken.token != T_IDENT)
         return errorMan.logError("Expected argument name",
                                  tokenizer.curTokenLoc, ErrorType::ParseError);
-      argNames.push_back(tokenizer.curToken.ident);
-      if (argLocs)
-        argLocs->push_back(tokenizer.curTokenLoc);
+      auto name = tokenizer.curToken.ident;
+      auto loc = tokenizer.curTokenLoc;
       tokenizer.nextToken();
-      // read types
       auto type = parseType(state);
-      if (!type)
+      if (!type) {
         return nullptr;
-      argTypes.push_back(std::move(type));
+      }
+      if (vectorContains(argNames, name)) {
+        errorMan.logError(
+            string_format("duplicate definition of argument `\x1b[1m%s\x1b[m`",
+                          name.c_str()),
+            loc, ErrorType::ParseError);
+      } else {
+        argNames.push_back(name);
+        argTypes.push_back(std::move(type));
+        if (argLocs)
+          argLocs->push_back(loc);
+      }
     }
   } while (tokenizer.curToken.token == T_COMMA);
 

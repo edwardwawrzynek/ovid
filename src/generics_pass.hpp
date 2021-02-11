@@ -23,10 +23,22 @@ public:
   void addGenericExpression(GenericExpression &old_expr,
                             GenericExpression *newGenericExpr);
   BasicBlock *useBasicBlock(const BasicBlock *old);
-  Expression *useExpression(Expression *old);
+
+  Expression *hasExpressionId(uint64_t id);
+  Expression *useExpressionId(uint64_t id);
   Expression *hasExpression(Expression *old);
-  GenericExpression *useGenericExpression(GenericExpression *old);
+  Expression *useExpression(Expression *old);
+
+  GenericExpression *hasGenericExpressionId(uint64_t id);
+  GenericExpression *useGenericExpressionId(uint64_t id);
   GenericExpression *hasGenericExpression(GenericExpression *old);
+  GenericExpression *useGenericExpression(GenericExpression *old);
+
+  Instruction *useInstruction(Instruction *old);
+  Instruction *hasInstruction(Instruction *old);
+
+  Instruction *hasInstructionId(uint64_t id);
+  Instruction *useInstructionId(uint64_t id);
 
   explicit GenericSubstitutions(GenericSubstitutions *parent = nullptr)
       : parent(parent), bbSubs(), exprSubs(), genericExprSubs(){};
@@ -45,6 +57,8 @@ public:
   BasicBlockList *curBasicBlockList;
   // current instruction list to add new instructions to
   InstructionList *curInstructionList;
+  // root instruction list (or root inside impl) to add specialized functions to
+  InstructionList *rootInstructionList;
   // substitutions to perform on expressions
   GenericSubstitutions &subs;
 
@@ -54,8 +68,9 @@ public:
                     const ast::FormalTypeParameterList &formal_params,
                     const ast::TypeList &actual_params,
                     GenericSubstitutions &subs,
-                    BasicBlockList *curBasicBlockList = nullptr,
-                    InstructionList *curInstructionList = nullptr);
+                    BasicBlockList *curBasicBlockList,
+                    InstructionList *curInstructionList,
+                    InstructionList *rootInstructionList);
 };
 
 class GenericSpecializations {
@@ -80,8 +95,9 @@ public:
 
 class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
   GenericSpecializations specializations;
-  // instruction list in which to insert specialized functions
-  InstructionList *rootInstructionList;
+  // root instruction list of the entire ir
+  // unlike state.rootInstructionList, is not adjusted for impl blocks
+  InstructionList *globalRootInstructionList;
   // global allocation + func declare substitutions
   GenericSubstitutions global_subs;
 
@@ -92,9 +108,14 @@ class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
                                   const GenericsPassState &state) override;
   int visitGenericForwardIdentifier(GenericForwardIdentifier &instruct,
                                     const GenericsPassState &state) override;
+  int visitImplGenericFnExtract(ImplGenericFnExtract &instruct,
+                                const GenericsPassState &state) override;
 
+  int visitImpl(Impl &instruct, const GenericsPassState &state) override;
   int visitFunctionDeclare(FunctionDeclare &instruct,
                            const GenericsPassState &state) override;
+  int visitImplFnExtract(ImplFnExtract &instruct,
+                         const GenericsPassState &state) override;
   int visitIntLiteral(IntLiteral &instruct,
                       const GenericsPassState &state) override;
   int visitBoolLiteral(BoolLiteral &instruct,
@@ -149,7 +170,7 @@ public:
   GenericsPass(ActiveScopes &scopes, ErrorManager &errorMan,
                InstructionList *rootInstructionList)
       : BaseIRVisitor(int()), specializations(),
-        rootInstructionList(rootInstructionList), errorMan(errorMan),
+        globalRootInstructionList(rootInstructionList), errorMan(errorMan),
         active_scopes(scopes){};
 
   static InstructionList produceIR(ActiveScopes &scopes, ErrorManager &errorMan,

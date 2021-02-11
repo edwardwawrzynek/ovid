@@ -159,7 +159,7 @@ public:
   explicit Id(std::shared_ptr<Symbol> sourceName);
   Id(std::shared_ptr<Symbol> sourceName, ast::TypeList typeParams);
   Id(const Id &old_id, ast::TypeList new_type_params);
-  explicit Id(const Id &old_id);
+  Id withNewId() const;
 
   Id();
 };
@@ -181,7 +181,7 @@ public:
   explicit Value(std::shared_ptr<Symbol> sourceName);
   Value(std::shared_ptr<Symbol> sourceName, ast::TypeList typeParams);
   Value(const Id &old_id, ast::TypeList new_type_params);
-  explicit Value(const Id &old_id);
+  Value withNewId() const;
 
   Value();
 };
@@ -305,6 +305,11 @@ public:
   // component function declarations
   InstructionList fn_decls;
   std::shared_ptr<ast::ImplHeader> header;
+
+  // get the associated function declaration with the given id
+  Expression *getFnDecl(uint64_t select_id);
+  // get the associated generic function declaration with the given id
+  GenericExpression *getGenericFnDecl(uint64_t select_id);
 
   Impl(const SourceLocation &loc, const Value &val, InstructionList fn_decls,
        std::shared_ptr<ast::ImplHeader> header);
@@ -435,11 +440,14 @@ public:
   /* if the function has external linkage */
   bool is_public;
 
+  /* impl containing this function */
+  Instruction *impl;
+
   GenericFunctionDeclare(
       const SourceLocation &loc, const Id &id,
       std::shared_ptr<ast::TypeConstructor> type,
       std::vector<std::reference_wrapper<Allocation>> argAllocs,
-      BasicBlockList body, bool is_public);
+      BasicBlockList body, bool is_public, Instruction *impl);
 };
 
 /* what state function flow metadata is in */
@@ -464,6 +472,9 @@ public:
   std::vector<FuncFlow> flow_metadata;
   FunctionEscapeAnalysisState flow_state;
 
+  /* impl containing this function */
+  Instruction *impl;
+
   bool hasFlowMetadata() override;
   void
   addFlowMetadata(FlowList &flows,
@@ -473,7 +484,7 @@ public:
   FunctionDeclare(const SourceLocation &loc, const Value &val,
                   std::shared_ptr<ast::NamedFunctionType> type,
                   std::vector<std::reference_wrapper<Allocation>> argAllocs,
-                  BasicBlockList body, bool is_public);
+                  BasicBlockList body, bool is_public, Instruction *impl);
 };
 
 size_t
@@ -653,6 +664,10 @@ public:
 
   Return(const SourceLocation &loc, Expression *expression);
 };
+
+// get the id of an instruction
+// instr must be Expression or GenericExpression (ie have an id)
+const Id &getInstrId(Instruction *instr);
 
 } // namespace ovid::ir
 

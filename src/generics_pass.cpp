@@ -6,15 +6,18 @@ namespace ovid::ir {
 GenericsPassState::GenericsPassState(
     bool is_specializing, const ast::FormalTypeParameterList &formal_params,
     const ast::TypeList &actual_params, GenericSubstitutions &subs,
-    BasicBlockList *curBasicBlockList, InstructionList *curInstructionList)
+    BasicBlockList *curBasicBlockList, InstructionList *curInstructionList,
+    InstructionList *rootInstructionList)
     : is_specializing(is_specializing), formal_params(formal_params),
       actual_params(actual_params), curBasicBlockList(curBasicBlockList),
-      curInstructionList(curInstructionList), subs(subs) {}
+      curInstructionList(curInstructionList),
+      rootInstructionList(rootInstructionList), subs(subs) {}
 
 GenericsPassState
 GenericsPassState::withIsSpecializing(bool specializing) const {
   return GenericsPassState(specializing, formal_params, actual_params, subs,
-                           curBasicBlockList, curInstructionList);
+                           curBasicBlockList, curInstructionList,
+                           rootInstructionList);
 }
 
 void GenericSubstitutions::addBasicBlock(uint64_t old_id, BasicBlock *newBB) {
@@ -48,47 +51,92 @@ BasicBlock *GenericSubstitutions::useBasicBlock(const BasicBlock *old) {
   return bbSubs[old->id];
 }
 
-Expression *GenericSubstitutions::useExpression(Expression *old) {
-  if (exprSubs.count(old->val.id.id) == 0) {
-    assert(parent != nullptr);
-    return parent->useExpression(old);
+Expression *GenericSubstitutions::hasExpressionId(uint64_t id) {
+  if (exprSubs.count(id) == 0) {
+    if (parent == nullptr) {
+      return nullptr;
+    }
+    return parent->hasExpressionId(id);
   } else {
-    return exprSubs[old->val.id.id];
+    return exprSubs[id];
   }
 }
 
+Expression *GenericSubstitutions::useExpressionId(uint64_t id) {
+  auto res = hasExpressionId(id);
+  assert(res != nullptr);
+  return res;
+}
+
 Expression *GenericSubstitutions::hasExpression(Expression *old) {
-  if (exprSubs.count(old->val.id.id) == 0) {
+  return hasExpressionId(old->val.id.id);
+}
+
+Expression *GenericSubstitutions::useExpression(Expression *old) {
+  return useExpressionId(old->val.id.id);
+}
+
+GenericExpression *GenericSubstitutions::hasGenericExpressionId(uint64_t id) {
+  if (genericExprSubs.count(id) == 0) {
     if (parent == nullptr)
       return nullptr;
 
-    return parent->hasExpression(old);
+    return parent->hasGenericExpressionId(id);
   } else {
-    return exprSubs[old->val.id.id];
+    return genericExprSubs[id];
   }
+}
+
+GenericExpression *GenericSubstitutions::useGenericExpressionId(uint64_t id) {
+  auto res = hasGenericExpressionId(id);
+  assert(res != nullptr);
+  return res;
 }
 
 GenericExpression *
 GenericSubstitutions::useGenericExpression(GenericExpression *old) {
-  if (genericExprSubs.count(old->id.id) == 0) {
-    assert(parent != nullptr);
-    return parent->useGenericExpression(old);
-  } else {
-    assert(genericExprSubs.count(old->id.id) > 0);
-    return genericExprSubs[old->id.id];
-  }
+  return useGenericExpressionId(old->id.id);
 }
 
 GenericExpression *
 GenericSubstitutions::hasGenericExpression(GenericExpression *old) {
-  if (genericExprSubs.count(old->id.id) == 0) {
-    if (parent == nullptr)
-      return nullptr;
+  return hasGenericExpressionId(old->id.id);
+}
 
-    return parent->hasGenericExpression(old);
-  } else {
-    return genericExprSubs[old->id.id];
+Instruction *GenericSubstitutions::hasInstruction(Instruction *old) {
+  auto expr = dynamic_cast<Expression *>(old);
+  if (expr) {
+    return hasExpression(expr);
   }
+  auto generic_expr = dynamic_cast<GenericExpression *>(old);
+  if (generic_expr) {
+    return hasGenericExpression(generic_expr);
+  }
+  return nullptr;
+}
+
+Instruction *GenericSubstitutions::useInstruction(Instruction *old) {
+  auto res = hasInstruction(old);
+  assert(res != nullptr);
+  return res;
+}
+
+Instruction *GenericSubstitutions::hasInstructionId(uint64_t id) {
+  auto expr = hasExpressionId(id);
+  if (expr != nullptr) {
+    return expr;
+  }
+  auto generic = hasGenericExpressionId(id);
+  if (generic != nullptr) {
+    return generic;
+  }
+  return nullptr;
+}
+
+Instruction *GenericSubstitutions::useInstructionId(uint64_t id) {
+  auto res = hasInstructionId(id);
+  assert(res != nullptr);
+  return res;
 }
 
 FunctionDeclare *
@@ -158,11 +206,47 @@ int GenericsPass::addExpr(std::unique_ptr<Expression> expr, Expression &old,
   return 0;
 }
 
+int GenericsPass::visitImpl(Impl &instruct, const GenericsPassState &state) {
+  assert(!state.is_specializing);
+  if (global_subs.hasExpression(&instruct)) {
+    return 0;
+  }
+
+  // construct new impl node
+  auto impl =
+      std::make_unique<Impl>(instruct.loc, newValue(instruct.val, state),
+                             InstructionList(), instruct.header);
+  global_subs.addExpression(instruct, impl.get());
+  // visit component function decls
+  auto subs = GenericSubstitutions(&global_subs);
+  auto bodyState = GenericsPassState(
+      false, state.formal_params, state.actual_params, subs,
+      state.curBasicBlockList, &impl->fn_decls, &impl->fn_decls);
+  for (auto &fn_decl : instruct.fn_decls) {
+    visitInstruction(*fn_decl, bodyState);
+  }
+
+  state.curInstructionList->push_back(std::move(impl));
+  return 0;
+}
+
 int GenericsPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                        const GenericsPassState &state) {
   assert(!state.is_specializing);
   if (global_subs.hasExpression(&instruct)) {
     return 0;
+  }
+
+  // if this function is inside an impl, visit that instead
+  if (instruct.impl != nullptr) {
+    // if there is a global sub for the impl but not this function, we are
+    // currently visiting the impl and should handle this function
+    if (global_subs.hasInstruction(instruct.impl)) {
+      assert(!global_subs.hasExpression(&instruct));
+    } else {
+      visitInstruction(*instruct.impl, state);
+      return 0;
+    }
   }
   // construct new function declaration
   auto funcType =
@@ -171,18 +255,20 @@ int GenericsPass::visitFunctionDeclare(FunctionDeclare &instruct,
   auto funcDeclare = std::make_unique<FunctionDeclare>(
       instruct.loc, newValue(instruct.val, state), funcType,
       std::vector<std::reference_wrapper<Allocation>>(), BasicBlockList(),
-      instruct.is_public);
+      instruct.is_public, global_subs.hasInstruction(instruct.impl));
   global_subs.addExpression(instruct, funcDeclare.get());
   // create new state for body
+  // rootInstructionList is set back to ir global root b/c if we visit a declare
+  // inside this function, that declare may not be in the current impl scope
   auto subs = GenericSubstitutions(&global_subs);
   auto bodyState =
       GenericsPassState(false, state.formal_params, state.actual_params, subs,
-                        &funcDeclare->body);
+                        &funcDeclare->body, nullptr, globalRootInstructionList);
   visitBasicBlockList(instruct.body, bodyState, instruct.argAllocs,
                       funcDeclare->argAllocs);
 
   // insert function declaration
-  rootInstructionList->push_back(std::move(funcDeclare));
+  state.rootInstructionList->push_back(std::move(funcDeclare));
   return 0;
 }
 
@@ -195,13 +281,36 @@ int GenericsPass::visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
     }
     return 0;
   }
+  // if the function declare is in an impl, visit that first
+  if (instruct.impl != nullptr && !global_subs.useInstruction(instruct.impl)) {
+    auto implState = GenericsPassState(false, state.formal_params,
+                                       state.actual_params, state.subs, nullptr,
+                                       nullptr, state.rootInstructionList);
+    visitInstruction(*instruct.impl, implState);
+    assert(global_subs.hasInstruction(instruct.impl) != nullptr);
+  }
+  // if the function declare is in an impl and curRootInstructionList isn't set
+  // to the body of the impl, set it
+  if (instruct.impl != nullptr) {
+    auto newImplBody =
+        dynamic_cast<Impl *>(global_subs.useInstruction(instruct.impl));
+    assert(newImplBody != nullptr);
+    auto implRootInstrList = &newImplBody->fn_decls;
+    if (state.rootInstructionList != implRootInstrList) {
+      auto newState = GenericsPassState(
+          state.is_specializing, state.formal_params, state.actual_params,
+          state.subs, state.curBasicBlockList, state.curInstructionList,
+          implRootInstrList);
+      return visitGenericFunctionDeclare(instruct, newState);
+    }
+  }
   // if formal params aren't set, set them to match the function
   if (!instruct.type_construct->getFormalTypeParameters().empty() &&
       state.formal_params.empty()) {
-    auto newState =
-        GenericsPassState(state.is_specializing,
-                          instruct.type_construct->getFormalTypeParameters(),
-                          state.actual_params, state.subs);
+    auto newState = GenericsPassState(
+        state.is_specializing,
+        instruct.type_construct->getFormalTypeParameters(), state.actual_params,
+        state.subs, nullptr, nullptr, state.rootInstructionList);
     return visitGenericFunctionDeclare(instruct, newState);
   }
 
@@ -216,19 +325,20 @@ int GenericsPass::visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
   auto funcDeclare = std::make_unique<FunctionDeclare>(
       instruct.loc, Value(instruct.id.sourceName, state.actual_params),
       funcType, std::vector<std::reference_wrapper<Allocation>>(),
-      BasicBlockList(), instruct.is_public);
+      BasicBlockList(), instruct.is_public,
+      global_subs.hasInstruction(instruct.impl));
   specializations.addSpecialization(instruct.id.id, state.actual_params,
                                     funcDeclare.get());
   // visit the body of the function
   auto bodySubs = GenericSubstitutions(&global_subs);
-  auto bodyState =
-      GenericsPassState(state.is_specializing, state.formal_params,
-                        state.actual_params, bodySubs, &funcDeclare->body);
+  auto bodyState = GenericsPassState(
+      state.is_specializing, state.formal_params, state.actual_params, bodySubs,
+      &funcDeclare->body, nullptr, globalRootInstructionList);
   visitBasicBlockList(instruct.body, bodyState, instruct.argAllocs,
                       funcDeclare->argAllocs);
 
   // insert function declaration
-  rootInstructionList->push_back(std::move(funcDeclare));
+  state.rootInstructionList->push_back(std::move(funcDeclare));
   return 0;
 }
 
@@ -246,10 +356,10 @@ int GenericsPass::visitBasicBlockList(
     state.curBasicBlockList->push_back(std::move(newBlock));
   }
   for (size_t i = 0; i < basicBlockList.size(); i++) {
-    auto bodyState = GenericsPassState(state.is_specializing,
-                                       state.formal_params, state.actual_params,
-                                       state.subs, state.curBasicBlockList,
-                                       &(*state.curBasicBlockList)[i]->body);
+    auto bodyState = GenericsPassState(
+        state.is_specializing, state.formal_params, state.actual_params,
+        state.subs, state.curBasicBlockList,
+        &(*state.curBasicBlockList)[i]->body, state.rootInstructionList);
     for (auto &child : basicBlockList[i]->body) {
       visitInstruction(*child, bodyState);
       // check if child is in oldArgAllocs, and, if so, add its visited version
@@ -276,6 +386,44 @@ int GenericsPass::visitBasicBlockList(
     }
   }
   assert(argAlloc_index == oldArgAllocs.size());
+  return 0;
+}
+
+int GenericsPass::visitImplFnExtract(ImplFnExtract &instruct,
+                                     const GenericsPassState &state) {
+  visitInstruction(instruct.impl, state);
+  // get impl substitution
+  auto newImpl = global_subs.hasExpression(&instruct.impl);
+  assert(newImpl != nullptr);
+  auto newSelectId =
+      getInstrId(global_subs.useInstructionId(instruct.extract_id)).id;
+  // if impl resolved to static impl, just select the appropriate fn declare
+  auto impl = dynamic_cast<Impl *>(newImpl);
+  if (impl != nullptr) {
+    auto newFunc = impl->getFnDecl(newSelectId);
+    state.subs.addExpression(instruct, newFunc);
+  } else {
+    // otherwise, insert ImplFnExtract node
+    // if newImpl isn't a static impl, it must be a dynamic typeclass call
+    auto instr = std::make_unique<ImplFnExtract>(
+        instruct.loc, newValue(instruct.val, state), *newImpl, newSelectId,
+        fixType(instruct.type, state));
+    return addExpr(std::move(instr), instruct, state);
+  }
+  return 0;
+}
+
+int GenericsPass::visitImplGenericFnExtract(ImplGenericFnExtract &instruct,
+                                            const GenericsPassState &state) {
+  // we don't need to visit the selected func's owning impl, since we are going
+  // to be specializing from the original impl def
+  auto impl = dynamic_cast<Impl *>(&instruct.impl);
+  // since generic methods can't be included on dynamic impl calls, we must have
+  // a static impl
+  assert(impl != nullptr);
+  auto newFunc = impl->getGenericFnDecl(instruct.extract_id);
+  state.subs.addGenericExpression(instruct, newFunc);
+
   return 0;
 }
 
@@ -450,7 +598,6 @@ int GenericsPass::visitForwardIdentifier(ForwardIdentifier &instruct,
   // if the forward identifier is resolved, just use what it resolves to.
   // otherwise just copy the node
   if (instruct.symbol_ref->ir_decl.instr != nullptr) {
-    assert(false); // TODO: insert ImplFnExtract if needed
     auto ir_decl_expr =
         dynamic_cast<Expression *>(instruct.symbol_ref->ir_decl.instr);
     assert(ir_decl_expr != nullptr);
@@ -475,7 +622,6 @@ int GenericsPass::visitGenericForwardIdentifier(
     GenericForwardIdentifier &instruct, const GenericsPassState &state) {
   // generic forward identifiers should always resolve to an ir node.
   // ie: no external/native generic functions
-  assert(false); // TODO: Insert ImplFnExtract if needed
   assert(instruct.symbol_ref->ir_decl.instr != nullptr);
   auto ir_decl_generic_expr =
       dynamic_cast<GenericExpression *>(instruct.symbol_ref->ir_decl.instr);
@@ -507,7 +653,8 @@ int GenericsPass::visitSpecialize(Specialize &instruct,
     ast::FormalTypeParameterList empty_formal_params;
     auto subs = GenericSubstitutions(&global_subs);
     auto newState =
-        GenericsPassState(true, empty_formal_params, actual_params, subs);
+        GenericsPassState(true, empty_formal_params, actual_params, subs,
+                          nullptr, nullptr, state.rootInstructionList);
     visitInstruction(*generic_expr, newState);
     // get generated specialization
     existingSpecial =
@@ -527,8 +674,9 @@ InstructionList GenericsPass::produceIR(ActiveScopes &scopes,
   ast::FormalTypeParameterList empty_formal_params;
   ast::TypeList empty_actual_params;
   auto subs = GenericSubstitutions(&pass.global_subs);
-  auto state = GenericsPassState(false, empty_formal_params,
-                                 empty_actual_params, subs, nullptr, &res);
+  auto state =
+      GenericsPassState(false, empty_formal_params, empty_actual_params, subs,
+                        nullptr, &res, &res);
   pass.visitInstructions(ir, state);
   return res;
 }

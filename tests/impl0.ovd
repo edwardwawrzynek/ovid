@@ -1,0 +1,33 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+impl i32 {
+    fn abs(self) -> i32 {
+        if self < id:<i32>(0) {
+            return -self
+        } else {
+            return self
+        }
+    }
+
+    fn id<T>(t T) -> T {
+        return id1:<T>(t)
+    }
+
+    fn id1<T>(t T) -> T {
+        return id:<T>(t)
+    }
+
+    fn inc(*mut self) {
+        *self += id:<i32>(1)
+
+        abs(*self)
+    }
+}
+
+pub fn main() -> i32 {
+    return 0
+}
+
+

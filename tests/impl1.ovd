@@ -1,0 +1,27 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+impl i32 {
+    fn abs(self) -> i32 {
+        mut a = 5
+        inc(&a)
+        if self < 0 {
+            return -self
+        } else {
+            return self
+        }
+    }
+
+    fn inc(*mut self) {
+        *self += 1
+
+        abs(*self)
+    }
+}
+
+pub fn main() -> i32 {
+    return 0
+}
+
+

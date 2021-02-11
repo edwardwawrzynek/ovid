@@ -76,9 +76,13 @@ Id::Id(const Id &old_id, ast::TypeList new_type_params)
     : sourceName(old_id.sourceName), typeParams(std::move(new_type_params)),
       id(next_id()), hasSourceName(old_id.hasSourceName) {}
 
-Id::Id(const Id &old_id)
-    : sourceName(old_id.sourceName), typeParams(old_id.typeParams),
-      id(next_id()), hasSourceName(old_id.hasSourceName) {}
+Id Id::withNewId() const {
+  if (hasSourceName) {
+    return Id(sourceName, typeParams);
+  } else {
+    return Id();
+  }
+}
 
 Value::Value(std::shared_ptr<Symbol> sourceName)
     : id(std::move(sourceName)), llvm_value(nullptr) {}
@@ -91,7 +95,13 @@ Value::Value(std::shared_ptr<Symbol> sourceName, ast::TypeList typeParams)
 Value::Value(const Id &old_id, ast::TypeList new_type_params)
     : id(old_id, std::move(new_type_params)), llvm_value(nullptr) {}
 
-Value::Value(const Id &old_id) : id(old_id), llvm_value(nullptr) {}
+Value Value::withNewId() const {
+  if (id.hasSourceName) {
+    return Value(id.sourceName, id.typeParams);
+  } else {
+    return Value();
+  }
+}
 
 Instruction::Instruction(const SourceLocation &loc) : loc(loc) {}
 
@@ -127,6 +137,28 @@ Impl::Impl(const SourceLocation &loc, const Value &val,
     : Expression(loc, val, header->type), fn_decls(std::move(fn_decls)),
       header(std::move(header)) {
   assert(this->header->type_params.empty());
+}
+
+Expression *Impl::getFnDecl(uint64_t select_id) {
+  for (auto &decl : fn_decls) {
+    auto expr = dynamic_cast<Expression *>(decl.get());
+    if (expr != nullptr && expr->val.id.id == select_id) {
+      return expr;
+    }
+  }
+  assert(false);
+  return nullptr;
+}
+
+GenericExpression *Impl::getGenericFnDecl(uint64_t select_id) {
+  for (auto &decl : fn_decls) {
+    auto expr = dynamic_cast<GenericExpression *>(decl.get());
+    if (expr != nullptr && expr->id.id == select_id) {
+      return expr;
+    }
+  }
+  assert(false);
+  return nullptr;
 }
 
 ImplFnExtract::ImplFnExtract(const SourceLocation &loc, const Value &val,
@@ -221,19 +253,19 @@ GenericFunctionDeclare::GenericFunctionDeclare(
     const SourceLocation &loc, const Id &id,
     std::shared_ptr<ast::TypeConstructor> type,
     std::vector<std::reference_wrapper<Allocation>> argAllocs,
-    BasicBlockList body, bool is_public)
+    BasicBlockList body, bool is_public, Instruction *impl)
     : GenericExpression(loc, id, std::move(type)),
       argAllocs(std::move(argAllocs)), body(std::move(body)),
-      is_public(is_public) {}
+      is_public(is_public), impl(impl) {}
 
 FunctionDeclare::FunctionDeclare(
     const SourceLocation &loc, const Value &val,
     std::shared_ptr<ast::NamedFunctionType> type,
     std::vector<std::reference_wrapper<Allocation>> argAllocs,
-    BasicBlockList body, bool is_public)
+    BasicBlockList body, bool is_public, Instruction *impl)
     : Expression(loc, val, std::move(type)), argAllocs(std::move(argAllocs)),
       body(std::move(body)), is_public(is_public), flow_metadata(),
-      flow_state(FunctionEscapeAnalysisState::NOT_VISITED) {}
+      flow_state(FunctionEscapeAnalysisState::NOT_VISITED), impl(impl) {}
 
 bool FunctionDeclare::hasFlowMetadata() {
   /* if the function is being visited, metadata isn't available (trying to
@@ -403,5 +435,18 @@ Sizeof::Sizeof(const SourceLocation &loc, const Value &val,
                std::shared_ptr<ast::Type> sizeof_type)
     : Expression(loc, val, std::make_shared<ast::IntType>(loc, 64, true)),
       sizeof_type(std::move(sizeof_type)) {}
+
+const Id &getInstrId(Instruction *instr) {
+  assert(instr != nullptr);
+  auto expr = dynamic_cast<Expression *>(instr);
+  if (expr) {
+    return expr->val.id;
+  }
+  auto generic_expr = dynamic_cast<GenericExpression *>(instr);
+  if (generic_expr) {
+    return generic_expr->id;
+  }
+  assert(false);
+}
 
 } // namespace ovid::ir

@@ -497,11 +497,6 @@ Flow FuncFlow::toFlow(
   return Flow(newFrom, newInto);
 }
 
-template <class T>
-static bool vectorContains(const std::vector<T> &vector, const T &value) {
-  return std::find(vector.begin(), vector.end(), value) != vector.end();
-}
-
 void traceFlow(
     const FlowValue &value, const FlowValue &initValue, const FlowList &flows,
     const std::function<void(const FlowValue &)> &func,

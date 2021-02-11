@@ -467,16 +467,16 @@ ir::Instruction *TypeCheck::genIrDecl(IrDecl ir_decl, const SourceLocation &loc,
       // use ImplGenericFnExtract
       const auto &select_id = generic_fn->id;
       auto select = std::make_unique<ir::ImplGenericFnExtract>(
-          loc, ir::Id(select_id), *specialized_impl, select_id.id,
+          loc, select_id.withNewId(), *specialized_impl, select_id.id,
           generic_fn->type_construct);
       auto select_ptr = select.get();
       curInstructionList->push_back(std::move(select));
       return select_ptr;
     } else if (mono_fn != nullptr) {
       // use normal ImplFnExtract
-      const auto &select_id = mono_fn->val.id;
+      const auto &select_id = mono_fn->val;
       auto select = std::make_unique<ir::ImplFnExtract>(
-          loc, ir::Value(select_id), *specialized_impl, select_id.id,
+          loc, select_id.withNewId(), *specialized_impl, select_id.id.id,
           mono_fn->type);
       auto select_ptr = select.get();
       curInstructionList->push_back(std::move(select));
@@ -665,7 +665,7 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   if (!node.type->getFormalTypeParameters().empty()) {
     auto instr = std::make_unique<ir::GenericFunctionDeclare>(
         node.loc, ir::Id(node.resolved_symbol), node.type, argAllocs,
-        std::move(body), node.resolved_symbol->is_public);
+        std::move(body), node.resolved_symbol->is_public, state.impl_block);
     auto instrPointer = instr.get();
     node.resolved_symbol->ir_decl = IrDecl(instrPointer, state.impl_block);
 
@@ -674,7 +674,7 @@ TypeCheckResult TypeCheck::visitFunctionDecl(FunctionDecl &node,
   } else {
     auto instr = std::make_unique<ir::FunctionDeclare>(
         node.loc, ir::Value(node.resolved_symbol), formal_bound_type, argAllocs,
-        std::move(body), node.resolved_symbol->is_public);
+        std::move(body), node.resolved_symbol->is_public, state.impl_block);
     auto instrPointer = instr.get();
     node.resolved_symbol->ir_decl = IrDecl(instrPointer, state.impl_block);
 

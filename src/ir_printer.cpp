@@ -4,17 +4,18 @@
 namespace ovid::ir {
 
 void IRPrinter::printId(const Id &id) {
+  output << "%";
   if (id.hasSourceName) {
-    output << "%";
+    // output << "{";
     auto name = id.sourceName->getFullyScopedName();
     output << scopedNameToString(name);
     if (!id.typeParams.empty()) {
       output << type_printer.getGenericTypeList(
           const_cast<ast::TypeList &>(id.typeParams));
     }
-    // output << "[" << id.id << "]";
+    // output << "}";
   } else {
-    output << "%" << id.id;
+    output << id.id;
   }
 }
 
@@ -180,8 +181,14 @@ int IRPrinter::visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
          << type_printer.getFormalTypeParameterList(
                 instruct.type_construct->getFormalTypeParameters())
          << " "
-         << type_printer.getType(*instruct.type_construct->getFormalBoundType())
-         << " {\n";
+         << type_printer.getType(
+                *instruct.type_construct->getFormalBoundType());
+  if (instruct.impl != nullptr) {
+    output << " [";
+    printId(getInstrId(instruct.impl));
+    output << "]";
+  }
+  output << " {\n";
   for (auto &body : instruct.body) {
     visitInstruction(*body, state.withIndent());
   }
@@ -200,8 +207,13 @@ int ovid::ir::IRPrinter::visitFunctionDeclare(
   output << "\t";
   printValue(instruct.val);
 
-  output << " = FUNCTIONDECLARE " << type_printer.getType(*instruct.type)
-         << " {\n";
+  output << " = FUNCTIONDECLARE " << type_printer.getType(*instruct.type);
+  if (instruct.impl != nullptr) {
+    output << " [";
+    printId(getInstrId(instruct.impl));
+    output << "]";
+  }
+  output << " {\n";
   for (auto &body : instruct.body) {
     visitInstruction(*body, state.withIndent());
   }

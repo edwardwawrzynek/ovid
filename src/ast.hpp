@@ -152,6 +152,12 @@ public:
       : names(std::make_unique<ScopeTable<Symbol>>(true, nullptr, "")),
         types(std::make_unique<ScopeTable<TypeAlias>>(true, nullptr, "")){};
 };
+
+template <class T>
+bool vectorContains(const std::vector<T> &vector, const T &value) {
+  return std::find(vector.begin(), vector.end(), value) != vector.end();
+}
+
 } // namespace ovid
 
 namespace ovid::ast {

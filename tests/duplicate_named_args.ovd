@@ -1,0 +1,9 @@
+// __ovid_compiler_test
+//__mode: parse
+//__end_header
+
+fn sum(a i32, a *i32) {} //__error: "duplicate definition of argument `a`"
+
+impl i32 {
+    fn f2(*mut self, self) {} //__error: "`self` can only be the first argument to a function"
+}
