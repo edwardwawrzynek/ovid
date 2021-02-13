@@ -161,15 +161,14 @@ GenericExpression *Impl::getGenericFnDecl(uint64_t select_id) {
   return nullptr;
 }
 
-ImplFnExtract::ImplFnExtract(const SourceLocation &loc, const Value &val,
-                             Expression &impl, uint64_t extract_id,
-                             std::shared_ptr<ast::Type> type)
+Select::Select(const SourceLocation &loc, const Value &val, Expression &impl,
+               uint64_t extract_id, std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), impl(impl),
       extract_id(extract_id) {}
 
-ImplGenericFnExtract::ImplGenericFnExtract(
-    const SourceLocation &loc, const Id &id, Expression &impl,
-    uint64_t extract_id, std::shared_ptr<ast::TypeConstructor> type)
+GenericSelect::GenericSelect(const SourceLocation &loc, const Id &id,
+                             Expression &impl, uint64_t extract_id,
+                             std::shared_ptr<ast::TypeConstructor> type)
     : GenericExpression(loc, id, std::move(type)), impl(impl),
       extract_id(extract_id) {}
 

@@ -1,13 +1,13 @@
-(14:1)	%ovidc_test:main = FUNCTIONDECLARE () -> void {
+(14:1)	%8{ovidc_test:main} = FUNCTIONDECLARE () -> void {
     (14:1)	BASICBLOCK @0 {
         (16:16)	%1 = INTLITERAL i32 5
         (15:14)	%2 = TUPLELITERAL ovidc_test:Type1 %1
-        (15:5)	%t1 = ALLOCATION ovidc_test:Type1
-        (15:5)	STORE %t1 <- %2
-        (18:28)	%4 = FIELDSELECT i32 0 %t1
-        (18:46)	%5 = ADDRESS *ovidc_test:Type1 %t1
+        (15:5)	%3{t1} = ALLOCATION ovidc_test:Type1
+        (15:5)	STORE %3{t1} <- %2
+        (18:28)	%4 = FIELDSELECT i32 0 %3{t1}
+        (18:46)	%5 = ADDRESS *ovidc_test:Type1 %3{t1}
         (18:14)	%6 = TUPLELITERAL ovidc_test:Type2 %4 %5
-        (18:5)	%t2 = ALLOCATION ovidc_test:Type2
-        (18:5)	STORE %t2 <- %6
+        (18:5)	%7{t2} = ALLOCATION ovidc_test:Type2
+        (18:5)	STORE %7{t2} <- %6
     }
 }

@@ -1,7 +1,7 @@
-(10:1)	%ovidc_test:test = FUNCTIONDECLARE (a ovidc_test:TestType) -> i32 {
+(10:1)	%4{ovidc_test:test} = FUNCTIONDECLARE (a ovidc_test:TestType) -> i32 {
     (10:1)	BASICBLOCK @0 {
-        (5:1)	%a = ALLOCATION ovidc_test:TestType
-        (11:13)	%2 = FIELDSELECT *i32 1 %a
+        (5:1)	%1{a} = ALLOCATION ovidc_test:TestType
+        (11:13)	%2 = FIELDSELECT *i32 1 %1{a}
         (11:12)	%3 = DEREFERENCE i32 %2
         (11:5)	RETURN %3
     }

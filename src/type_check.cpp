@@ -464,18 +464,18 @@ ir::Instruction *TypeCheck::genIrDecl(IrDecl ir_decl, const SourceLocation &loc,
     auto generic_fn = dynamic_cast<ir::GenericFunctionDeclare *>(ir_decl.instr);
     auto mono_fn = dynamic_cast<ir::FunctionDeclare *>(ir_decl.instr);
     if (generic_fn != nullptr) {
-      // use ImplGenericFnExtract
+      // use GenericSelect
       const auto &select_id = generic_fn->id;
-      auto select = std::make_unique<ir::ImplGenericFnExtract>(
+      auto select = std::make_unique<ir::GenericSelect>(
           loc, select_id.withNewId(), *specialized_impl, select_id.id,
           generic_fn->type_construct);
       auto select_ptr = select.get();
       curInstructionList->push_back(std::move(select));
       return select_ptr;
     } else if (mono_fn != nullptr) {
-      // use normal ImplFnExtract
+      // use normal Select
       const auto &select_id = mono_fn->val;
-      auto select = std::make_unique<ir::ImplFnExtract>(
+      auto select = std::make_unique<ir::Select>(
           loc, select_id.withNewId(), *specialized_impl, select_id.id.id,
           mono_fn->type);
       auto select_ptr = select.get();

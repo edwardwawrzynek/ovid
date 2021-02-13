@@ -1,0 +1,15 @@
+(5:1)	%0 = IMPL () {
+    (6:5)	%5{[()]:test1} = FUNCTIONDECLARE () -> void [%0] {
+        (6:5)	BASICBLOCK @1 {
+            (7:9)	%2{[()]:test2} = GENERICFORWARDIDENTIFIER <T> () -> void
+            (7:9)	%3{[()]:test2<i32>} = SPECIALIZE () -> void %2{[()]:test2} <i32>
+            (7:9)	%4 = FUNCTIONCALL void %3{[()]:test2<i32>} ()
+        }
+    }
+    (10:5)	%9{[()]:test2} = GENERICFUNCTIONDECLARE <T> () -> void [%0] {
+        (10:5)	BASICBLOCK @6 {
+            (11:9)	%7{[()]:test1} = SELECT () -> void %0 5
+            (11:9)	%8 = FUNCTIONCALL void %7{[()]:test1} ()
+        }
+    }
+}

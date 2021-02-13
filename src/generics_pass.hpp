@@ -108,13 +108,13 @@ class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
                                   const GenericsPassState &state) override;
   int visitGenericForwardIdentifier(GenericForwardIdentifier &instruct,
                                     const GenericsPassState &state) override;
-  int visitImplGenericFnExtract(ImplGenericFnExtract &instruct,
+  int visitImplGenericFnExtract(GenericSelect &instruct,
                                 const GenericsPassState &state) override;
 
   int visitImpl(Impl &instruct, const GenericsPassState &state) override;
   int visitFunctionDeclare(FunctionDeclare &instruct,
                            const GenericsPassState &state) override;
-  int visitImplFnExtract(ImplFnExtract &instruct,
+  int visitImplFnExtract(Select &instruct,
                          const GenericsPassState &state) override;
   int visitIntLiteral(IntLiteral &instruct,
                       const GenericsPassState &state) override;
@@ -165,6 +165,11 @@ class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
   Value newValue(const Value &old_val, const GenericsPassState &state);
   int addExpr(std::unique_ptr<Expression> expr, Expression &old,
               const GenericsPassState &state);
+
+  bool fnDeclImplNotInState(Instruction *fnDeclImpl,
+                            const GenericsPassState &state);
+  GenericsPassState withFnDeclImpl(Instruction *fnDeclImpl,
+                                   const GenericsPassState &state);
 
 public:
   GenericsPass(ActiveScopes &scopes, ErrorManager &errorMan,

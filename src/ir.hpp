@@ -316,26 +316,26 @@ public:
 };
 
 /* a function selection on an impl block
- * ie -- extract a function expression from an impl given it's id */
-class ImplFnExtract : public Expression {
+ * ie -- select a function expression from an impl given it's id */
+class Select : public Expression {
 public:
   Expression &impl;
   uint64_t extract_id;
 
-  ImplFnExtract(const SourceLocation &loc, const Value &val, Expression &impl,
-                uint64_t extract_id, std::shared_ptr<ast::Type> type);
+  Select(const SourceLocation &loc, const Value &val, Expression &impl,
+         uint64_t extract_id, std::shared_ptr<ast::Type> type);
 };
 
 /* a generic function selection on an impl block
- * same as ImplFnExtract, but selects a generic function */
-class ImplGenericFnExtract : public GenericExpression {
+ * same as Select, but selects a generic function */
+class GenericSelect : public GenericExpression {
 public:
   Expression &impl;
   uint64_t extract_id;
 
-  ImplGenericFnExtract(const SourceLocation &loc, const Id &id,
-                       Expression &impl, uint64_t extract_id,
-                       std::shared_ptr<ast::TypeConstructor> type);
+  GenericSelect(const SourceLocation &loc, const Id &id, Expression &impl,
+                uint64_t extract_id,
+                std::shared_ptr<ast::TypeConstructor> type);
 };
 
 /* a forward declared expression (likely a function or global) */

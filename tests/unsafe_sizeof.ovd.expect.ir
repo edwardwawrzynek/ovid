@@ -1,17 +1,17 @@
-(5:5)	%ovidc_test:main = FUNCTIONDECLARE () -> i32 {
+(5:5)	%12{ovidc_test:main} = FUNCTIONDECLARE () -> i32 {
     (5:5)	BASICBLOCK @0 {
         (6:13)	%1 = SIZEOF i32
-        (6:5)	%a = ALLOCATION u64
-        (6:5)	STORE %a <- %1
+        (6:5)	%2{a} = ALLOCATION u64
+        (6:5)	STORE %2{a} <- %1
         (7:13)	%3 = SIZEOF i64
-        (7:5)	%b = ALLOCATION u64
-        (7:5)	STORE %b <- %3
+        (7:5)	%4{b} = ALLOCATION u64
+        (7:5)	STORE %4{b} <- %3
         (8:16)	%5 = INTLITERAL i32 2
         (8:16)	%6 = BUILTINCAST u64 %5
         (8:14)	%7 = BUILTINOPERATOR (u64, u64) -> u64 *
-        (8:12)	%8 = FUNCTIONCALL u64 %7(%a, %6)
+        (8:12)	%8 = FUNCTIONCALL u64 %7 (%2{a}, %6)
         (8:18)	%9 = BUILTINOPERATOR (u64, u64) -> u64 -
-        (8:12)	%10 = FUNCTIONCALL u64 %9(%8, %b)
+        (8:12)	%10 = FUNCTIONCALL u64 %9 (%8, %4{b})
         (8:12)	%11 = BUILTINCAST i32 %10
         (8:5)	RETURN %11
     }

@@ -183,7 +183,7 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
 
   // convert a IrDecl into a selection of an ir node
   // a sequence of instr -> (Specialize? ->
-  // (ImplFnExtract|ImplGenericFnExtract)?)? actual_params are the params to
+  // (Select|GenericSelect)?)? actual_params are the params to
   // specialize the impl type on (if ir_decl is inside an impl block)
   ir::Instruction *genIrDecl(IrDecl ir_decl, const SourceLocation &loc,
                              const TypeCheckState &state,

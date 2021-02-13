@@ -4,18 +4,16 @@
 namespace ovid::ir {
 
 void IRPrinter::printId(const Id &id) {
-  output << "%";
+  output << "%" << id.id;
   if (id.hasSourceName) {
-    // output << "{";
+    output << "{";
     auto name = id.sourceName->getFullyScopedName();
     output << scopedNameToString(name);
     if (!id.typeParams.empty()) {
       output << type_printer.getGenericTypeList(
           const_cast<ast::TypeList &>(id.typeParams));
     }
-    // output << "}";
-  } else {
-    output << id.id;
+    output << "}";
   }
 }
 
@@ -157,7 +155,7 @@ int ovid::ir::IRPrinter::visitFunctionCall(
   printValue(instruct.val);
   output << " = FUNCTIONCALL " << type_printer.getType(*instruct.type) << " ";
   printValue(instruct.function.val);
-  output << "(";
+  output << " (";
   for (size_t i = 0; i < instruct.arguments.size(); i++) {
     auto &arg = instruct.arguments[i].get();
     printValue(arg.val);
@@ -421,27 +419,27 @@ int IRPrinter::visitGenericImpl(GenericImpl &instruct,
   return 0;
 }
 
-int IRPrinter::visitImplFnExtract(ImplFnExtract &instruct,
+int IRPrinter::visitImplFnExtract(Select &instruct,
                                   const ast::ASTPrinterState &state) {
   state.printIndent(output);
   ast::printLoc(output, instruct.loc);
   output << "\t";
   printValue(instruct.val);
 
-  output << " = EXTRACT " << type_printer.getType(*instruct.type) << " ";
+  output << " = SELECT " << type_printer.getType(*instruct.type) << " ";
   printId(instruct.impl.val.id);
   output << " " << instruct.extract_id << "\n";
   return 0;
 }
 
-int IRPrinter::visitImplGenericFnExtract(ImplGenericFnExtract &instruct,
+int IRPrinter::visitImplGenericFnExtract(GenericSelect &instruct,
                                          const ast::ASTPrinterState &state) {
   state.printIndent(output);
   ast::printLoc(output, instruct.loc);
   output << "\t";
   printId(instruct.id);
 
-  output << " = GENERICEXTRACT "
+  output << " = GENERICSELECT "
          << type_printer.getFormalTypeParameterList(
                 instruct.type_construct->getFormalTypeParameters())
          << " "

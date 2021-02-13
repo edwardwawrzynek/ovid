@@ -1,20 +1,20 @@
-(7:1)	%ovidc_test:test:pkg:test = FUNCTIONDECLARE () -> void {
+(7:1)	%10{ovidc_test:test:pkg:test} = FUNCTIONDECLARE () -> void {
     (7:1)	BASICBLOCK @0 {
         (8:13)	%1 = INTLITERAL i32 5
-        (8:5)	%a = ALLOCATION i32
-        (8:5)	STORE %a <- %1
+        (8:5)	%2{a} = ALLOCATION i32
+        (8:5)	STORE %2{a} <- %1
         (9:8)	%4 = BOOLLITERAL bool true
         (9:8)	CONDITIONALJUMP %4 @5(true) @3(false)
     }
     (9:8)	BASICBLOCK @5 {
         (10:17)	%6 = INTLITERAL i32 6
-        (10:9)	%b = ALLOCATION i32
-        (10:9)	STORE %b <- %6
+        (10:9)	%7{b} = ALLOCATION i32
+        (10:9)	STORE %7{b} <- %6
         (9:8)	JUMP @3
     }
     (9:5)	BASICBLOCK @3 {
         (12:13)	%8 = INTLITERAL i32 7
-        (12:5)	%c = ALLOCATION i32
-        (12:5)	STORE %c <- %8
+        (12:5)	%9{c} = ALLOCATION i32
+        (12:5)	STORE %9{c} <- %8
     }
 }

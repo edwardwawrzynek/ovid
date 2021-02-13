@@ -1,17 +1,17 @@
-(7:1)	%ovidc_test:test:test1 = FUNCTIONDECLARE () -> void {
+(7:1)	%3{ovidc_test:test:test1} = FUNCTIONDECLARE () -> void {
     (7:1)	BASICBLOCK @0 {
-        (8:5)	%ovidc_test:test:test2 = FORWARDIDENTIFIER () -> void
-        (8:5)	%2 = FUNCTIONCALL void %ovidc_test:test:test2()
+        (8:5)	%1{ovidc_test:test:test2} = FORWARDIDENTIFIER () -> void
+        (8:5)	%2 = FUNCTIONCALL void %1{ovidc_test:test:test2} ()
     }
 }
-(11:1)	%ovidc_test:test:test2 = FUNCTIONDECLARE () -> void {
+(11:1)	%7{ovidc_test:test:test2} = FUNCTIONDECLARE () -> void {
     (11:1)	BASICBLOCK @4 {
-        (12:5)	%ovidc_test:test:test3 = FORWARDIDENTIFIER () -> void
-        (12:5)	%6 = FUNCTIONCALL void %ovidc_test:test:test3()
+        (12:5)	%5{ovidc_test:test:test3} = FORWARDIDENTIFIER () -> void
+        (12:5)	%6 = FUNCTIONCALL void %5{ovidc_test:test:test3} ()
     }
 }
-(15:1)	%ovidc_test:test:test3 = FUNCTIONDECLARE () -> void {
+(15:1)	%10{ovidc_test:test:test3} = FUNCTIONDECLARE () -> void {
     (15:1)	BASICBLOCK @8 {
-        (16:5)	%9 = FUNCTIONCALL void %ovidc_test:test:test2()
+        (16:5)	%9 = FUNCTIONCALL void %7{ovidc_test:test:test2} ()
     }
 }

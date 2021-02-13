@@ -1,14 +1,14 @@
-(7:1)	%ovidc_test:test:test = FUNCTIONDECLARE () -> void {
+(7:1)	%24{ovidc_test:test:test} = FUNCTIONDECLARE () -> void {
     (7:1)	BASICBLOCK @0 {
         (8:13)	%1 = INTLITERAL i32 0
-        (8:5)	%i = ALLOCATION i32
-        (8:5)	STORE %i <- %1
+        (8:5)	%2{i} = ALLOCATION i32
+        (8:5)	STORE %2{i} <- %1
         (10:5)	JUMP @4
     }
     (10:5)	BASICBLOCK @4 {
         (10:15)	%5 = INTLITERAL i32 100
         (10:13)	%6 = BUILTINOPERATOR (i32, i32) -> bool <
-        (10:11)	%7 = FUNCTIONCALL bool %6(%i, %5)
+        (10:11)	%7 = FUNCTIONCALL bool %6 (%2{i}, %5)
         (10:5)	CONDITIONALJUMP %7 @8(true) @3(false)
     }
     (10:5)	BASICBLOCK @8 {
@@ -17,24 +17,24 @@
     (11:9)	BASICBLOCK @10 {
         (11:19)	%11 = INTLITERAL i32 10
         (11:17)	%12 = BUILTINOPERATOR (i32, i32) -> i32 -
-        (11:15)	%13 = FUNCTIONCALL i32 %12(%i, %11)
+        (11:15)	%13 = FUNCTIONCALL i32 %12 (%2{i}, %11)
         (11:25)	%14 = INTLITERAL i32 0
         (11:22)	%15 = BUILTINOPERATOR (i32, i32) -> bool !=
-        (11:15)	%16 = FUNCTIONCALL bool %15(%13, %14)
+        (11:15)	%16 = FUNCTIONCALL bool %15 (%13, %14)
         (11:9)	CONDITIONALJUMP %16 @17(true) @9(false)
     }
     (11:9)	BASICBLOCK @17 {
         (12:18)	%18 = INTLITERAL i32 1
         (12:15)	%19 = BUILTINOPERATOR (i32, i32) -> i32 +
-        (12:13)	%20 = FUNCTIONCALL i32 %19(%i, %18)
-        (12:13)	STORE %i <- %20
+        (12:13)	%20 = FUNCTIONCALL i32 %19 (%2{i}, %18)
+        (12:13)	STORE %2{i} <- %20
         (11:9)	JUMP @10
     }
     (11:9)	BASICBLOCK @9 {
         (14:14)	%21 = INTLITERAL i32 1
         (14:11)	%22 = BUILTINOPERATOR (i32, i32) -> i32 +
-        (14:9)	%23 = FUNCTIONCALL i32 %22(%i, %21)
-        (14:9)	STORE %i <- %23
+        (14:9)	%23 = FUNCTIONCALL i32 %22 (%2{i}, %21)
+        (14:9)	STORE %2{i} <- %23
         (10:5)	JUMP @4
     }
     (10:5)	BASICBLOCK @3 {

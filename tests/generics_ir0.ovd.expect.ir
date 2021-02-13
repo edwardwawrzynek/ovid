@@ -1,18 +1,18 @@
-(11:1)	%ovidc_test:test = FUNCTIONDECLARE (v1 (*i32, *f64), v2 ovidc_test:Generic<*ovidc_test:Generic<u32>>) -> void {
+(11:1)	%13{ovidc_test:test} = FUNCTIONDECLARE (v1 (*i32, *f64), v2 ovidc_test:Generic<*ovidc_test:Generic<u32>>) -> void {
     (11:1)	BASICBLOCK @0 {
-        (5:22)	%v1 = ALLOCATION (*i32, *f64)
-        (6:1)	%v2 = ALLOCATION ovidc_test:Generic<*ovidc_test:Generic<u32>>
-        (12:13)	%3 = FIELDSELECT *i32 0 %v1
-        (12:5)	%a = ALLOCATION *i32
-        (12:5)	STORE %a <- %3
-        (13:13)	%5 = FIELDSELECT *ovidc_test:Generic<*ovidc_test:Generic<u32>> 1 %v2
+        (5:22)	%1{v1} = ALLOCATION (*i32, *f64)
+        (6:1)	%2{v2} = ALLOCATION ovidc_test:Generic<*ovidc_test:Generic<u32>>
+        (12:13)	%3 = FIELDSELECT *i32 0 %1{v1}
+        (12:5)	%4{a} = ALLOCATION *i32
+        (12:5)	STORE %4{a} <- %3
+        (13:13)	%5 = FIELDSELECT *ovidc_test:Generic<*ovidc_test:Generic<u32>> 1 %2{v2}
         (13:13)	%6 = DEREFERENCE ovidc_test:Generic<*ovidc_test:Generic<u32>> %5
         (13:13)	%7 = FIELDSELECT *ovidc_test:Generic<u32> 0 %6
         (13:13)	%8 = DEREFERENCE ovidc_test:Generic<u32> %7
         (13:13)	%9 = FIELDSELECT *ovidc_test:Generic<u32> 1 %8
         (13:13)	%10 = DEREFERENCE ovidc_test:Generic<u32> %9
         (13:13)	%11 = FIELDSELECT u32 0 %10
-        (13:5)	%b = ALLOCATION u32
-        (13:5)	STORE %b <- %11
+        (13:5)	%12{b} = ALLOCATION u32
+        (13:5)	STORE %12{b} <- %11
     }
 }

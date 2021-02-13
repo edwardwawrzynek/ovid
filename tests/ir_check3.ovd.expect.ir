@@ -1,48 +1,48 @@
-(5:1)	%ovidc_test:test1 = FUNCTIONDECLARE (a i32, b *u8) -> void {
+(5:1)	%11{ovidc_test:test1} = FUNCTIONDECLARE (a i32, b *u8) -> void {
     (5:1)	BASICBLOCK @0 {
-        (5:12)	%a = ALLOCATION i32
-        (5:19)	%b = ALLOCATION *u8
-        (6:9)	%3 = DEREFERENCE u8 %b
-        (5:12)	%4 = BUILTINCAST u32 %a
+        (5:12)	%1{a} = ALLOCATION i32
+        (5:19)	%2{b} = ALLOCATION *u8
+        (6:9)	%3 = DEREFERENCE u8 %2{b}
+        (5:12)	%4 = BUILTINCAST u32 %1{a}
         (6:9)	%5 = BUILTINCAST u32 %3
         (6:7)	%6 = BUILTINOPERATOR (u32, u32) -> u32 +
-        (6:5)	%7 = FUNCTIONCALL u32 %6(%4, %5)
-        (5:12)	%8 = BUILTINCAST u32 %a
+        (6:5)	%7 = FUNCTIONCALL u32 %6 (%4, %5)
+        (5:12)	%8 = BUILTINCAST u32 %1{a}
         (6:12)	%9 = BUILTINOPERATOR (u32, u32) -> u32 -
-        (6:5)	%10 = FUNCTIONCALL u32 %9(%7, %8)
+        (6:5)	%10 = FUNCTIONCALL u32 %9 (%7, %8)
     }
 }
-(9:1)	%ovidc_test:test2 = FUNCTIONDECLARE (a *mut f32, b f64) -> void {
+(9:1)	%19{ovidc_test:test2} = FUNCTIONDECLARE (a *mut f32, b f64) -> void {
     (9:1)	BASICBLOCK @12 {
-        (9:12)	%a = ALLOCATION *mut f32
-        (9:24)	%b = ALLOCATION f64
-        (10:9)	%15 = DEREFERENCE f32 %a
+        (9:12)	%13{a} = ALLOCATION *mut f32
+        (9:24)	%14{b} = ALLOCATION f64
+        (10:9)	%15 = DEREFERENCE f32 %13{a}
         (10:9)	%16 = BUILTINCAST f64 %15
         (10:7)	%17 = BUILTINOPERATOR (f64, f64) -> f64 -
-        (10:5)	%18 = FUNCTIONCALL f64 %17(%b, %16)
+        (10:5)	%18 = FUNCTIONCALL f64 %17 (%14{b}, %16)
     }
 }
-(13:1)	%ovidc_test:test3 = FUNCTIONDECLARE (a f32, b ***f32) -> void {
+(13:1)	%30{ovidc_test:test3} = FUNCTIONDECLARE (a f32, b ***f32) -> void {
     (13:1)	BASICBLOCK @20 {
-        (13:12)	%a = ALLOCATION f32
-        (13:19)	%b = ALLOCATION ***f32
+        (13:12)	%21{a} = ALLOCATION f32
+        (13:19)	%22{b} = ALLOCATION ***f32
         (14:5)	%23 = BUILTINOPERATOR (f32) -> f32 -
-        (14:5)	%24 = FUNCTIONCALL f32 %23(%a)
-        (14:12)	%25 = DEREFERENCE **f32 %b
+        (14:5)	%24 = FUNCTIONCALL f32 %23 (%21{a})
+        (14:12)	%25 = DEREFERENCE **f32 %22{b}
         (14:11)	%26 = DEREFERENCE *f32 %25
         (14:10)	%27 = DEREFERENCE f32 %26
         (14:8)	%28 = BUILTINOPERATOR (f32, f32) -> f32 +
-        (14:5)	%29 = FUNCTIONCALL f32 %28(%24, %27)
+        (14:5)	%29 = FUNCTIONCALL f32 %28 (%24, %27)
     }
 }
-(17:1)	%ovidc_test:test4 = FUNCTIONDECLARE (a f32, b f64) -> void {
+(17:1)	%39{ovidc_test:test4} = FUNCTIONDECLARE (a f32, b f64) -> void {
     (17:1)	BASICBLOCK @31 {
-        (17:12)	%a = ALLOCATION f32
-        (17:19)	%b = ALLOCATION f64
+        (17:12)	%32{a} = ALLOCATION f32
+        (17:19)	%33{b} = ALLOCATION f64
         (18:5)	%34 = BUILTINOPERATOR (f32) -> f32 -
-        (18:5)	%35 = FUNCTIONCALL f32 %34(%a)
+        (18:5)	%35 = FUNCTIONCALL f32 %34 (%32{a})
         (18:5)	%36 = BUILTINCAST f64 %35
         (18:8)	%37 = BUILTINOPERATOR (f64, f64) -> f64 +
-        (18:5)	%38 = FUNCTIONCALL f64 %37(%36, %b)
+        (18:5)	%38 = FUNCTIONCALL f64 %37 (%36, %33{b})
     }
 }

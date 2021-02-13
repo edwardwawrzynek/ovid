@@ -1,0 +1,15 @@
+// __ovid_compiler_test
+//__mode: compile check_ir
+//__end_header
+
+impl () {
+    fn test1() {
+        test2:<i32>()
+    }
+
+    fn test2<T>() {
+        test1()
+    }
+}
+
+

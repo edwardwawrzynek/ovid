@@ -51,9 +51,9 @@ class IRPrinter : public BaseIRVisitor<int, ast::ASTPrinterState> {
   int visitImpl(Impl &instruct, const ast::ASTPrinterState &state) override;
   int visitGenericImpl(GenericImpl &instruct,
                        const ast::ASTPrinterState &state) override;
-  int visitImplFnExtract(ImplFnExtract &instruct,
+  int visitImplFnExtract(Select &instruct,
                          const ast::ASTPrinterState &state) override;
-  int visitImplGenericFnExtract(ImplGenericFnExtract &instruct,
+  int visitImplGenericFnExtract(GenericSelect &instruct,
                                 const ast::ASTPrinterState &state) override;
 
   int visitStore(Store &instruct, const ast::ASTPrinterState &state) override;

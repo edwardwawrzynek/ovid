@@ -218,16 +218,42 @@ int GenericsPass::visitImpl(Impl &instruct, const GenericsPassState &state) {
                              InstructionList(), instruct.header);
   global_subs.addExpression(instruct, impl.get());
   // visit component function decls
-  auto subs = GenericSubstitutions(&global_subs);
-  auto bodyState = GenericsPassState(
-      false, state.formal_params, state.actual_params, subs,
-      state.curBasicBlockList, &impl->fn_decls, &impl->fn_decls);
   for (auto &fn_decl : instruct.fn_decls) {
-    visitInstruction(*fn_decl, bodyState);
+    visitInstruction(*fn_decl, state);
   }
 
   state.curInstructionList->push_back(std::move(impl));
   return 0;
+}
+
+bool GenericsPass::fnDeclImplNotInState(Instruction *fnDeclImpl,
+                                        const GenericsPassState &state) {
+  if (fnDeclImpl == nullptr) {
+    return false;
+  } else {
+    visitInstruction(*fnDeclImpl, state.withIsSpecializing(false));
+    auto newImplBody =
+        dynamic_cast<Impl *>(global_subs.useInstruction(fnDeclImpl));
+    assert(newImplBody != nullptr);
+    auto implRootInstrList = &newImplBody->fn_decls;
+    return state.rootInstructionList != implRootInstrList;
+  }
+}
+
+GenericsPassState GenericsPass::withFnDeclImpl(Instruction *fnDeclImpl,
+                                               const GenericsPassState &state) {
+  assert(fnDeclImpl != nullptr);
+  visitInstruction(*fnDeclImpl, state.withIsSpecializing(false));
+  auto newImplBody =
+      dynamic_cast<Impl *>(global_subs.useInstruction(fnDeclImpl));
+  assert(newImplBody != nullptr);
+  auto implRootInstrList = &newImplBody->fn_decls;
+  assert(implRootInstrList != nullptr);
+
+  return GenericsPassState(state.is_specializing, state.formal_params,
+                           state.actual_params, state.subs,
+                           state.curBasicBlockList, state.curInstructionList,
+                           implRootInstrList);
 }
 
 int GenericsPass::visitFunctionDeclare(FunctionDeclare &instruct,
@@ -237,16 +263,10 @@ int GenericsPass::visitFunctionDeclare(FunctionDeclare &instruct,
     return 0;
   }
 
-  // if this function is inside an impl, visit that instead
-  if (instruct.impl != nullptr) {
-    // if there is a global sub for the impl but not this function, we are
-    // currently visiting the impl and should handle this function
-    if (global_subs.hasInstruction(instruct.impl)) {
-      assert(!global_subs.hasExpression(&instruct));
-    } else {
-      visitInstruction(*instruct.impl, state);
-      return 0;
-    }
+  // if this function is inside an impl, make sure state.rootInstrctionList
+  // matches it
+  if (fnDeclImplNotInState(instruct.impl, state)) {
+    return visitFunctionDeclare(instruct, withFnDeclImpl(instruct.impl, state));
   }
   // construct new function declaration
   auto funcType =
@@ -291,18 +311,9 @@ int GenericsPass::visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
   }
   // if the function declare is in an impl and curRootInstructionList isn't set
   // to the body of the impl, set it
-  if (instruct.impl != nullptr) {
-    auto newImplBody =
-        dynamic_cast<Impl *>(global_subs.useInstruction(instruct.impl));
-    assert(newImplBody != nullptr);
-    auto implRootInstrList = &newImplBody->fn_decls;
-    if (state.rootInstructionList != implRootInstrList) {
-      auto newState = GenericsPassState(
-          state.is_specializing, state.formal_params, state.actual_params,
-          state.subs, state.curBasicBlockList, state.curInstructionList,
-          implRootInstrList);
-      return visitGenericFunctionDeclare(instruct, newState);
-    }
+  if (fnDeclImplNotInState(instruct.impl, state)) {
+    return visitGenericFunctionDeclare(instruct,
+                                       withFnDeclImpl(instruct.impl, state));
   }
   // if formal params aren't set, set them to match the function
   if (!instruct.type_construct->getFormalTypeParameters().empty() &&
@@ -389,40 +400,29 @@ int GenericsPass::visitBasicBlockList(
   return 0;
 }
 
-int GenericsPass::visitImplFnExtract(ImplFnExtract &instruct,
+int GenericsPass::visitImplFnExtract(Select &instruct,
                                      const GenericsPassState &state) {
-  visitInstruction(instruct.impl, state);
-  // get impl substitution
-  auto newImpl = global_subs.hasExpression(&instruct.impl);
-  assert(newImpl != nullptr);
-  auto newSelectId =
-      getInstrId(global_subs.useInstructionId(instruct.extract_id)).id;
-  // if impl resolved to static impl, just select the appropriate fn declare
-  auto impl = dynamic_cast<Impl *>(newImpl);
-  if (impl != nullptr) {
-    auto newFunc = impl->getFnDecl(newSelectId);
-    state.subs.addExpression(instruct, newFunc);
-  } else {
-    // otherwise, insert ImplFnExtract node
-    // if newImpl isn't a static impl, it must be a dynamic typeclass call
-    auto instr = std::make_unique<ImplFnExtract>(
-        instruct.loc, newValue(instruct.val, state), *newImpl, newSelectId,
-        fixType(instruct.type, state));
-    return addExpr(std::move(instr), instruct, state);
-  }
+  // TODO: support typeclass impl resolving (instruct.impl may not be an Impl,
+  // so we can't just visit the old node)
+  auto impl = dynamic_cast<Impl *>(&instruct.impl);
+  assert(impl != nullptr);
+  auto func = impl->getFnDecl(instruct.extract_id);
+  visitInstruction(*func, state.withIsSpecializing(false));
+  auto newFunc = global_subs.useExpression(func);
+  state.subs.addExpression(instruct, newFunc);
+
   return 0;
 }
 
-int GenericsPass::visitImplGenericFnExtract(ImplGenericFnExtract &instruct,
+int GenericsPass::visitImplGenericFnExtract(GenericSelect &instruct,
                                             const GenericsPassState &state) {
-  // we don't need to visit the selected func's owning impl, since we are going
-  // to be specializing from the original impl def
+  // TODO: support typeclass impl resolving (instruct.impl may not be an Impl,
+  // so we can't just visit the old node)
   auto impl = dynamic_cast<Impl *>(&instruct.impl);
-  // since generic methods can't be included on dynamic impl calls, we must have
-  // a static impl
   assert(impl != nullptr);
-  auto newFunc = impl->getGenericFnDecl(instruct.extract_id);
-  state.subs.addGenericExpression(instruct, newFunc);
+  // don't visit the function (b/c it will later be specialized)
+  auto func = impl->getGenericFnDecl(instruct.extract_id);
+  state.subs.addGenericExpression(instruct, func);
 
   return 0;
 }

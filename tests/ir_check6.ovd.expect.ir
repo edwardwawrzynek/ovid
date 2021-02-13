@@ -1,6 +1,6 @@
-(9:1)	%ovidc_test:mod:sub:test = FUNCTIONDECLARE (a (i64, u8, (i8, (i32, u8)), i8)) -> (i64, u8, (i8, (i32, u8)), i8) {
+(9:1)	%11{ovidc_test:mod:sub:test} = FUNCTIONDECLARE (a (i64, u8, (i8, (i32, u8)), i8)) -> (i64, u8, (i8, (i32, u8)), i8) {
     (9:1)	BASICBLOCK @0 {
-        (7:18)	%a = ALLOCATION (i64, u8, (i8, (i32, u8)), i8)
+        (7:18)	%1{a} = ALLOCATION (i64, u8, (i8, (i32, u8)), i8)
         (10:13)	%2 = INTLITERAL i64 5
         (10:16)	%3 = INTLITERAL u8 6
         (10:20)	%4 = INTLITERAL i8 7
