@@ -262,7 +262,8 @@ ast::StatementList CLIDriver::parseFiles() {
     // feed file to tokenizer
     auto lexer = Tokenizer(&path, file, errorMan);
     // parse file
-    auto parser = Parser(lexer, errorMan, scopes, args.package_name);
+    auto parser =
+        Parser(lexer, errorMan, scopes, root_scopes, args.package_name);
     auto file_ast = parser.parseProgram();
     parser.removePushedPackageScope();
     // add file's ast to whole program ast

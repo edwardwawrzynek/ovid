@@ -82,6 +82,7 @@ public:
   virtual std::nullptr_t logError(const std::string &msg,
                                   const SourceLocation &location,
                                   ErrorType type, bool emitNewline) = 0;
+  virtual std::nullptr_t newline() = 0;
   virtual bool criticalErrorOccurred() = 0;
 
   virtual bool anyErrorOccurred() = 0;
@@ -105,6 +106,7 @@ public:
   std::nullptr_t logError(const std::string &msg,
                           const SourceLocation &location, ErrorType type,
                           bool emitNewline) override;
+  std::nullptr_t newline() override;
 
   bool criticalErrorOccurred() override;
   bool anyErrorOccurred() override;
@@ -133,6 +135,7 @@ public:
   std::nullptr_t logError(const std::string &msg,
                           const SourceLocation &location, ErrorType type,
                           bool emitNewline) override;
+  std::nullptr_t newline() override;
   bool criticalErrorOccurred() override;
   bool anyErrorOccurred() override;
 

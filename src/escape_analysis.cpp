@@ -639,6 +639,15 @@ void visitAllocations(const BasicBlockList &blocks,
   }
 }
 
+int EscapeAnalysisPass::visitImpl(Impl &instruct,
+                                  const EscapeAnalysisState &state) {
+  for (auto &fn_decl : instruct.fn_decls) {
+    visitInstruction(*fn_decl, state);
+  }
+
+  return 0;
+}
+
 int EscapeAnalysisPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                              const EscapeAnalysisState &state) {
   // if the function has already been visited, skip it

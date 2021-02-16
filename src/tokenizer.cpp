@@ -310,6 +310,12 @@ void Tokenizer::nextToken() {
   case '}':
     curToken.token = T_RBRK;
     break;
+  case '[':
+    curToken.token = T_LSQBRK;
+    break;
+  case ']':
+    curToken.token = T_RSQBRK;
+    break;
   case '(':
     curToken.token = T_LPAREN;
     parenLevel++;

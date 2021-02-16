@@ -9,58 +9,8 @@ enum class MangleType {
 };
 
 template <typename T>
-static std::string mangleScope(const ScopeTable<T> *scope, MangleType type) {
-  /* choose _I or _T prefix */
-  std::string res;
-  switch (type) {
-  case MangleType::IDENTIFIER:
-    res = "_I";
-    break;
-  case MangleType::TYPE_ALIAS:
-    res = "_T";
-    break;
-  default:
-    assert(false);
-  }
-
-  std::vector<std::string> scopes;
-  std::vector<int64_t> version_nums;
-  while (scope != nullptr && !scope->getName().empty()) {
-    scopes.push_back(scope->getName());
-    version_nums.push_back(scope->getVersionInt());
-    scope = scope->getParent();
-  }
-
-  for (size_t i = scopes.size(); i--;) {
-    auto name = scopes[i];
-    res.append(std::to_string(name.size()));
-    res.append(name);
-    auto ver = version_nums[i];
-    if (ver != -1) {
-      res.push_back('V');
-      res.append(std::to_string(std::to_string(ver).size() + 2));
-      res.push_back('_');
-      res.append(std::to_string(ver));
-      res.push_back('_');
-    }
-  }
-
-  return res;
-}
-
-template <typename T> static std::string mangle(const T *sym, MangleType type) {
-  // generate c compatible identifier names if unscoped
-  if ((sym->parent_table == nullptr || sym->parent_table->getName().empty()) &&
-      type == MangleType::IDENTIFIER) {
-    return sym->name;
-  } else {
-    std::string scope = mangleScope(sym->parent_table, type);
-    scope.append(std::to_string(sym->name.size()));
-    scope.append(sym->name);
-
-    return scope;
-  }
-}
+static std::string mangleScope(const ScopeTable<T> *scope, MangleType type);
+template <typename T> static std::string mangle(const T *sym, MangleType type);
 
 /* type mangler visitor */
 class TypeManglerState {};
@@ -184,6 +134,80 @@ public:
 };
 
 TypeMangler type_mangler;
+
+template <typename T>
+static std::string mangleScope(const ScopeTable<T> *scope, MangleType type) {
+  /* choose _I or _T prefix */
+  std::string res;
+  switch (type) {
+  case MangleType::IDENTIFIER:
+    res = "_I";
+    break;
+  case MangleType::TYPE_ALIAS:
+    res = "_T";
+    break;
+  default:
+    assert(false);
+  }
+
+  std::vector<std::string> scopes;
+  std::vector<int64_t> version_nums;
+  ast::ImplHeader *impl = nullptr;
+  while (scope != nullptr &&
+         (!scope->getName().empty() || scope->getImpl() != nullptr)) {
+    if (scope->getImpl() == nullptr) {
+      scopes.push_back(scope->getName());
+      version_nums.push_back(scope->getVersionInt());
+      scope = scope->getParent();
+    } else {
+      impl = scope->getImpl().get();
+      scope = nullptr;
+    }
+  }
+
+  if (impl != nullptr) {
+    res.push_back('B');
+    res.append(type_mangler.getType(*impl->type));
+    if (!impl->type_params.empty()) {
+      // TODO: cannot mangle type params without substitutions known (scope
+      // table doesn't include specialized substitutions)
+      assert(false);
+    }
+    res.push_back('E');
+  }
+
+  for (size_t i = scopes.size(); i--;) {
+    auto name = scopes[i];
+    res.append(std::to_string(name.size()));
+    res.append(name);
+    auto ver = version_nums[i];
+    if (ver != -1) {
+      res.push_back('V');
+      res.append(std::to_string(std::to_string(ver).size() + 2));
+      res.push_back('_');
+      res.append(std::to_string(ver));
+      res.push_back('_');
+    }
+  }
+
+  return res;
+}
+
+template <typename T> static std::string mangle(const T *sym, MangleType type) {
+  // generate c compatible identifier names if unscoped
+  if ((sym->parent_table == nullptr ||
+       (sym->parent_table->getName().empty() &&
+        sym->parent_table->getImpl() == nullptr)) &&
+      type == MangleType::IDENTIFIER) {
+    return sym->name;
+  } else {
+    std::string scope = mangleScope(sym->parent_table, type);
+    scope.append(std::to_string(sym->name.size()));
+    scope.append(sym->name);
+
+    return scope;
+  }
+}
 
 std::string mangleType(ast::Type &type) { return type_mangler.getType(type); }
 

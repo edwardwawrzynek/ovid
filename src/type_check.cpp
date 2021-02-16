@@ -467,8 +467,8 @@ ir::Instruction *TypeCheck::genIrDecl(IrDecl ir_decl, const SourceLocation &loc,
       // use GenericSelect
       const auto &select_id = generic_fn->id;
       auto select = std::make_unique<ir::GenericSelect>(
-          loc, select_id.withNewId(), *specialized_impl, select_id.id,
-          generic_fn->type_construct);
+          loc, select_id.withNewId(), *specialized_impl,
+          select_id.sourceName->name, generic_fn->type_construct);
       auto select_ptr = select.get();
       curInstructionList->push_back(std::move(select));
       return select_ptr;
@@ -476,8 +476,8 @@ ir::Instruction *TypeCheck::genIrDecl(IrDecl ir_decl, const SourceLocation &loc,
       // use normal Select
       const auto &select_id = mono_fn->val;
       auto select = std::make_unique<ir::Select>(
-          loc, select_id.withNewId(), *specialized_impl, select_id.id.id,
-          mono_fn->type);
+          loc, select_id.withNewId(), *specialized_impl,
+          select_id.id.sourceName->name, mono_fn->type);
       auto select_ptr = select.get();
       curInstructionList->push_back(std::move(select));
       return select_ptr;
@@ -714,12 +714,97 @@ TypeCheckResult TypeCheck::visitImplStatement(ImplStatement &node,
   auto generic_impl_ptr = generic_impl.get();
 
   if (is_generic) {
+    generic_impl->header->ir_decl = generic_impl_ptr;
     curInstructionList->push_back(std::move(generic_impl));
     return TypeCheckResult(nullptr, generic_impl_ptr);
   } else {
+    mono_impl->header->ir_decl = mono_impl_ptr;
     curInstructionList->push_back(std::move(mono_impl));
     return TypeCheckResult(nullptr, mono_impl_ptr);
   }
+}
+
+ImplSubsList TypeCheck::findImplsForType(const Type &type,
+                                         const std::string *method) {
+  // TODO: cache previously calculated results in a hashtable
+  ImplSubsList res;
+  for (const auto &impl_table : root_scopes.impls) {
+    const auto &header = impl_table->getImpl();
+    auto match = checkTypePattern(type, *header->type, header->type_params);
+    if (match.first) {
+      // check if impl has method
+      bool has_method = false;
+      if (method == nullptr) {
+        has_method = true;
+      } else {
+        has_method =
+            impl_table->getDirectScopeTable().findSymbol(*method) != nullptr;
+      }
+
+      if (has_method)
+        res.emplace_back(impl_table.get(), match.second);
+    }
+  }
+
+  return res;
+}
+
+bool TypeCheck::checkNumberOfImpls(const ImplSubsList &impls,
+                                   const std::string &method, Type &type,
+                                   const SourceLocation &loc) {
+  // make sure only one impl with the given method exists
+  if (impls.empty()) {
+    errorMan.logError(
+        string_format(
+            "type \x1b[1m%s\x1b[m doesn't have a method \x1b[1m%s\x1b[m",
+            type_printer.getType(type).c_str(), method.c_str()),
+        loc, ErrorType::TypeError);
+    return false;
+  }
+  if (impls.size() > 1) {
+    errorMan.logError(string_format("type \x1b[1m%s\x1b[m has multiple impl's "
+                                    "of method \x1b[1m%s\x1b[m",
+                                    type_printer.getType(type).c_str(),
+                                    method.c_str()),
+                      loc, ErrorType::TypeError, false);
+    for (const auto &impl : impls) {
+      errorMan.logError(
+          string_format("impl of method \x1b[1m%s\x1b[m here", method.c_str()),
+          impl.first->getDirectScopeTable().findSymbol(method)->decl_loc,
+          ErrorType::Note, false);
+    }
+    errorMan.newline();
+
+    return false;
+  }
+  return true;
+}
+
+TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
+                                           const TypeCheckState &state) {
+  auto matchingImpls = findImplsForType(*node.type, &node.method);
+  if (!checkNumberOfImpls(matchingImpls, node.method, *node.type, node.loc)) {
+    return TypeCheckResult::nullResult();
+  }
+  const auto &impl = matchingImpls[0];
+  const auto &fn_sym =
+      impl.first->getDirectScopeTable().findSymbol(node.method);
+  const auto &header = *impl.first->getImpl();
+  // TODO: forward referenced impl blocks
+  assert(header.ir_decl != nullptr);
+
+  ir::Instruction *ir_impl_instr = header.ir_decl;
+  // TODO: insert specialize on impl if impl is generic
+  assert(impl.second.empty());
+  auto *ir_impl = dynamic_cast<ir::Expression *>(ir_impl_instr);
+  assert(ir_impl != nullptr);
+  // TODO: insert generic select + specialize if needed
+  auto type = fn_sym->type->noParamConstruct();
+  auto select = std::make_unique<ir::Select>(node.loc, ir::Value(fn_sym),
+                                             *ir_impl, node.method, type);
+  auto selectPtr = select.get();
+  curInstructionList->push_back(std::move(select));
+  return TypeCheckResult(type, selectPtr);
 }
 
 TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,

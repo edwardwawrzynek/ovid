@@ -139,38 +139,42 @@ Impl::Impl(const SourceLocation &loc, const Value &val,
   assert(this->header->type_params.empty());
 }
 
-Expression *Impl::getFnDecl(uint64_t select_id) {
-  for (auto &decl : fn_decls) {
-    auto expr = dynamic_cast<Expression *>(decl.get());
-    if (expr != nullptr && expr->val.id.id == select_id) {
-      return expr;
-    }
-  }
-  assert(false);
-  return nullptr;
+Expression *Impl::getFnDecl(const std::string &name) {
+  // TODO: cleaner way to get scope table
+
+  // we know name exists on this, so we have to have at least one fn_decl (which
+  // we can use to get a ref to this impl's scope table)
+  assert(!fn_decls.empty());
+  auto sym_table = getInstrId(fn_decls[0].get())
+                       .sourceName->parent_table->getDirectScopeTable();
+  // find entry in symbol table and use it's ir decl node
+  auto sym = sym_table.findSymbol(name);
+  assert(sym->ir_decl.instr != nullptr);
+  auto expr = dynamic_cast<Expression *>(sym->ir_decl.instr);
+  assert(expr != nullptr);
+  return expr;
 }
 
-GenericExpression *Impl::getGenericFnDecl(uint64_t select_id) {
-  for (auto &decl : fn_decls) {
-    auto expr = dynamic_cast<GenericExpression *>(decl.get());
-    if (expr != nullptr && expr->id.id == select_id) {
-      return expr;
-    }
-  }
-  assert(false);
-  return nullptr;
+GenericExpression *Impl::getGenericFnDecl(const std::string &name) {
+  assert(!fn_decls.empty());
+  auto sym_table = getInstrId(fn_decls[0].get())
+                       .sourceName->parent_table->getDirectScopeTable();
+  // find entry in symbol table and use it's ir decl node
+  auto sym = sym_table.findSymbol(name);
+  assert(sym->ir_decl.instr != nullptr);
+  auto generic_expr = dynamic_cast<GenericExpression *>(sym->ir_decl.instr);
+  assert(generic_expr != nullptr);
+  return generic_expr;
 }
 
 Select::Select(const SourceLocation &loc, const Value &val, Expression &impl,
-               uint64_t extract_id, std::shared_ptr<ast::Type> type)
-    : Expression(loc, val, std::move(type)), impl(impl),
-      extract_id(extract_id) {}
+               const std::string &method, std::shared_ptr<ast::Type> type)
+    : Expression(loc, val, std::move(type)), impl(impl), method(method) {}
 
 GenericSelect::GenericSelect(const SourceLocation &loc, const Id &id,
-                             Expression &impl, uint64_t extract_id,
+                             Expression &impl, const std::string &method,
                              std::shared_ptr<ast::TypeConstructor> type)
-    : GenericExpression(loc, id, std::move(type)), impl(impl),
-      extract_id(extract_id) {}
+    : GenericExpression(loc, id, std::move(type)), impl(impl), method(method) {}
 
 Allocation::Allocation(const SourceLocation &loc, const Value &val,
                        std::shared_ptr<ast::Type> type,

@@ -94,6 +94,7 @@ class ASTPrinter : public BaseASTVisitor<int, ASTPrinterState> {
                          const ASTPrinterState &state) override;
   int visitFieldAccess(FieldAccess &node,
                        const ASTPrinterState &state) override;
+  int visitImplSelect(ImplSelect &node, const ASTPrinterState &state) override;
   int visitSizeof(Sizeof &node, const ASTPrinterState &state) override;
 
 public:

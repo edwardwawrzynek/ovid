@@ -393,6 +393,8 @@ Parser::parsePrimary(const ParserState &state) {
     return parseIdentifier(state);
   case T_LPAREN:
     return parseParenExpr(state);
+  case T_LSQBRK:
+    return parseImplSelect(state);
   case T_INTLITERAL:
     return parseIntLiteral(state);
   case T_BOOLLITERAL:
@@ -411,6 +413,36 @@ Parser::parsePrimary(const ParserState &state) {
     } else
       return errorMan.logError("unexpected token", loc, ErrorType::ParseError);
   }
+}
+
+// implselect ::= '[' type ']' ':' ident
+std::unique_ptr<ast::Expression>
+Parser::parseImplSelect(const ParserState &state) {
+  auto beginLoc = tokenizer.curTokenLoc;
+  // consume '['
+  tokenizer.nextToken();
+
+  auto type = parseType(state);
+  if (tokenizer.curToken.token != T_RSQBRK) {
+    return errorMan.logError("expected ']' to end impl select expression",
+                             tokenizer.curTokenLoc, ErrorType::ParseError);
+  }
+  tokenizer.nextToken();
+  if (tokenizer.curToken.token != T_COLON) {
+    return errorMan.logError("expected ':' after impl select expression",
+                             tokenizer.curTokenLoc, ErrorType::ParseError);
+  }
+  tokenizer.nextToken();
+  if (tokenizer.curToken.token != T_IDENT) {
+    return errorMan.logError("expected identifier after impl select expression "
+                             "(to select method on impl)",
+                             tokenizer.curTokenLoc, ErrorType::ParseError);
+  }
+  auto loc = beginLoc.through(tokenizer.curTokenLoc);
+  auto method = tokenizer.curToken.ident;
+  tokenizer.nextToken();
+
+  return std::make_unique<ast::ImplSelect>(loc, std::move(type), method);
 }
 
 // funccall ::= postfix '(' (expr ',')* expr ')'
@@ -1124,6 +1156,9 @@ Parser::parseModuleDeclBody(const ParserState &state, bool is_public,
 
   while (tokenizer.curToken.token != T_RBRK) {
     auto stat = parseStatement(newState);
+    while (tokenizer.curToken.token == T_SEMICOLON)
+      tokenizer.nextToken();
+
     if (!stat && tokenizer.curToken.token != T_RBRK)
       errorMan.logError("expected '}' to end module declaration",
                         tokenizer.curTokenLoc, ErrorType::ParseError);
@@ -1581,7 +1616,7 @@ Parser::parseImplStatement(const ParserState &state) {
   auto endPos = tokenizer.curTokenLoc;
 
   auto header = std::make_shared<ast::ImplHeader>(std::move(type_params), type);
-  // the scope table for fn decl's is linked back to the impl itself
+  // the scope table for fn decl's is linked back to the impl header itself
   auto bodyScope = std::make_unique<ScopeTable<Symbol>>(
       true, state.current_scope, "", false, -1, header);
   // add scope table + impl type (for linking self params -> impl type) to state
@@ -1598,6 +1633,9 @@ Parser::parseImplStatement(const ParserState &state) {
 
   ast::StatementList stats;
   while (tokenizer.curToken.token != T_RBRK) {
+    while (tokenizer.curToken.token == T_SEMICOLON)
+      tokenizer.nextToken();
+
     auto stat = parseStatement(bodyState);
     if (!stat && tokenizer.curToken.token != T_RBRK)
       return errorMan.logError("expected '}' to end block",
@@ -1607,12 +1645,19 @@ Parser::parseImplStatement(const ParserState &state) {
           "only function declarations are allowed in impl blocks", stat->loc,
           ErrorType::ParseError);
     stats.push_back(std::move(stat));
+
+    while (tokenizer.curToken.token == T_SEMICOLON)
+      tokenizer.nextToken();
   }
   tokenizer.nextToken();
 
-  return std::make_unique<ast::ImplStatement>(
-      beginPos.through(endPos), std::move(header), std::move(bodyScope),
-      std::move(stats));
+  // add impl fn_decl scope to root scopes
+  auto bodyScopePtr = bodyScope.get();
+  root_scopes.impls.push_back(std::move(bodyScope));
+
+  return std::make_unique<ast::ImplStatement>(beginPos.through(endPos),
+                                              std::move(header), bodyScopePtr,
+                                              std::move(stats));
 }
 
 // check if parser is currently at an end of statement
@@ -1836,9 +1881,10 @@ void Parser::expectUpperCamelCase(const std::string &name,
 }
 
 Parser::Parser(Tokenizer &tokenizer, ErrorManager &errorMan,
-               ActiveScopes &scopes, const std::vector<std::string> &package)
+               ActiveScopes &scopes, ScopesRoot &root_scopes,
+               const std::vector<std::string> &package)
     : tokenizer(tokenizer), errorMan(errorMan), scopes(scopes),
-      package(package) {
+      root_scopes(root_scopes), package(package) {
   // add package as scope table [1] in scope stack
   assert(scopes.names.getNumActiveScopes() == 1);
   assert(scopes.types.getNumActiveScopes() == 1);

@@ -55,6 +55,7 @@ class Parser {
   Tokenizer &tokenizer;
   ErrorManager &errorMan;
   ActiveScopes &scopes;
+  ScopesRoot &root_scopes;
   const std::vector<std::string> &package;
 
   std::string getFullyScopedName(const std::string &name,
@@ -92,6 +93,8 @@ class Parser {
   std::unique_ptr<ast::Expression> parseExpr(const ParserState &state);
 
   std::unique_ptr<ast::Expression> parsePrimary(const ParserState &state);
+
+  std::unique_ptr<ast::Expression> parseImplSelect(const ParserState &state);
 
   std::unique_ptr<ast::Expression>
   parseFunctionCall(const ParserState &state,
@@ -186,7 +189,7 @@ class Parser {
 
 public:
   Parser(Tokenizer &tokenizer, ErrorManager &errorMan, ActiveScopes &scopes,
-         const std::vector<std::string> &package);
+         ScopesRoot &root_scopes, const std::vector<std::string> &package);
 
   void removePushedPackageScope();
 

@@ -428,7 +428,7 @@ int IRPrinter::visitImplFnExtract(Select &instruct,
 
   output << " = SELECT " << type_printer.getType(*instruct.type) << " ";
   printId(instruct.impl.val.id);
-  output << " " << instruct.extract_id << "\n";
+  output << " " << instruct.method << "\n";
   return 0;
 }
 
@@ -446,7 +446,7 @@ int IRPrinter::visitImplGenericFnExtract(GenericSelect &instruct,
          << type_printer.getType(*instruct.type_construct->getFormalBoundType())
          << " ";
   printId(instruct.impl.val.id);
-  output << " " << instruct.extract_id << "\n";
+  output << " " << instruct.method << "\n";
   return 0;
 }
 

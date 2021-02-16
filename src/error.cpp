@@ -128,6 +128,11 @@ bool PrintingErrorManager::anyErrorOccurred() { return didError; }
 
 bool PrintingErrorManager::criticalErrorOccurred() { return didCriticalError; }
 
+std::nullptr_t PrintingErrorManager::newline() {
+  std::cout << "\n";
+  return nullptr;
+}
+
 ErrorManager::~ErrorManager() {}
 
 std::nullptr_t TestErrorManager::logError(const std::string &msg,
@@ -183,6 +188,8 @@ std::string TestErrorManager::clearEscapeCodes(const std::string &msg) {
 
   return res;
 }
+
+std::nullptr_t TestErrorManager::newline() { return nullptr; }
 
 // convert a set of scopes and a name to a printable string
 std::string scopesAndNameToString(const std::vector<std::string> &scopes,

@@ -140,6 +140,9 @@ public:
   const FormalTypeParameterList &implFormalParams() const;
 };
 
+typedef std::vector<std::pair<ScopeTable<Symbol> *, ConstTypeList>>
+    ImplSubsList;
+
 /*
  * The type checking pass
  * Each visit method returns the type of that node + the ir generated for it
@@ -228,6 +231,11 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
 
   TypeCheckResult visitFieldAccess(FieldAccess &node,
                                    const TypeCheckState &state) override;
+  ImplSubsList findImplsForType(const Type &type, const std::string *method);
+  bool checkNumberOfImpls(const ImplSubsList &impls, const std::string &method,
+                          Type &type, const SourceLocation &loc);
+  TypeCheckResult visitImplSelect(ImplSelect &node,
+                                  const TypeCheckState &state) override;
 
   TypeCheckResult visitFunctionCallOperator(const FunctionCall &node,
                                             const TypeCheckState &state);

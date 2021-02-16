@@ -356,15 +356,15 @@ std::shared_ptr<NamedFunctionType> FunctionDecl::getFormalBoundFunctionType() {
 
 ImplHeader::ImplHeader(FormalTypeParameterList type_params,
                        std::shared_ptr<Type> type)
-    : type_params(std::move(type_params)), type(std::move(type)) {}
+    : type_params(std::move(type_params)), type(std::move(type)),
+      ir_decl(nullptr) {}
 
 ImplStatement::ImplStatement(const SourceLocation &loc,
                              std::shared_ptr<ImplHeader> header,
-                             std::unique_ptr<ScopeTable<Symbol>> fn_scope,
-                             StatementList body)
+                             ScopeTable<Symbol> *fn_scope, StatementList body)
     : Statement(loc), header(std::move(header)), body(std::move(body)),
       type_scope(scopeTableFromFormalTypeParams(this->header->type_params)),
-      fn_scope(std::move(fn_scope)) {
+      fn_scope(fn_scope) {
   assert(this->fn_scope->getImpl() == this->header);
 }
 

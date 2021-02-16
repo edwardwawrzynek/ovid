@@ -110,6 +110,8 @@ public:
 private:
   llvm::Value *visitFunctionDeclare(FunctionDeclare &instruct,
                                     const LLVMCodegenPassState &state) override;
+  llvm::Value *visitImpl(Impl &instruct,
+                         const LLVMCodegenPassState &state) override;
   llvm::Value *visitIntLiteral(IntLiteral &instruct,
                                const LLVMCodegenPassState &state) override;
   llvm::Value *visitBoolLiteral(BoolLiteral &instruct,

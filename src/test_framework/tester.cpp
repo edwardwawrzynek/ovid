@@ -86,7 +86,6 @@ void TesterInstance::doError(const std::string &message) {
   std::cout << message << "\n\n";
   std::cout << "Hint: this is probably due to a test program with malformed "
                "test annotation comments.\n";
-  // TODO: only stop this test instance
   exit(1);
 }
 
@@ -321,11 +320,10 @@ int TesterInstance::readToComment() {
 }
 
 int TesterInstance::runParse(ErrorManager &errorMan, ast::StatementList &astRes,
-                             const ScopesRoot &scopes_root,
-                             ActiveScopes &scopes) {
+                             ScopesRoot &scopes_root, ActiveScopes &scopes) {
   // Parse
   auto lexer = Tokenizer(&filename, &file, errorMan);
-  auto parser = Parser(lexer, errorMan, scopes, packageName);
+  auto parser = Parser(lexer, errorMan, scopes, scopes_root, packageName);
   astRes = parser.parseProgram();
   parser.removePushedPackageScope();
 

@@ -8,7 +8,7 @@
     }
     (10:5)	%9{[()]:test2} = GENERICFUNCTIONDECLARE <T> () -> void [%0] {
         (10:5)	BASICBLOCK @6 {
-            (11:9)	%7{[()]:test1} = SELECT () -> void %0 5
+            (11:9)	%7{[()]:test1} = SELECT () -> void %0 test1
             (11:9)	%8 = FUNCTIONCALL void %7{[()]:test1} ()
         }
     }

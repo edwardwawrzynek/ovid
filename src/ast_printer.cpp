@@ -345,6 +345,19 @@ int ASTPrinter::visitSizeof(Sizeof &node, const ASTPrinterState &state) {
   return 0;
 }
 
+int ASTPrinter::visitImplSelect(ImplSelect &node,
+                                const ASTPrinterState &state) {
+  state.printIndent(output);
+  printLoc(output, node.loc);
+  output << " ImplSelect\n";
+  state.printIndent(output);
+  output << "  type:\n";
+  typePrinter.visitType(*node.type, state.withIndent());
+  state.printIndent(output);
+  output << "  method: " << node.method << "\n";
+  return 0;
+}
+
 int ASTTypePrinter::visitVoidType(VoidType &type,
                                   const ASTPrinterState &state) {
   state.printIndent(output);

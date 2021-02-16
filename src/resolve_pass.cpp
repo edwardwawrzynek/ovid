@@ -28,7 +28,7 @@ int ResolvePass::visitImplStatement(ImplStatement &node,
   // push formal type parameter scope
   scopes.types.pushScope(node.type_scope.get());
   // push scope for fn decl's in body
-  scopes.names.pushScope(node.fn_scope.get());
+  scopes.names.pushScope(node.fn_scope);
   // fixup impl type
   auto resolvedType = resolveType(node.header->type);
   assert(resolvedType != nullptr);
@@ -38,7 +38,7 @@ int ResolvePass::visitImplStatement(ImplStatement &node,
     visitNode(*child, state);
   }
   scopes.types.popScope(node.type_scope.get());
-  scopes.names.popScope(node.fn_scope.get());
+  scopes.names.popScope(node.fn_scope);
 
   return 0;
 }
@@ -208,6 +208,13 @@ int ResolvePass::visitIdentifier(Identifier &node,
   for (size_t i = 0; i < node.type_params.size(); i++) {
     node.type_params[i] = resolveType(node.type_params[i]);
   }
+
+  return 0;
+}
+
+int ResolvePass::visitImplSelect(ImplSelect &node,
+                                 const ResolvePassState &state) {
+  node.type = resolveType(node.type);
 
   return 0;
 }

@@ -46,6 +46,8 @@ enum TokenType {
   T_ASSIGN,          // =
   T_LBRK,            // {
   T_RBRK,            // }
+  T_LSQBRK,          // [
+  T_RSQBRK,          // ]
   T_LPAREN,          // (
   T_RPAREN,          // )
   T_FN,              // fn

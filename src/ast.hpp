@@ -12,8 +12,22 @@
 
 // forward declare
 namespace ovid::ast {
+class Expression;
+class Statement;
 class TypeConstructor;
 class Type;
+class FormalTypeParameter;
+
+typedef std::vector<std::unique_ptr<Expression>> ExpressionList;
+typedef std::vector<std::unique_ptr<Statement>> StatementList;
+typedef std::vector<std::shared_ptr<Type>> TypeList;
+typedef std::vector<std::shared_ptr<const Type>> ConstTypeList;
+typedef std::vector<std::unique_ptr<TypeConstructor>> TypeConstructorList;
+typedef std::vector<std::shared_ptr<FormalTypeParameter>>
+    FormalTypeParameterList;
+typedef std::function<bool(const FormalTypeParameter &param,
+                           const Type &expected)>
+    TypeParamEqualPredicate;
 } // namespace ovid::ast
 
 namespace ovid::ir {
@@ -147,10 +161,17 @@ class ScopesRoot {
 public:
   std::unique_ptr<ScopeTable<Symbol>> names;
   std::unique_ptr<ScopeTable<TypeAlias>> types;
+  // impl scopes don't fit into the normal scope hierarchy, so they are all held
+  // at the root
+  // TODO: for non generic impl's, we could store a hashtable of type -> impl
+  // rather than requiring a search through this list For generic impls, type
+  // patterns can't be hashed, so a list is needed
+  std::vector<std::unique_ptr<ScopeTable<Symbol>>> impls;
 
   ScopesRoot()
       : names(std::make_unique<ScopeTable<Symbol>>(true, nullptr, "")),
-        types(std::make_unique<ScopeTable<TypeAlias>>(true, nullptr, "")){};
+        types(std::make_unique<ScopeTable<TypeAlias>>(true, nullptr, "")),
+        impls(){};
 };
 
 template <class T>
@@ -161,22 +182,6 @@ bool vectorContains(const std::vector<T> &vector, const T &value) {
 } // namespace ovid
 
 namespace ovid::ast {
-class Expression;
-class Statement;
-class TypeConstructor;
-class Type;
-class FormalTypeParameter;
-
-typedef std::vector<std::unique_ptr<Expression>> ExpressionList;
-typedef std::vector<std::unique_ptr<Statement>> StatementList;
-typedef std::vector<std::shared_ptr<Type>> TypeList;
-typedef std::vector<std::shared_ptr<const Type>> ConstTypeList;
-typedef std::vector<std::unique_ptr<TypeConstructor>> TypeConstructorList;
-typedef std::vector<std::shared_ptr<FormalTypeParameter>>
-    FormalTypeParameterList;
-typedef std::function<bool(const FormalTypeParameter &param,
-                           const Type &expected)>
-    TypeParamEqualPredicate;
 
 /* id generation for type parameters */
 uint64_t next_id();
@@ -645,6 +650,8 @@ class ImplHeader {
 public:
   FormalTypeParameterList type_params;
   std::shared_ptr<Type> type;
+  // the header's declaration location in the ir
+  ir::Instruction *ir_decl;
 
   ImplHeader(FormalTypeParameterList type_params, std::shared_ptr<Type> type);
 };
@@ -659,11 +666,11 @@ public:
 
   // scope table for body fn decl's
   // this table has no parent -- it's impl is linked to header
-  std::unique_ptr<ScopeTable<Symbol>> fn_scope;
+  // this table is owned by ScopesRoot.impls
+  ScopeTable<Symbol> *fn_scope;
 
   ImplStatement(const SourceLocation &loc, std::shared_ptr<ImplHeader> header,
-                std::unique_ptr<ScopeTable<Symbol>> fn_scope,
-                StatementList body);
+                ScopeTable<Symbol> *fn_scope, StatementList body);
 };
 
 /* ast expressions */
@@ -698,6 +705,16 @@ public:
       : Expression(loc), scope(std::move(scope)), id(id),
         is_root_scope(is_root_scope), type_params(std::move(type_params)),
         resolved_symbol(){};
+};
+
+class ImplSelect : public Expression {
+public:
+  std::shared_ptr<Type> type;
+  std::string method;
+
+  ImplSelect(const SourceLocation &loc, std::shared_ptr<Type> type,
+             const std::string &method)
+      : Expression(loc), type(std::move(type)), method(method){};
 };
 
 enum class OperatorType {

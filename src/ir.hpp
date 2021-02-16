@@ -306,10 +306,10 @@ public:
   InstructionList fn_decls;
   std::shared_ptr<ast::ImplHeader> header;
 
-  // get the associated function declaration with the given id
-  Expression *getFnDecl(uint64_t select_id);
-  // get the associated generic function declaration with the given id
-  GenericExpression *getGenericFnDecl(uint64_t select_id);
+  // get the associated function declaration with the given name
+  Expression *getFnDecl(const std::string &name);
+  // get the associated generic function declaration with the given name
+  GenericExpression *getGenericFnDecl(const std::string &name);
 
   Impl(const SourceLocation &loc, const Value &val, InstructionList fn_decls,
        std::shared_ptr<ast::ImplHeader> header);
@@ -320,10 +320,10 @@ public:
 class Select : public Expression {
 public:
   Expression &impl;
-  uint64_t extract_id;
+  std::string method;
 
   Select(const SourceLocation &loc, const Value &val, Expression &impl,
-         uint64_t extract_id, std::shared_ptr<ast::Type> type);
+         const std::string &method, std::shared_ptr<ast::Type> type);
 };
 
 /* a generic function selection on an impl block
@@ -331,10 +331,10 @@ public:
 class GenericSelect : public GenericExpression {
 public:
   Expression &impl;
-  uint64_t extract_id;
+  std::string method;
 
   GenericSelect(const SourceLocation &loc, const Id &id, Expression &impl,
-                uint64_t extract_id,
+                const std::string &method,
                 std::shared_ptr<ast::TypeConstructor> type);
 };
 

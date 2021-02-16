@@ -201,6 +201,18 @@ LLVMCodegenPass::visitFunctionPrototype(FunctionDeclare &funcDeclare,
       funcDeclare.is_public, state);
 }
 
+llvm::Value *LLVMCodegenPass::visitImpl(Impl &instruct,
+                                        const LLVMCodegenPassState &state) {
+  // just visit component function declarations
+  for (auto &fn_decl : instruct.fn_decls) {
+    visitInstruction(*fn_decl, state);
+  }
+
+  // impl block's don't get a value in the ir -- just transformed to function
+  // declarations
+  return instruct.val.llvm_value = nullptr;
+}
+
 llvm::Value *
 LLVMCodegenPass::visitFunctionDeclare(FunctionDeclare &instruct,
                                       const LLVMCodegenPassState &state) {

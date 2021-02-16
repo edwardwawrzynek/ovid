@@ -86,6 +86,7 @@ class EscapeAnalysisPass : public BaseIRVisitor<int, EscapeAnalysisState> {
   bool print_escapes;
   std::ostream &output;
 
+  int visitImpl(Impl &instruct, const EscapeAnalysisState &state) override;
   int visitFunctionDeclare(FunctionDeclare &instruct,
                            const EscapeAnalysisState &state) override;
   int visitTupleLiteral(TupleLiteral &instruct,

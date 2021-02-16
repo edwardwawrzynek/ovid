@@ -406,7 +406,7 @@ int GenericsPass::visitImplFnExtract(Select &instruct,
   // so we can't just visit the old node)
   auto impl = dynamic_cast<Impl *>(&instruct.impl);
   assert(impl != nullptr);
-  auto func = impl->getFnDecl(instruct.extract_id);
+  auto func = impl->getFnDecl(instruct.method);
   visitInstruction(*func, state.withIsSpecializing(false));
   auto newFunc = global_subs.useExpression(func);
   state.subs.addExpression(instruct, newFunc);
@@ -421,7 +421,7 @@ int GenericsPass::visitImplGenericFnExtract(GenericSelect &instruct,
   auto impl = dynamic_cast<Impl *>(&instruct.impl);
   assert(impl != nullptr);
   // don't visit the function (b/c it will later be specialized)
-  auto func = impl->getGenericFnDecl(instruct.extract_id);
+  auto func = impl->getGenericFnDecl(instruct.method);
   state.subs.addGenericExpression(instruct, func);
 
   return 0;
