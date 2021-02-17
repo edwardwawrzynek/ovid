@@ -168,6 +168,12 @@ int ResolvePass::visitFunctionCall(FunctionCall &node,
   return 0;
 }
 
+void ResolvePass::resolveTypeList(TypeList &list) {
+  for (size_t i = 0; i < list.size(); i++) {
+    list[i] = resolveType(list[i]);
+  }
+}
+
 int ResolvePass::visitIdentifier(Identifier &node,
                                  const ResolvePassState &state) {
   // find the symbol
@@ -205,9 +211,7 @@ int ResolvePass::visitIdentifier(Identifier &node,
   node.resolved_symbol = sym;
 
   // resolve type params on :<> operator
-  for (size_t i = 0; i < node.type_params.size(); i++) {
-    node.type_params[i] = resolveType(node.type_params[i]);
-  }
+  resolveTypeList(node.type_params);
 
   return 0;
 }
@@ -215,7 +219,8 @@ int ResolvePass::visitIdentifier(Identifier &node,
 int ResolvePass::visitImplSelect(ImplSelect &node,
                                  const ResolvePassState &state) {
   node.type = resolveType(node.type);
-
+  // resolve type params on :<> operator
+  resolveTypeList(node.type_params);
   return 0;
 }
 

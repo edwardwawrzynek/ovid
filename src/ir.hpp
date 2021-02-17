@@ -312,7 +312,7 @@ public:
   GenericExpression *getGenericFnDecl(const std::string &name);
 
   Impl(const SourceLocation &loc, const Value &val, InstructionList fn_decls,
-       std::shared_ptr<ast::ImplHeader> header);
+       std::shared_ptr<ast::ImplHeader> header, std::shared_ptr<ast::Type> type);
 };
 
 /* a function selection on an impl block
@@ -539,8 +539,7 @@ public:
                std::shared_ptr<ast::Type> type);
 };
 
-/* a function call (including builtins)
- * TODO: represent interface calls somehow */
+/* a function call (including builtins) */
 class FunctionCall : public Expression {
 public:
   // the function being called

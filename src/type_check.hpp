@@ -63,8 +63,8 @@ public:
  *
  * Returns std::pair(true, substitutions) if the pattern matches,
  * std::pair(false, _) otherwise. */
-std::pair<bool, ConstTypeList>
-checkTypePattern(const Type &type, const Type &pattern,
+std::pair<bool, TypeList>
+checkTypePattern(Type &type, const Type &pattern,
                  const FormalTypeParameterList &formal_params);
 
 /* The result of a type checker visit to a node
@@ -140,7 +140,7 @@ public:
   const FormalTypeParameterList &implFormalParams() const;
 };
 
-typedef std::vector<std::pair<ScopeTable<Symbol> *, ConstTypeList>>
+typedef std::vector<std::pair<ScopeTable<Symbol> *, TypeList>>
     ImplSubsList;
 
 /*
@@ -184,6 +184,9 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   constructType(const std::shared_ptr<TypeConstructor> &type_construct,
                 const TypeList &actual_params);
 
+  // substitute formal_params -> actual_params in a type constructor
+  std::shared_ptr<Type> substTypes(const std::shared_ptr<Type> &type, const FormalTypeParameterList& formal_params, const TypeList &actual_params);
+
   // convert a IrDecl into a selection of an ir node
   // a sequence of instr -> (Specialize? ->
   // (Select|GenericSelect)?)? actual_params are the params to
@@ -209,6 +212,7 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
 
   TypeCheckResult visitFunctionCall(FunctionCall &node,
                                     const TypeCheckState &state) override;
+  bool checkNumTypeParams(const std::shared_ptr<ast::TypeConstructor>& generic_type, const TypeList& type_params, const SourceLocation &loc);
   TypeCheckResult visitIdentifier(Identifier &node,
                                   const TypeCheckState &state) override;
   TypeCheckResult visitOperatorSymbol(OperatorSymbol &node,
@@ -231,7 +235,7 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
 
   TypeCheckResult visitFieldAccess(FieldAccess &node,
                                    const TypeCheckState &state) override;
-  ImplSubsList findImplsForType(const Type &type, const std::string *method);
+  ImplSubsList findImplsForType(Type &type, const std::string *method);
   bool checkNumberOfImpls(const ImplSubsList &impls, const std::string &method,
                           Type &type, const SourceLocation &loc);
   TypeCheckResult visitImplSelect(ImplSelect &node,

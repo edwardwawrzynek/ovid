@@ -415,7 +415,7 @@ Parser::parsePrimary(const ParserState &state) {
   }
 }
 
-// implselect ::= '[' type ']' ':' ident
+// implselect ::= '[' type ']' ':' ident (':' typeList) ?
 std::unique_ptr<ast::Expression>
 Parser::parseImplSelect(const ParserState &state) {
   auto beginLoc = tokenizer.curTokenLoc;
@@ -442,7 +442,17 @@ Parser::parseImplSelect(const ParserState &state) {
   auto method = tokenizer.curToken.ident;
   tokenizer.nextToken();
 
-  return std::make_unique<ast::ImplSelect>(loc, std::move(type), method);
+  ast::TypeList type_params;
+  // check for generic operator :<>
+  if(tokenizer.curToken.token == T_COLON) {
+    tokenizer.nextToken();
+    if(tokenizer.curToken.token != T_LESS) {
+      return errorMan.logError("expected generic type list (:<>) after impl method select", tokenizer.curTokenLoc, ErrorType::ParseError);
+    }
+    type_params = parseTypeParameterList(state);
+  }
+
+  return std::make_unique<ast::ImplSelect>(loc, std::move(type), method, std::move(type_params));
 }
 
 // funccall ::= postfix '(' (expr ',')* expr ')'

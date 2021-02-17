@@ -54,10 +54,10 @@ const FormalTypeParameterList &TypeCheckState::implFormalParams() const {
   }
 }
 
-std::pair<bool, ConstTypeList>
-checkTypePattern(const Type &type, const Type &pattern,
+std::pair<bool, TypeList>
+checkTypePattern(Type &type, const Type &pattern,
                  const FormalTypeParameterList &formal_params) {
-  ConstTypeList subs;
+  TypeList subs;
   for ([[maybe_unused]] const auto &param : formal_params) {
     subs.push_back(nullptr);
   }
@@ -90,7 +90,7 @@ checkTypePattern(const Type &type, const Type &pattern,
       } else {
         // add the new substitution
         auto other_ptr =
-            std::dynamic_pointer_cast<const Type>(other.shared_from_this());
+            std::dynamic_pointer_cast<Type>(const_cast<Type &>(other).shared_from_this());
         assert(other_ptr != nullptr);
         subs[index] = other_ptr;
         return true;
@@ -105,7 +105,7 @@ checkTypePattern(const Type &type, const Type &pattern,
   if (matches) {
     return std::pair(true, std::move(subs));
   } else {
-    return std::pair(false, ConstTypeList());
+    return std::pair(false, TypeList());
   }
 }
 
@@ -155,6 +155,11 @@ TypeCheck::constructType(const std::shared_ptr<TypeConstructor> &type_construct,
   return TypeConstructorPass::constructTypeConstructor(
       type_construct, actual_params, active_scopes, errorMan, package,
       currentModule);
+}
+
+std::shared_ptr<Type>
+TypeCheck::substTypes(const std::shared_ptr<Type> &type, const FormalTypeParameterList& formal_params, const TypeList &actual_params) {
+  return TypeConstructorPass::constructType(type, formal_params, actual_params, active_scopes, errorMan, package, currentModule);
 }
 
 TypeCheckResult TypeCheck::visitBoolLiteral(BoolLiteral &node,
@@ -487,6 +492,19 @@ ir::Instruction *TypeCheck::genIrDecl(IrDecl ir_decl, const SourceLocation &loc,
   }
 }
 
+bool TypeCheck::checkNumTypeParams(const std::shared_ptr<ast::TypeConstructor>& generic_type, const TypeList& type_params, const SourceLocation &loc) {
+  if (type_params.size() != generic_type->numTypeParams()) {
+    errorMan.logError(string_format("invalid number of type parameters for "
+                                    "identifier (expected %zu, found %zu)",
+                                    generic_type->numTypeParams(),
+                                    type_params.size()),
+                      loc, ErrorType::TypeError);
+    return false;
+  }
+
+  return true;
+}
+
 TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
                                            const TypeCheckState &state) {
   assert(node.resolved_symbol != nullptr);
@@ -531,12 +549,7 @@ TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
     }
   }
 
-  if (node.type_params.size() != node.resolved_symbol->type->numTypeParams()) {
-    errorMan.logError(string_format("invalid number of type parameters for "
-                                    "identifier (expected %zu, found %zu)",
-                                    node.resolved_symbol->type->numTypeParams(),
-                                    node.type_params.size()),
-                      node.loc, ErrorType::TypeError);
+  if(!checkNumTypeParams(node.resolved_symbol->type, node.type_params, node.loc)) {
     return TypeCheckResult::nullResult();
   }
 
@@ -694,7 +707,7 @@ TypeCheckResult TypeCheck::visitImplStatement(ImplStatement &node,
         node.loc, ir::Id(), ir::InstructionList(), node.header);
   } else {
     mono_impl = std::make_unique<ir::Impl>(node.loc, ir::Value(),
-                                           ir::InstructionList(), node.header);
+                                           ir::InstructionList(), node.header, node.header->type);
   }
   ir::Instruction *impl = is_generic ? (ir::Instruction *)(generic_impl.get())
                                      : (ir::Instruction *)(mono_impl.get());
@@ -724,7 +737,7 @@ TypeCheckResult TypeCheck::visitImplStatement(ImplStatement &node,
   }
 }
 
-ImplSubsList TypeCheck::findImplsForType(const Type &type,
+ImplSubsList TypeCheck::findImplsForType(Type &type,
                                          const std::string *method) {
   // TODO: cache previously calculated results in a hashtable
   ImplSubsList res;
@@ -794,14 +807,51 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
   assert(header.ir_decl != nullptr);
 
   ir::Instruction *ir_impl_instr = header.ir_decl;
-  // TODO: insert specialize on impl if impl is generic
-  assert(impl.second.empty());
-  auto *ir_impl = dynamic_cast<ir::Expression *>(ir_impl_instr);
-  assert(ir_impl != nullptr);
-  // TODO: insert generic select + specialize if needed
-  auto type = fn_sym->type->noParamConstruct();
-  auto select = std::make_unique<ir::Select>(node.loc, ir::Value(fn_sym),
-                                             *ir_impl, node.method, type);
+  ir::Expression *ir_impl = nullptr;
+  // insert specialize on impl if impl is generic
+  if (!impl.second.empty()) {
+    // make sure all type parameters were matched in pattern
+    assert(impl.second.size() == header.type_params.size());
+    for(size_t i = 0; i < impl.second.size(); i++) {
+      if(impl.second[i] == nullptr) {
+        errorMan.logError(string_format("type parameter \x1b[1m%s\x1b[m is unbound in type constructor \x1b[1m%s\x1b[m in impl (perhaps the selected impl is generic over types not bound in its pattern)", type_printer.getType(*header.type_params[i]).c_str(), type_printer.getType(*node.type).c_str()), node.loc, ErrorType::TypeError, false);
+        errorMan.logError("selected impl method declared here", fn_sym->decl_loc, ErrorType::Note);
+        return TypeCheckResult::nullResult();
+      }
+    }
+    // create specialize node
+    auto ir_generic_impl = dynamic_cast<ir::GenericExpression *>(ir_impl_instr);
+    assert(ir_generic_impl != nullptr);
+    auto specialize = std::make_unique<ir::Specialize>(node.loc, ir::Value(), *ir_generic_impl, impl.second, substTypes(header.type, header.type_params, impl.second));
+    ir_impl = specialize.get();
+    curInstructionList->push_back(std::move(specialize));
+  } else {
+    ir_impl = dynamic_cast<ir::Expression *>(ir_impl_instr);
+    assert(ir_impl != nullptr);
+  }
+  // insert function generic select + specialize if needed
+  auto type_construct = fn_sym->type;
+  if(!checkNumTypeParams(type_construct, node.type_params, node.loc))
+    return TypeCheckResult::nullResult();
+
+  std::shared_ptr<Type> type = nullptr;
+  std::unique_ptr<ir::Expression> select = nullptr;
+
+  if(type_construct->numTypeParams() == 0) {
+    type = type_construct->noParamConstruct();
+    type = substTypes(type, header.type_params, impl.second);
+
+    select = std::make_unique<ir::Select>(node.loc, ir::Value(fn_sym),
+                                               *ir_impl, node.method, type);
+  } else {
+    auto generic_select = std::make_unique<ir::GenericSelect>(node.loc, ir::Id(fn_sym), *ir_impl, node.method, type_construct);
+    auto generic_select_ptr = generic_select.get();
+    curInstructionList->push_back(std::move(generic_select));
+    type = constructType(type_construct, node.type_params);
+    type = substTypes(type, header.type_params, impl.second);
+
+    select = std::make_unique<ir::Specialize>(node.loc, ir::Value(fn_sym, node.type_params), *generic_select_ptr, node.type_params, type);
+  }
   auto selectPtr = select.get();
   curInstructionList->push_back(std::move(select));
   return TypeCheckResult(type, selectPtr);

@@ -133,10 +133,9 @@ GenericImpl::GenericImpl(const SourceLocation &loc, const Id &id,
       fn_decls(std::move(fn_decls)), header(std::move(header)) {}
 
 Impl::Impl(const SourceLocation &loc, const Value &val,
-           InstructionList fn_decls, std::shared_ptr<ast::ImplHeader> header)
-    : Expression(loc, val, header->type), fn_decls(std::move(fn_decls)),
+           InstructionList fn_decls, std::shared_ptr<ast::ImplHeader> header, std::shared_ptr<ast::Type> type)
+    : Expression(loc, val, std::move(type)), fn_decls(std::move(fn_decls)),
       header(std::move(header)) {
-  assert(this->header->type_params.empty());
 }
 
 Expression *Impl::getFnDecl(const std::string &name) {

@@ -1,0 +1,22 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+struct Type {
+    field   i32
+}
+
+impl Type {
+    fn id<T>(t T) -> T {
+        return t
+    }
+
+    fn get_field(*self) -> i32 {
+        return self.field
+    }
+}
+
+pub fn main() -> i32 {
+    val t = Type { field: 10 }
+    return [Type]:get_field(&t) + [Type]:id:<i32>(-10)
+}

@@ -139,7 +139,7 @@ Instruction *GenericSubstitutions::useInstructionId(uint64_t id) {
   return res;
 }
 
-FunctionDeclare *
+Expression *
 GenericSpecializations::getSpecialization(GenericExpression &generic_expr,
                                           const ast::TypeList &actual_params) {
   if (specializations.count(generic_expr.id.id) == 0) {
@@ -157,20 +157,20 @@ GenericSpecializations::getSpecialization(GenericExpression &generic_expr,
 }
 
 void GenericSpecializations::addSpecialization(
-    uint64_t generic_function_id, ast::TypeList actual_params,
-    FunctionDeclare *specialized_function) {
+    uint64_t generic_instr_id, ast::TypeList actual_params,
+    Expression *specialized_instr) {
   // if generic function already has entry, add to it
-  if (specializations.count(generic_function_id) > 0) {
-    auto &entries = specializations[generic_function_id];
+  if (specializations.count(generic_instr_id) > 0) {
+    auto &entries = specializations[generic_instr_id];
     entries.emplace_back(
-        std::pair(std::move(actual_params), specialized_function));
+        std::pair(std::move(actual_params), specialized_instr));
   }
   // otherwise create a new entry
   else {
-    std::vector<std::pair<ast::TypeList, FunctionDeclare *>> entries;
+    std::vector<std::pair<ast::TypeList, Expression *>> entries;
     entries.emplace_back(
-        std::pair(std::move(actual_params), specialized_function));
-    specializations[generic_function_id] = entries;
+        std::pair(std::move(actual_params), specialized_instr));
+    specializations[generic_instr_id] = entries;
   }
 }
 
@@ -215,7 +215,7 @@ int GenericsPass::visitImpl(Impl &instruct, const GenericsPassState &state) {
   // construct new impl node
   auto impl =
       std::make_unique<Impl>(instruct.loc, newValue(instruct.val, state),
-                             InstructionList(), instruct.header);
+                             InstructionList(), instruct.header, fixType(instruct.type, state));
   global_subs.addExpression(instruct, impl.get());
   // visit component function decls
   for (auto &fn_decl : instruct.fn_decls) {
@@ -233,7 +233,7 @@ bool GenericsPass::fnDeclImplNotInState(Instruction *fnDeclImpl,
   } else {
     visitInstruction(*fnDeclImpl, state.withIsSpecializing(false));
     auto newImplBody =
-        dynamic_cast<Impl *>(global_subs.useInstruction(fnDeclImpl));
+        dynamic_cast<Impl *>(state.subs.useInstruction(fnDeclImpl));
     assert(newImplBody != nullptr);
     auto implRootInstrList = &newImplBody->fn_decls;
     return state.rootInstructionList != implRootInstrList;
@@ -245,7 +245,7 @@ GenericsPassState GenericsPass::withFnDeclImpl(Instruction *fnDeclImpl,
   assert(fnDeclImpl != nullptr);
   visitInstruction(*fnDeclImpl, state.withIsSpecializing(false));
   auto newImplBody =
-      dynamic_cast<Impl *>(global_subs.useInstruction(fnDeclImpl));
+      dynamic_cast<Impl *>(state.subs.useInstruction(fnDeclImpl));
   assert(newImplBody != nullptr);
   auto implRootInstrList = &newImplBody->fn_decls;
   assert(implRootInstrList != nullptr);
@@ -263,14 +263,14 @@ int GenericsPass::visitFunctionDeclare(FunctionDeclare &instruct,
     return 0;
   }
 
-  // if this function is inside an impl, make sure state.rootInstrctionList
+  // if this function is inside an impl, make sure state.rootInstructionList
   // matches it
   if (fnDeclImplNotInState(instruct.impl, state)) {
     return visitFunctionDeclare(instruct, withFnDeclImpl(instruct.impl, state));
   }
   // construct new function declaration
   auto funcType =
-      std::dynamic_pointer_cast<ast::NamedFunctionType>(instruct.type);
+      std::dynamic_pointer_cast<ast::NamedFunctionType>(fixType(instruct.type, state));
   assert(funcType != nullptr);
   auto funcDeclare = std::make_unique<FunctionDeclare>(
       instruct.loc, newValue(instruct.val, state), funcType,
@@ -289,6 +289,39 @@ int GenericsPass::visitFunctionDeclare(FunctionDeclare &instruct,
 
   // insert function declaration
   state.rootInstructionList->push_back(std::move(funcDeclare));
+  return 0;
+}
+
+int GenericsPass::visitGenericImpl(GenericImpl &instruct, const GenericsPassState &state) {
+  // TODO: component fn_decl.impl point to instruct, but we need to redirect to the new impl somehow (ie when visiting function declares, it sets rootInstructionList to fn_decl.impl.fn_decls). We can't use global_subs, since the sub only lasts for this specialization. Perhaps a new flag in state?
+  // TODO: visitGenericFunctionDeclare needs to be extended to allow generating new GenericFunctionDeclare's with just impl bound types replaced. (Perhaps a flag in state to indicate impl specialization?)
+  // TODO: the impl's symbol table is used later (looking up methods, name mangling, etc). We need to generate a specialized copy of the symbol table and use that instead. Possibly visitGenericImpl should loop over fn_decl's and explicitly handle prototypes + new symbol table construction (and just delegate basic block visiting to existing methods). (as long as substitutions were added for function declares and state.subs included them when visiting basic blocks, this should work. Specializing component generic functions may be tricky -- we would need substitutions to stay visible inside of them, but not into other generic functions beyond the impl boundry).
+
+  // if we aren't specializing this impl, don't do anything to it
+  if(!state.is_specializing) {
+    // add dummy sub so this impl doesn't get repeatedly visited for non specialization
+    if(!global_subs.hasGenericExpression(&instruct)) {
+      global_subs.addGenericExpression(instruct, &instruct);
+    }
+    return 0;
+  }
+  // if state.formal_params aren't set, set them properly
+  if(!instruct.header->type_params.empty() && state.formal_params.empty()) {
+    auto newState = GenericsPassState(state.is_specializing, instruct.header->type_params, state.actual_params, state.subs, nullptr, nullptr, state.rootInstructionList);
+    return visitGenericImpl(instruct, newState);
+  }
+  // create specialized impl node
+  auto impl = std::make_unique<ir::Impl>(instruct.loc, ir::Value(), InstructionList(), instruct.header, fixType(instruct.type_construct->getFormalBoundType(), state));
+  specializations.addSpecialization(instruct.id.id, state.actual_params, impl.get());
+
+  // setup body state mapping header.type_params -> state.actual_params
+  auto bodyState = GenericsPassState(false, instruct.header->type_params, state.actual_params, state.subs, state.curBasicBlockList, state.curInstructionList, &impl->fn_decls);
+
+  for(auto &fn_decl: instruct.fn_decls) {
+    visitInstruction(*fn_decl, bodyState);
+  }
+  state.rootInstructionList->push_back(std::move(impl));
+
   return 0;
 }
 

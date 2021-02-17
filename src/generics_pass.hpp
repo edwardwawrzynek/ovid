@@ -74,21 +74,21 @@ public:
 };
 
 class GenericSpecializations {
-  // map of GenericFunctionDeclare id -> [actual_type_params,
-  // specialized_function]
+  // map of instr id -> [actual_type_params,
+  // specialized_instr]
   std::unordered_map<uint64_t,
-                     std::vector<std::pair<ast::TypeList, FunctionDeclare *>>>
+                     std::vector<std::pair<ast::TypeList, Expression *>>>
       specializations;
 
 public:
   // check if the pass has a specialization for the given Specialize instruction
   // return the specialization if present, nullptr otherwise
-  FunctionDeclare *getSpecialization(GenericExpression &generic_expr,
+  Expression *getSpecialization(GenericExpression &generic_expr,
                                      const ast::TypeList &actual_params);
   // insert a specialization
-  void addSpecialization(uint64_t generic_function_id,
+  void addSpecialization(uint64_t generic_instr_id,
                          ast::TypeList actual_params,
-                         FunctionDeclare *specialized_function);
+                         Expression *specialized_instr);
 
   GenericSpecializations() : specializations(){};
 };
@@ -112,6 +112,7 @@ class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
                                 const GenericsPassState &state) override;
 
   int visitImpl(Impl &instruct, const GenericsPassState &state) override;
+  int visitGenericImpl(GenericImpl &instruct, const GenericsPassState &state) override;
   int visitFunctionDeclare(FunctionDeclare &instruct,
                            const GenericsPassState &state) override;
   int visitImplFnExtract(Select &instruct,
