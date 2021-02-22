@@ -715,7 +715,8 @@ public:
 
   ImplSelect(const SourceLocation &loc, std::shared_ptr<Type> type,
              const std::string &method, TypeList type_params)
-      : Expression(loc), type(std::move(type)), method(method), type_params(std::move(type_params)){};
+      : Expression(loc), type(std::move(type)), method(method),
+        type_params(std::move(type_params)){};
 };
 
 enum class OperatorType {

@@ -140,8 +140,7 @@ public:
   const FormalTypeParameterList &implFormalParams() const;
 };
 
-typedef std::vector<std::pair<ScopeTable<Symbol> *, TypeList>>
-    ImplSubsList;
+typedef std::vector<std::pair<ScopeTable<Symbol> *, TypeList>> ImplSubsList;
 
 /*
  * The type checking pass
@@ -185,7 +184,9 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                 const TypeList &actual_params);
 
   // substitute formal_params -> actual_params in a type constructor
-  std::shared_ptr<Type> substTypes(const std::shared_ptr<Type> &type, const FormalTypeParameterList& formal_params, const TypeList &actual_params);
+  std::shared_ptr<Type> substTypes(const std::shared_ptr<Type> &type,
+                                   const FormalTypeParameterList &formal_params,
+                                   const TypeList &actual_params);
 
   // convert a IrDecl into a selection of an ir node
   // a sequence of instr -> (Specialize? ->
@@ -212,7 +213,9 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
 
   TypeCheckResult visitFunctionCall(FunctionCall &node,
                                     const TypeCheckState &state) override;
-  bool checkNumTypeParams(const std::shared_ptr<ast::TypeConstructor>& generic_type, const TypeList& type_params, const SourceLocation &loc);
+  bool
+  checkNumTypeParams(const std::shared_ptr<ast::TypeConstructor> &generic_type,
+                     const TypeList &type_params, const SourceLocation &loc);
   TypeCheckResult visitIdentifier(Identifier &node,
                                   const TypeCheckState &state) override;
   TypeCheckResult visitOperatorSymbol(OperatorSymbol &node,

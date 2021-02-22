@@ -444,15 +444,18 @@ Parser::parseImplSelect(const ParserState &state) {
 
   ast::TypeList type_params;
   // check for generic operator :<>
-  if(tokenizer.curToken.token == T_COLON) {
+  if (tokenizer.curToken.token == T_COLON) {
     tokenizer.nextToken();
-    if(tokenizer.curToken.token != T_LESS) {
-      return errorMan.logError("expected generic type list (:<>) after impl method select", tokenizer.curTokenLoc, ErrorType::ParseError);
+    if (tokenizer.curToken.token != T_LESS) {
+      return errorMan.logError(
+          "expected generic type list (:<>) after impl method select",
+          tokenizer.curTokenLoc, ErrorType::ParseError);
     }
     type_params = parseTypeParameterList(state);
   }
 
-  return std::make_unique<ast::ImplSelect>(loc, std::move(type), method, std::move(type_params));
+  return std::make_unique<ast::ImplSelect>(loc, std::move(type), method,
+                                           std::move(type_params));
 }
 
 // funccall ::= postfix '(' (expr ',')* expr ')'

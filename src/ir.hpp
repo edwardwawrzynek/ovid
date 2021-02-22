@@ -294,6 +294,11 @@ public:
   InstructionList fn_decls;
   std::shared_ptr<ast::ImplHeader> header;
 
+  // get the associated function declaration with the given name
+  Expression *getFnDecl(const std::string &name);
+  // get the associated generic function declaration with the given name
+  GenericExpression *getGenericFnDecl(const std::string &name);
+
   GenericImpl(const SourceLocation &loc, const Id &id, InstructionList fn_decls,
               std::shared_ptr<ast::ImplHeader> header);
 };
@@ -312,7 +317,8 @@ public:
   GenericExpression *getGenericFnDecl(const std::string &name);
 
   Impl(const SourceLocation &loc, const Value &val, InstructionList fn_decls,
-       std::shared_ptr<ast::ImplHeader> header, std::shared_ptr<ast::Type> type);
+       std::shared_ptr<ast::ImplHeader> header,
+       std::shared_ptr<ast::Type> type);
 };
 
 /* a function selection on an impl block

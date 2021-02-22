@@ -123,6 +123,22 @@ GenericExpression::GenericExpression(
     std::shared_ptr<ast::TypeConstructor> type_construct)
     : Instruction(loc), id(id), type_construct(std::move(type_construct)) {}
 
+template <typename T>
+T *implGetFnDecl(const std::string &name, ir::InstructionList &fn_decls) {
+  // TODO: cleaner way to get scope table
+
+  // we know name exists on fn_decls, so we have to have at least one fn_decl
+  // (which we can use to get a ref to this impl's scope table)
+  assert(!fn_decls.empty());
+  auto sym_table = getInstrId(fn_decls[0].get())
+                       .sourceName->parent_table->getDirectScopeTable();
+  auto sym = sym_table.findSymbol(name);
+  assert(sym->ir_decl.instr != nullptr);
+  auto res = dynamic_cast<T *>(sym->ir_decl.instr);
+  assert(res != nullptr);
+  return res;
+}
+
 GenericImpl::GenericImpl(const SourceLocation &loc, const Id &id,
                          InstructionList fn_decls,
                          std::shared_ptr<ast::ImplHeader> header)
@@ -132,38 +148,26 @@ GenericImpl::GenericImpl(const SourceLocation &loc, const Id &id,
               header->type->loc, header->type_params, header->type)),
       fn_decls(std::move(fn_decls)), header(std::move(header)) {}
 
-Impl::Impl(const SourceLocation &loc, const Value &val,
-           InstructionList fn_decls, std::shared_ptr<ast::ImplHeader> header, std::shared_ptr<ast::Type> type)
-    : Expression(loc, val, std::move(type)), fn_decls(std::move(fn_decls)),
-      header(std::move(header)) {
+Expression *GenericImpl::getFnDecl(const std::string &name) {
+  return implGetFnDecl<Expression>(name, fn_decls);
 }
 
-Expression *Impl::getFnDecl(const std::string &name) {
-  // TODO: cleaner way to get scope table
+GenericExpression *GenericImpl::getGenericFnDecl(const std::string &name) {
+  return implGetFnDecl<GenericExpression>(name, fn_decls);
+}
 
-  // we know name exists on this, so we have to have at least one fn_decl (which
-  // we can use to get a ref to this impl's scope table)
-  assert(!fn_decls.empty());
-  auto sym_table = getInstrId(fn_decls[0].get())
-                       .sourceName->parent_table->getDirectScopeTable();
-  // find entry in symbol table and use it's ir decl node
-  auto sym = sym_table.findSymbol(name);
-  assert(sym->ir_decl.instr != nullptr);
-  auto expr = dynamic_cast<Expression *>(sym->ir_decl.instr);
-  assert(expr != nullptr);
-  return expr;
+Impl::Impl(const SourceLocation &loc, const Value &val,
+           InstructionList fn_decls, std::shared_ptr<ast::ImplHeader> header,
+           std::shared_ptr<ast::Type> type)
+    : Expression(loc, val, std::move(type)), fn_decls(std::move(fn_decls)),
+      header(std::move(header)) {}
+
+Expression *Impl::getFnDecl(const std::string &name) {
+  return implGetFnDecl<Expression>(name, fn_decls);
 }
 
 GenericExpression *Impl::getGenericFnDecl(const std::string &name) {
-  assert(!fn_decls.empty());
-  auto sym_table = getInstrId(fn_decls[0].get())
-                       .sourceName->parent_table->getDirectScopeTable();
-  // find entry in symbol table and use it's ir decl node
-  auto sym = sym_table.findSymbol(name);
-  assert(sym->ir_decl.instr != nullptr);
-  auto generic_expr = dynamic_cast<GenericExpression *>(sym->ir_decl.instr);
-  assert(generic_expr != nullptr);
-  return generic_expr;
+  return implGetFnDecl<GenericExpression>(name, fn_decls);
 }
 
 Select::Select(const SourceLocation &loc, const Value &val, Expression &impl,

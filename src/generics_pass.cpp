@@ -156,9 +156,9 @@ GenericSpecializations::getSpecialization(GenericExpression &generic_expr,
   }
 }
 
-void GenericSpecializations::addSpecialization(
-    uint64_t generic_instr_id, ast::TypeList actual_params,
-    Expression *specialized_instr) {
+void GenericSpecializations::addSpecialization(uint64_t generic_instr_id,
+                                               ast::TypeList actual_params,
+                                               Expression *specialized_instr) {
   // if generic function already has entry, add to it
   if (specializations.count(generic_instr_id) > 0) {
     auto &entries = specializations[generic_instr_id];
@@ -177,7 +177,7 @@ void GenericSpecializations::addSpecialization(
 std::shared_ptr<ast::Type>
 GenericsPass::fixType(const std::shared_ptr<ast::Type> &type,
                       const GenericsPassState &state) {
-  if (!state.is_specializing) {
+  if (state.formal_params.empty() && state.actual_params.empty()) {
     return type;
   } else {
     return ast::TypeConstructorPass::constructType(
@@ -213,9 +213,9 @@ int GenericsPass::visitImpl(Impl &instruct, const GenericsPassState &state) {
   }
 
   // construct new impl node
-  auto impl =
-      std::make_unique<Impl>(instruct.loc, newValue(instruct.val, state),
-                             InstructionList(), instruct.header, fixType(instruct.type, state));
+  auto impl = std::make_unique<Impl>(
+      instruct.loc, newValue(instruct.val, state), InstructionList(),
+      instruct.header, fixType(instruct.type, state));
   global_subs.addExpression(instruct, impl.get());
   // visit component function decls
   for (auto &fn_decl : instruct.fn_decls) {
@@ -269,8 +269,8 @@ int GenericsPass::visitFunctionDeclare(FunctionDeclare &instruct,
     return visitFunctionDeclare(instruct, withFnDeclImpl(instruct.impl, state));
   }
   // construct new function declaration
-  auto funcType =
-      std::dynamic_pointer_cast<ast::NamedFunctionType>(fixType(instruct.type, state));
+  auto funcType = std::dynamic_pointer_cast<ast::NamedFunctionType>(
+      fixType(instruct.type, state));
   assert(funcType != nullptr);
   auto funcDeclare = std::make_unique<FunctionDeclare>(
       instruct.loc, newValue(instruct.val, state), funcType,
@@ -292,34 +292,144 @@ int GenericsPass::visitFunctionDeclare(FunctionDeclare &instruct,
   return 0;
 }
 
-int GenericsPass::visitGenericImpl(GenericImpl &instruct, const GenericsPassState &state) {
-  // TODO: component fn_decl.impl point to instruct, but we need to redirect to the new impl somehow (ie when visiting function declares, it sets rootInstructionList to fn_decl.impl.fn_decls). We can't use global_subs, since the sub only lasts for this specialization. Perhaps a new flag in state?
-  // TODO: visitGenericFunctionDeclare needs to be extended to allow generating new GenericFunctionDeclare's with just impl bound types replaced. (Perhaps a flag in state to indicate impl specialization?)
-  // TODO: the impl's symbol table is used later (looking up methods, name mangling, etc). We need to generate a specialized copy of the symbol table and use that instead. Possibly visitGenericImpl should loop over fn_decl's and explicitly handle prototypes + new symbol table construction (and just delegate basic block visiting to existing methods). (as long as substitutions were added for function declares and state.subs included them when visiting basic blocks, this should work. Specializing component generic functions may be tricky -- we would need substitutions to stay visible inside of them, but not into other generic functions beyond the impl boundry).
+int GenericsPass::visitGenericImpl(GenericImpl &instruct,
+                                   const GenericsPassState &state) {
+  // TODO: component fn_decl.impl point to instruct, but we need to redirect to
+  // the new impl somehow (ie when visiting function declares, it sets
+  // rootInstructionList to fn_decl.impl.fn_decls). We can't use global_subs,
+  // since the sub only lasts for this specialization. Perhaps a new flag in
+  // state?
+  // TODO: visitGenericFunctionDeclare needs to be extended to allow generating
+  // new GenericFunctionDeclare's with just impl bound types replaced. (Perhaps
+  // a flag in state to indicate impl specialization?)
+  // TODO: the impl's symbol table is used later (looking up methods, name
+  // mangling, etc). We need to generate a specialized copy of the symbol table
+  // and use that instead. Possibly visitGenericImpl should loop over fn_decl's
+  // and explicitly handle prototypes + new symbol table construction (and just
+  // delegate basic block visiting to existing methods). (as long as
+  // substitutions were added for function declares and state.subs included them
+  // when visiting basic blocks, this should work. Specializing component
+  // generic functions may be tricky -- we would need substitutions to stay
+  // visible inside of them, but not into other generic functions beyond the
+  // impl boundry).
 
   // if we aren't specializing this impl, don't do anything to it
-  if(!state.is_specializing) {
-    // add dummy sub so this impl doesn't get repeatedly visited for non specialization
-    if(!global_subs.hasGenericExpression(&instruct)) {
+  if (!state.is_specializing) {
+    // add dummy sub so this impl doesn't get repeatedly visited for non
+    // specialization
+    if (!global_subs.hasGenericExpression(&instruct)) {
       global_subs.addGenericExpression(instruct, &instruct);
     }
     return 0;
   }
   // if state.formal_params aren't set, set them properly
-  if(!instruct.header->type_params.empty() && state.formal_params.empty()) {
-    auto newState = GenericsPassState(state.is_specializing, instruct.header->type_params, state.actual_params, state.subs, nullptr, nullptr, state.rootInstructionList);
+  if (!instruct.header->type_params.empty() && state.formal_params.empty()) {
+    auto newState =
+        GenericsPassState(state.is_specializing, instruct.header->type_params,
+                          state.actual_params, state.subs, nullptr, nullptr,
+                          state.rootInstructionList);
     return visitGenericImpl(instruct, newState);
   }
   // create specialized impl node
-  auto impl = std::make_unique<ir::Impl>(instruct.loc, ir::Value(), InstructionList(), instruct.header, fixType(instruct.type_construct->getFormalBoundType(), state));
-  specializations.addSpecialization(instruct.id.id, state.actual_params, impl.get());
+  // create a new header that is specialized
+  auto new_header = std::make_shared<ast::ImplHeader>(
+      ast::FormalTypeParameterList(), fixType(instruct.header->type, state));
+  auto impl = std::make_unique<ir::Impl>(
+      instruct.loc, ir::Value(), InstructionList(), instruct.header,
+      fixType(instruct.type_construct->getFormalBoundType(), state));
+  new_header->ir_decl = impl.get();
 
-  // setup body state mapping header.type_params -> state.actual_params
-  auto bodyState = GenericsPassState(false, instruct.header->type_params, state.actual_params, state.subs, state.curBasicBlockList, state.curInstructionList, &impl->fn_decls);
+  // create a new, specialized scope table for the impl
+  // find old scope table's parent (if this impl has no entries, then we don't
+  // need a new scope table -- no symbols would be contained in it anyways)
+  ScopeTable<Symbol> *old_parent =
+      instruct.fn_decls.empty() ? nullptr
+                                : getInstrId(instruct.fn_decls[0].get())
+                                      .sourceName->parent_table->getParent();
+  assert(instruct.fn_decls.empty() || old_parent != nullptr);
+  // TODO: ownership of new scope table??
+  auto new_scope =
+      new ScopeTable<Symbol>(true, old_parent, "", false, -1, new_header);
 
-  for(auto &fn_decl: instruct.fn_decls) {
-    visitInstruction(*fn_decl, bodyState);
+  specializations.addSpecialization(instruct.id.id, state.actual_params,
+                                    impl.get());
+
+  // create substitutions for fn_decl bodies
+  auto body_subs = GenericSubstitutions(&global_subs);
+
+  // visit all component function declarations and create new specialized decl's
+  // don't visit bodies yet -- we need all fn_decl substitutions before we visit
+  // bodies
+  for (auto &child : instruct.fn_decls) {
+    // recreate function declaration
+    auto fn_decl = dynamic_cast<FunctionDeclare *>(child.get());
+    auto generic_fn_decl = dynamic_cast<GenericFunctionDeclare *>(child.get());
+    // TODO: don't duplicate all this code for FunctionDeclare and
+    // GenericFunctionDeclare
+    if (fn_decl != nullptr) {
+      // create entry in symbol table
+      auto &fn_name = fn_decl->val.id.sourceName->name;
+      auto &old_sym = *instruct.getFnDecl(fn_name)->val.id.sourceName;
+      auto sym = std::make_shared<Symbol>(instruct.loc, old_sym.is_public, true,
+                                          old_sym.is_mut, old_sym.is_global);
+      // create new function declare
+      auto fn_type = std::dynamic_pointer_cast<ast::NamedFunctionType>(
+          fixType(fn_decl->type, state));
+      assert(fn_type != nullptr);
+      auto new_fn_decl = std::make_unique<ir::FunctionDeclare>(
+          fn_decl->loc, ir::Value(sym), fn_type,
+          std::vector<std::reference_wrapper<Allocation>>(), BasicBlockList(),
+          fn_decl->is_public, impl.get());
+      // make symbol point to new function declare
+      sym->ir_decl = IrDecl(new_fn_decl.get(), impl.get());
+      new_scope->addSymbol(fn_name, sym);
+      // add function declare to impl
+      body_subs.addExpression(*fn_decl, new_fn_decl.get());
+      // new -> new global sub is needed to prevent duplicate visiting of impl
+      global_subs.addExpression(*new_fn_decl, new_fn_decl.get());
+      impl->fn_decls.push_back(std::move(new_fn_decl));
+    } else if (generic_fn_decl != nullptr) {
+      // TODO
+      assert(false);
+    } else {
+      assert(false);
+    }
   }
+
+  // visit the bodies of component fn_decls
+  assert(instruct.fn_decls.size() == impl->fn_decls.size());
+  for (size_t i = 0; i < impl->fn_decls.size(); i++) {
+    // get refs to basic block list + arg allocs for fn/generic fn
+    BasicBlockList *new_bb_list = nullptr;
+    BasicBlockList *old_bb_list = nullptr;
+    std::vector<std::reference_wrapper<Allocation>> *old_arg_allocs = nullptr;
+    std::vector<std::reference_wrapper<Allocation>> *new_arg_allocs = nullptr;
+    auto fn_decl = dynamic_cast<FunctionDeclare *>(impl->fn_decls[i].get());
+    auto generic_fn_decl =
+        dynamic_cast<GenericFunctionDeclare *>(impl->fn_decls[i].get());
+    if (fn_decl != nullptr) {
+      auto old = dynamic_cast<FunctionDeclare *>(instruct.fn_decls[i].get());
+      new_bb_list = &fn_decl->body;
+      old_bb_list = &old->body;
+      new_arg_allocs = &fn_decl->argAllocs;
+      old_arg_allocs = &old->argAllocs;
+    } else {
+      assert(generic_fn_decl != nullptr);
+      auto old =
+          dynamic_cast<GenericFunctionDeclare *>(instruct.fn_decls[i].get());
+      new_bb_list = &generic_fn_decl->body;
+      old_bb_list = &old->body;
+      new_arg_allocs = &generic_fn_decl->argAllocs;
+      old_arg_allocs = &old->argAllocs;
+    }
+    // visit function body
+    auto body_state = GenericsPassState(
+        false, state.formal_params, state.actual_params, body_subs, new_bb_list,
+        nullptr, globalRootInstructionList);
+    visitBasicBlockList(*old_bb_list, body_state, *old_arg_allocs,
+                        *new_arg_allocs);
+  }
+
   state.rootInstructionList->push_back(std::move(impl));
 
   return 0;
@@ -437,7 +547,15 @@ int GenericsPass::visitImplFnExtract(Select &instruct,
                                      const GenericsPassState &state) {
   // TODO: support typeclass impl resolving (instruct.impl may not be an Impl,
   // so we can't just visit the old node)
+
+  // TODO: if impl is a static Impl node, we can't use its substitution (b/c we
+  // may be inside the impl and visitImpl doesn't generate headers before
+  // generating bodies). This is non ideal -- we should be able to use any nodes
+  // substitution
   auto impl = dynamic_cast<Impl *>(&instruct.impl);
+  if (impl == nullptr) {
+    impl = dynamic_cast<Impl *>(state.subs.useExpression(&instruct.impl));
+  }
   assert(impl != nullptr);
   auto func = impl->getFnDecl(instruct.method);
   visitInstruction(*func, state.withIsSpecializing(false));
