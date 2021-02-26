@@ -1,13 +1,30 @@
 fn ackermann(m u64, n u64) -> u64 {
   if m == 0 {
-    return n + 1;
+    return n + 1
   } elsif n == 0 {
-    return ackermann(m - 1, 1);
+    return ackermann(m - 1, 1)
   } else {
-    return ackermann(m - 1, ackermann(m, n - 1));
+    return ackermann(m - 1, ackermann(m, n - 1))
   }
 }
 
 pub fn main() -> i32 {
-  std:bootstrap:print_num(ackermann(3, 4));
+  mut m = 0
+  while m <= 3 {
+    mut n = 0
+    while n <= 4 {
+      std:bootstrap:print_char('A')
+      std:bootstrap:print_char(' ')
+      std:bootstrap:print_num(m)
+      std:bootstrap:print_char(' ')
+      std:bootstrap:print_num(n)
+      std:bootstrap:print_char(':')
+      std:bootstrap:print_char(' ')
+      std:bootstrap:print_num(ackermann(m, n))
+      std:bootstrap:print_nl()
+      n += 1
+    }
+    m += 1
+  }
 }
+

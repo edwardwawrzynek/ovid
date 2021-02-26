@@ -110,6 +110,13 @@ class TypeConstructorPass {
       const std::shared_ptr<TypeConstructor> &type_construct,
       const TypeConstructorState &state);
 
+  // visit a type constructor and apply formal -> actual substitutions. does not
+  // apply the constructor
+  std::shared_ptr<TypeConstructor> genericSubsTypeConstructor(
+      const std::shared_ptr<TypeConstructor> &type_construct,
+      const FormalTypeParameterList &formal_params,
+      const TypeList &actual_params, const TypeConstructorState &state);
+
   // lookup unresolved type in type tables
   std::shared_ptr<TypeAlias>
   lookupUnresolvedType(const std::shared_ptr<UnresolvedType> &type,
@@ -129,6 +136,17 @@ public:
                 ErrorManager &errorMan, const std::vector<std::string> &package,
                 const std::vector<std::string> &current_module);
 
+  // visit a type constructor, replacing formal_params with actual_params. Does
+  // not apply the constructor
+  static std::shared_ptr<TypeConstructor>
+  subsOnTypeConstructor(const std::shared_ptr<TypeConstructor> &type_construct,
+                        const FormalTypeParameterList &formal_params,
+                        const TypeList &actual_params, ActiveScopes &scopes,
+                        ErrorManager &errorMan,
+                        const std::vector<std::string> &package,
+                        const std::vector<std::string> &current_module);
+
+  // apply actual_params on type_construct
   static std::shared_ptr<Type> constructTypeConstructor(
       const std::shared_ptr<TypeConstructor> &type_construct,
       const TypeList &actual_params, ActiveScopes &scopes,

@@ -1,0 +1,22 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+struct Node<T, U> {
+    field1  T
+    field2  U
+}
+
+impl<A, B> Node<A, B> {
+    fn f1<T, C>(*self) -> A {
+        return self.field1
+    }
+}
+
+pub fn main() -> i32 {
+    val n = Node<i32, bool> { field1: 5, field2: false }
+    val f = [Node<i32, bool>]:f1:<bool, i32>(&n)
+
+    return f - 5
+}
+

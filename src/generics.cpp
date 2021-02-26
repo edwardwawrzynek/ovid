@@ -209,12 +209,10 @@ std::shared_ptr<TypeAlias> TypeConstructorPass::lookupUnresolvedType(
 }
 
 std::shared_ptr<TypeConstructor>
-TypeConstructorPass::genericResolveTypeConstructor(
+TypeConstructorPass::genericSubsTypeConstructor(
     const std::shared_ptr<TypeConstructor> &type_construct,
+    const FormalTypeParameterList &formal_params, const TypeList &actual_params,
     const TypeConstructorState &state) {
-  // substitute formal -> formal
-  auto formal_params = type_construct->getFormalTypeParameters();
-  auto &actual_params = (const TypeList &)formal_params;
   auto new_state = state.withParams(formal_params, actual_params);
   // resolve type
   state.scopes.types.pushScope(type_construct->getFormalScopeTable());
@@ -225,6 +223,18 @@ TypeConstructorPass::genericResolveTypeConstructor(
       res.actual_type);
 
   return new_construct;
+}
+
+std::shared_ptr<TypeConstructor>
+TypeConstructorPass::genericResolveTypeConstructor(
+    const std::shared_ptr<TypeConstructor> &type_construct,
+    const TypeConstructorState &state) {
+  // substitute formal -> formal
+  auto formal_params = type_construct->getFormalTypeParameters();
+  auto &actual_params = (const TypeList &)formal_params;
+
+  return genericSubsTypeConstructor(type_construct, formal_params,
+                                    actual_params, state);
 }
 
 ActiveScopes
@@ -380,13 +390,27 @@ std::shared_ptr<Type> TypeConstructorPass::constructType(
     ActiveScopes &scopes, ErrorManager &errorMan,
     const std::vector<std::string> &package,
     const std::vector<std::string> &current_module) {
-  auto constructor = TypeConstructorPass(errorMan, package);
-  return constructor
+  auto pass = TypeConstructorPass(errorMan, package);
+  return pass
       .visitType(
           type, TypeConstructorState(
                     formal_params, actual_params, scopes,
                     scopes.types.getRootScope()->getScopeTable(current_module)))
       .actual_type;
+}
+
+std::shared_ptr<TypeConstructor> TypeConstructorPass::subsOnTypeConstructor(
+    const std::shared_ptr<TypeConstructor> &type_construct,
+    const FormalTypeParameterList &formal_params, const TypeList &actual_params,
+    ActiveScopes &scopes, ErrorManager &errorMan,
+    const std::vector<std::string> &package,
+    const std::vector<std::string> &current_module) {
+  auto pass = TypeConstructorPass(errorMan, package);
+  return pass.genericSubsTypeConstructor(
+      type_construct, formal_params, actual_params,
+      TypeConstructorState(
+          formal_params, actual_params, scopes,
+          scopes.types.getRootScope()->getScopeTable(current_module)));
 }
 
 std::shared_ptr<Type> TypeConstructorPass::constructTypeConstructor(

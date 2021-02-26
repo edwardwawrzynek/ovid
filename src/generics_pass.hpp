@@ -163,6 +163,10 @@ class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
   std::shared_ptr<ast::Type> fixType(const std::shared_ptr<ast::Type> &type,
                                      const GenericsPassState &state);
 
+  std::shared_ptr<ast::TypeConstructor> fixTypeConstructor(
+      const std::shared_ptr<ast::TypeConstructor> &type_construct,
+      const GenericsPassState &state);
+
   Value newValue(const Value &old_val, const GenericsPassState &state);
   int addExpr(std::unique_ptr<Expression> expr, Expression &old,
               const GenericsPassState &state);
