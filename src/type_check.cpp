@@ -523,18 +523,26 @@ TypeCheckResult TypeCheck::visitIdentifier(Identifier &node,
   // insert a ForwardIdentifier node
   if (node.resolved_symbol->ir_decl.instr == nullptr) {
     assert(node.resolved_symbol->ir_decl.impl == nullptr);
-    if (!is_generic) {
-      auto forwardIdent = std::make_unique<ir::ForwardIdentifier>(
-          node.loc, ir::Value(node.resolved_symbol), node.resolved_symbol,
-          node_type);
-      alloc_node = forwardIdent.get();
-      curInstructionList->push_back(std::move(forwardIdent));
+    // if the symbol is inside an impl block, insert ForwardImpl + Select
+    auto impl_header = node.resolved_symbol->parent_table->getImpl().get();
+    if (impl_header != nullptr) {
+      // TODO: create new function to create (ForwardImpl|ForwardGenericImpl)?
+      // -> (Select|GenericSelect) chain (possibly reusing part of genIrDecl)
+      assert(false);
     } else {
-      auto forwardIdent = std::make_unique<ir::GenericForwardIdentifier>(
-          node.loc, ir::Id(node.resolved_symbol), node.resolved_symbol,
-          node.resolved_symbol->type);
-      generic_alloc_node = forwardIdent.get();
-      curInstructionList->push_back(std::move(forwardIdent));
+      if (!is_generic) {
+        auto forwardIdent = std::make_unique<ir::ForwardIdentifier>(
+            node.loc, ir::Value(node.resolved_symbol), node.resolved_symbol,
+            node_type);
+        alloc_node = forwardIdent.get();
+        curInstructionList->push_back(std::move(forwardIdent));
+      } else {
+        auto forwardIdent = std::make_unique<ir::GenericForwardIdentifier>(
+            node.loc, ir::Id(node.resolved_symbol), node.resolved_symbol,
+            node.resolved_symbol->type);
+        generic_alloc_node = forwardIdent.get();
+        curInstructionList->push_back(std::move(forwardIdent));
+      }
     }
   } else {
     assert(node.resolved_symbol->type != nullptr);

@@ -61,16 +61,20 @@ public:
   InstructionList *rootInstructionList;
   // substitutions to perform on expressions
   GenericSubstitutions &subs;
+  // if specialize nodes should be resolved or left as specialize nodes
+  // this is normally true -- we want to turn specialize nodes into
+  // monomorphised implementations However, when specializing generic impls, we
+  // want to leave them in place (b/c generic functions inside generic impls are
+  // specialized twice (once for the impl, then for the function)
+  bool fix_specialize_instr;
 
   GenericsPassState withIsSpecializing(bool specializing) const;
 
-  GenericsPassState(bool is_specializing,
-                    const ast::FormalTypeParameterList &formal_params,
-                    const ast::TypeList &actual_params,
-                    GenericSubstitutions &subs,
-                    BasicBlockList *curBasicBlockList,
-                    InstructionList *curInstructionList,
-                    InstructionList *rootInstructionList);
+  GenericsPassState(
+      bool is_specializing, const ast::FormalTypeParameterList &formal_params,
+      const ast::TypeList &actual_params, GenericSubstitutions &subs,
+      BasicBlockList *curBasicBlockList, InstructionList *curInstructionList,
+      InstructionList *rootInstructionList, bool fix_specialize_instr);
 };
 
 class GenericSpecializations {
@@ -167,9 +171,14 @@ class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
       const std::shared_ptr<ast::TypeConstructor> &type_construct,
       const GenericsPassState &state);
 
+  ast::TypeList fixTypeList(const ast::TypeList &types,
+                            const GenericsPassState &state);
+
   Value newValue(const Value &old_val, const GenericsPassState &state);
   int addExpr(std::unique_ptr<Expression> expr, Expression &old,
               const GenericsPassState &state);
+  int addGenericExpr(std::unique_ptr<GenericExpression> generic_expr,
+                     GenericExpression &old, const GenericsPassState &state);
 
   bool fnDeclImplNotInState(Instruction *fnDeclImpl,
                             const GenericsPassState &state);

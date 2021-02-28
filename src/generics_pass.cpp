@@ -7,17 +7,18 @@ GenericsPassState::GenericsPassState(
     bool is_specializing, const ast::FormalTypeParameterList &formal_params,
     const ast::TypeList &actual_params, GenericSubstitutions &subs,
     BasicBlockList *curBasicBlockList, InstructionList *curInstructionList,
-    InstructionList *rootInstructionList)
+    InstructionList *rootInstructionList, bool fix_specialize_instr)
     : is_specializing(is_specializing), formal_params(formal_params),
       actual_params(actual_params), curBasicBlockList(curBasicBlockList),
       curInstructionList(curInstructionList),
-      rootInstructionList(rootInstructionList), subs(subs) {}
+      rootInstructionList(rootInstructionList), subs(subs),
+      fix_specialize_instr(fix_specialize_instr) {}
 
 GenericsPassState
 GenericsPassState::withIsSpecializing(bool specializing) const {
   return GenericsPassState(specializing, formal_params, actual_params, subs,
                            curBasicBlockList, curInstructionList,
-                           rootInstructionList);
+                           rootInstructionList, fix_specialize_instr);
 }
 
 void GenericSubstitutions::addBasicBlock(uint64_t old_id, BasicBlock *newBB) {
@@ -186,6 +187,15 @@ GenericsPass::fixType(const std::shared_ptr<ast::Type> &type,
   }
 }
 
+ast::TypeList GenericsPass::fixTypeList(const ast::TypeList &types,
+                                        const GenericsPassState &state) {
+  ast::TypeList result;
+  for (const auto &type : types) {
+    result.push_back(fixType(type, state));
+  }
+  return types;
+}
+
 std::shared_ptr<ast::TypeConstructor> GenericsPass::fixTypeConstructor(
     const std::shared_ptr<ast::TypeConstructor> &type_construct,
     const GenericsPassState &state) {
@@ -215,6 +225,14 @@ int GenericsPass::addExpr(std::unique_ptr<Expression> expr, Expression &old,
                           const GenericsPassState &state) {
   state.subs.addExpression(old, expr.get());
   state.curInstructionList->push_back(std::move(expr));
+  return 0;
+}
+
+int GenericsPass::addGenericExpr(
+    std::unique_ptr<GenericExpression> generic_expr, GenericExpression &old,
+    const GenericsPassState &state) {
+  state.subs.addGenericExpression(old, generic_expr.get());
+  state.curInstructionList->push_back(std::move(generic_expr));
   return 0;
 }
 
@@ -265,7 +283,7 @@ GenericsPassState GenericsPass::withFnDeclImpl(Instruction *fnDeclImpl,
   return GenericsPassState(state.is_specializing, state.formal_params,
                            state.actual_params, state.subs,
                            state.curBasicBlockList, state.curInstructionList,
-                           implRootInstrList);
+                           implRootInstrList, true);
 }
 
 int GenericsPass::visitFunctionDeclare(FunctionDeclare &instruct,
@@ -293,9 +311,9 @@ int GenericsPass::visitFunctionDeclare(FunctionDeclare &instruct,
   // rootInstructionList is set back to ir global root b/c if we visit a declare
   // inside this function, that declare may not be in the current impl scope
   auto subs = GenericSubstitutions(&global_subs);
-  auto bodyState =
-      GenericsPassState(false, state.formal_params, state.actual_params, subs,
-                        &funcDeclare->body, nullptr, globalRootInstructionList);
+  auto bodyState = GenericsPassState(
+      false, state.formal_params, state.actual_params, subs, &funcDeclare->body,
+      nullptr, globalRootInstructionList, true);
   visitBasicBlockList(instruct.body, bodyState, instruct.argAllocs,
                       funcDeclare->argAllocs);
 
@@ -306,12 +324,6 @@ int GenericsPass::visitFunctionDeclare(FunctionDeclare &instruct,
 
 int GenericsPass::visitGenericImpl(GenericImpl &instruct,
                                    const GenericsPassState &state) {
-  // TODO: when visiting body of generic fn decls, we don't want to visit nested
-  // specializations yet (b/c the generic functions we don't have actual params
-  // yet, and we don't want their formal params copied into specialized
-  // functions. When visiting generic fn decls, we need a flag in state telling
-  // deeper levels to just reproduce specialize nodes.
-
   // if we aren't specializing this impl, don't do anything to it
   if (!state.is_specializing) {
     // add dummy sub so this impl doesn't get repeatedly visited for non
@@ -326,7 +338,7 @@ int GenericsPass::visitGenericImpl(GenericImpl &instruct,
     auto newState =
         GenericsPassState(state.is_specializing, instruct.header->type_params,
                           state.actual_params, state.subs, nullptr, nullptr,
-                          state.rootInstructionList);
+                          state.rootInstructionList, true);
     return visitGenericImpl(instruct, newState);
   }
   // create specialized impl node
@@ -442,7 +454,7 @@ int GenericsPass::visitGenericImpl(GenericImpl &instruct,
     // visit function body
     auto body_state = GenericsPassState(
         false, state.formal_params, state.actual_params, body_subs, new_bb_list,
-        nullptr, globalRootInstructionList);
+        nullptr, globalRootInstructionList, generic_fn_decl == nullptr);
     visitBasicBlockList(*old_bb_list, body_state, *old_arg_allocs,
                         *new_arg_allocs);
   }
@@ -467,7 +479,7 @@ int GenericsPass::visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
     auto newState = GenericsPassState(
         state.is_specializing,
         instruct.type_construct->getFormalTypeParameters(), state.actual_params,
-        state.subs, nullptr, nullptr, state.rootInstructionList);
+        state.subs, nullptr, nullptr, state.rootInstructionList, true);
     return visitGenericFunctionDeclare(instruct, newState);
   }
   // if the function declare is in an impl and curRootInstructionList isn't set
@@ -496,7 +508,7 @@ int GenericsPass::visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
   auto bodySubs = GenericSubstitutions(&global_subs);
   auto bodyState = GenericsPassState(
       state.is_specializing, state.formal_params, state.actual_params, bodySubs,
-      &funcDeclare->body, nullptr, globalRootInstructionList);
+      &funcDeclare->body, nullptr, globalRootInstructionList, true);
   visitBasicBlockList(instruct.body, bodyState, instruct.argAllocs,
                       funcDeclare->argAllocs);
 
@@ -522,7 +534,8 @@ int GenericsPass::visitBasicBlockList(
     auto bodyState = GenericsPassState(
         state.is_specializing, state.formal_params, state.actual_params,
         state.subs, state.curBasicBlockList,
-        &(*state.curBasicBlockList)[i]->body, state.rootInstructionList);
+        &(*state.curBasicBlockList)[i]->body, state.rootInstructionList,
+        state.fix_specialize_instr);
     for (auto &child : basicBlockList[i]->body) {
       visitInstruction(*child, bodyState);
       // check if child is in oldArgAllocs, and, if so, add its visited version
@@ -554,40 +567,59 @@ int GenericsPass::visitBasicBlockList(
 
 int GenericsPass::visitImplFnExtract(Select &instruct,
                                      const GenericsPassState &state) {
-  // TODO: support typeclass impl resolving (instruct.impl may not be an Impl,
-  // so we can't just visit the old node)
+  // just replicate node if state.fix_specialize_instr isn't set
+  if (!state.fix_specialize_instr) {
+    auto newInstr = std::make_unique<Select>(
+        instruct.loc, newValue(instruct.val, state),
+        *state.subs.useExpression(&instruct.impl), instruct.method,
+        fixType(instruct.type, state));
+    return addExpr(std::move(newInstr), instruct, state);
+  } else {
 
-  // TODO: if impl is a static Impl node, we can't use its substitution (b/c we
-  // may be inside the impl and visitImpl doesn't generate headers before
-  // generating bodies). This is non ideal -- we should be able to use any nodes
-  // substitution
-  auto impl = dynamic_cast<Impl *>(&instruct.impl);
-  if (impl == nullptr) {
-    impl = dynamic_cast<Impl *>(state.subs.useExpression(&instruct.impl));
+    // TODO: support typeclass impl resolving (instruct.impl may not be an Impl,
+    // so we can't just visit the old node)
+
+    auto impl = dynamic_cast<Impl *>(&instruct.impl);
+    if (impl == nullptr) {
+      // only use the substitution if the original impl is null. Needed for
+      // recursive impl calls while an impl is being visited (visitImpl doesn't
+      // generate all headers before visiting bodies)
+      impl = dynamic_cast<Impl *>(state.subs.useExpression(&instruct.impl));
+    }
+    assert(impl != nullptr);
+    auto func = impl->getFnDecl(instruct.method);
+    visitInstruction(*func, state.withIsSpecializing(false));
+    auto newFunc = global_subs.useExpression(func);
+    state.subs.addExpression(instruct, newFunc);
+
+    return 0;
   }
-  assert(impl != nullptr);
-  auto func = impl->getFnDecl(instruct.method);
-  visitInstruction(*func, state.withIsSpecializing(false));
-  auto newFunc = global_subs.useExpression(func);
-  state.subs.addExpression(instruct, newFunc);
-
-  return 0;
 }
 
 int GenericsPass::visitImplGenericFnExtract(GenericSelect &instruct,
                                             const GenericsPassState &state) {
-  // TODO: support typeclass impl resolving (instruct.impl may not be an Impl,
-  // so we can't just visit the old node)
-  auto impl = dynamic_cast<Impl *>(&instruct.impl);
-  if (impl == nullptr) {
-    impl = dynamic_cast<Impl *>(state.subs.useExpression(&instruct.impl));
-  }
-  assert(impl != nullptr);
-  // don't visit the function (b/c it will later be specialized)
-  auto func = impl->getGenericFnDecl(instruct.method);
-  state.subs.addGenericExpression(instruct, func);
+  // just replicate node if state.fix_specialize_instr isn't set
+  if (!state.fix_specialize_instr) {
+    auto newInstr = std::make_unique<GenericSelect>(
+        instruct.loc,
+        Id(instruct.id.sourceName, fixTypeList(instruct.id.typeParams, state)),
+        *state.subs.useExpression(&instruct.impl), instruct.method,
+        fixTypeConstructor(instruct.type_construct, state));
+    return addGenericExpr(std::move(newInstr), instruct, state);
+  } else {
+    // TODO: support typeclass impl resolving (instruct.impl may not be an Impl,
+    // so we can't just visit the old node)
+    auto impl = dynamic_cast<Impl *>(&instruct.impl);
+    if (impl == nullptr) {
+      impl = dynamic_cast<Impl *>(state.subs.useExpression(&instruct.impl));
+    }
+    assert(impl != nullptr);
+    // don't visit the function (b/c it will later be specialized)
+    auto func = impl->getGenericFnDecl(instruct.method);
+    state.subs.addGenericExpression(instruct, func);
 
-  return 0;
+    return 0;
+  }
 }
 
 int GenericsPass::visitBasicBlock(BasicBlock &instruct,
@@ -761,6 +793,9 @@ int GenericsPass::visitForwardIdentifier(ForwardIdentifier &instruct,
   // if the forward identifier is resolved, just use what it resolves to.
   // otherwise just copy the node
   if (instruct.symbol_ref->ir_decl.instr != nullptr) {
+    // functions declared inside impl blocks should just ForwardImpl + Select
+    // instead
+    assert(instruct.symbol_ref->ir_decl.impl == nullptr);
     auto ir_decl_expr =
         dynamic_cast<Expression *>(instruct.symbol_ref->ir_decl.instr);
     assert(ir_decl_expr != nullptr);
@@ -786,6 +821,9 @@ int GenericsPass::visitGenericForwardIdentifier(
   // generic forward identifiers should always resolve to an ir node.
   // ie: no external/native generic functions
   assert(instruct.symbol_ref->ir_decl.instr != nullptr);
+  // functions declared inside impls should use ForwardImpl + GenericSelect
+  // instead
+  assert(instruct.symbol_ref->ir_decl.impl == nullptr);
   auto ir_decl_generic_expr =
       dynamic_cast<GenericExpression *>(instruct.symbol_ref->ir_decl.instr);
   assert(ir_decl_generic_expr != nullptr);
@@ -802,31 +840,42 @@ int GenericsPass::visitSpecialize(Specialize &instruct,
     actual_params.push_back(fixType(param, state));
   }
 
-  auto generic_expr = state.subs.hasGenericExpression(&instruct.expr);
-  if (generic_expr == nullptr) {
-    visitInstruction(instruct.expr, state.withIsSpecializing(false));
-    generic_expr = state.subs.useGenericExpression(&instruct.expr);
-  }
-  // if the needed specialization already exists, use it
-  auto existingSpecial =
-      specializations.getSpecialization(*generic_expr, actual_params);
-  // otherwise, visit the generic expression and generate a new specialization
-  if (existingSpecial == nullptr) {
-    // let visited generic expression set formal params
-    ast::FormalTypeParameterList empty_formal_params;
-    auto subs = GenericSubstitutions(&global_subs);
-    auto newState =
-        GenericsPassState(true, empty_formal_params, actual_params, subs,
-                          nullptr, nullptr, state.rootInstructionList);
-    visitInstruction(*generic_expr, newState);
-    // get generated specialization
-    existingSpecial =
+  if (!state.fix_specialize_instr) {
+    // make sure we are inside an impl (state.rootInstructionList is the root of
+    // the impl, so it won't match the global list)
+    // assert(state.rootInstructionList != globalRootInstructionList);
+    auto newInstruct = std::make_unique<Specialize>(
+        instruct.loc, newValue(instruct.val, state),
+        *state.subs.useGenericExpression(&instruct.expr),
+        std::move(actual_params), fixType(instruct.type, state));
+    return addExpr(std::move(newInstruct), instruct, state);
+  } else {
+    auto generic_expr = state.subs.hasGenericExpression(&instruct.expr);
+    if (generic_expr == nullptr) {
+      visitInstruction(instruct.expr, state.withIsSpecializing(false));
+      generic_expr = state.subs.useGenericExpression(&instruct.expr);
+    }
+    // if the needed specialization already exists, use it
+    auto existingSpecial =
         specializations.getSpecialization(*generic_expr, actual_params);
-    assert(existingSpecial != nullptr);
-  }
+    // otherwise, visit the generic expression and generate a new specialization
+    if (existingSpecial == nullptr) {
+      // let visited generic expression set formal params
+      ast::FormalTypeParameterList empty_formal_params;
+      auto subs = GenericSubstitutions(&global_subs);
+      auto newState =
+          GenericsPassState(true, empty_formal_params, actual_params, subs,
+                            nullptr, nullptr, state.rootInstructionList, true);
+      visitInstruction(*generic_expr, newState);
+      // get generated specialization
+      existingSpecial =
+          specializations.getSpecialization(*generic_expr, actual_params);
+      assert(existingSpecial != nullptr);
+    }
 
-  state.subs.addExpression(instruct, existingSpecial);
-  return 0;
+    state.subs.addExpression(instruct, existingSpecial);
+    return 0;
+  }
 }
 
 InstructionList GenericsPass::produceIR(ActiveScopes &scopes,
@@ -839,7 +888,7 @@ InstructionList GenericsPass::produceIR(ActiveScopes &scopes,
   auto subs = GenericSubstitutions(&pass.global_subs);
   auto state =
       GenericsPassState(false, empty_formal_params, empty_actual_params, subs,
-                        nullptr, &res, &res);
+                        nullptr, &res, &res, true);
   pass.visitInstructions(ir, state);
   return res;
 }
