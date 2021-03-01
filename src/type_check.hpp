@@ -192,7 +192,9 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   // a sequence of instr -> (Specialize? ->
   // (Select|GenericSelect)?)? actual_params are the params to
   // specialize the impl type on (if ir_decl is inside an impl block)
-  ir::Instruction *genIrDecl(IrDecl ir_decl, const SourceLocation &loc,
+  ir::Instruction *genIrDecl(ir::Instruction *impl,
+                             const std::shared_ptr<Symbol> &fn_sym,
+                             const SourceLocation &loc,
                              const TypeCheckState &state,
                              const TypeList &actual_params);
 
