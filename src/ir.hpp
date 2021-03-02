@@ -321,6 +321,23 @@ public:
        std::shared_ptr<ast::Type> type);
 };
 
+/* forward referenced impl */
+class ForwardImpl : public Expression {
+public:
+  std::shared_ptr<ast::ImplHeader> header;
+
+  ForwardImpl(const SourceLocation &loc, const Value &val,
+              std::shared_ptr<ast::ImplHeader> header);
+};
+
+class ForwardGenericImpl : public GenericExpression {
+public:
+  std::shared_ptr<ast::ImplHeader> header;
+
+  ForwardGenericImpl(const SourceLocation &loc, const Id &id,
+                     std::shared_ptr<ast::ImplHeader> header);
+};
+
 /* a function selection on an impl block
  * ie -- select a function expression from an impl given it's id */
 class Select : public Expression {

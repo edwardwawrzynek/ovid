@@ -1,0 +1,28 @@
+// __ovid_compiler_test
+//__mode: type_check
+//__end_header
+
+module test {
+    pub struct Test<T> {
+        field   T
+    }
+
+    impl<T> Test<T> {
+        pub fn pub_fn(*self) -> T {
+            return self.field
+        }
+
+        fn priv_fn(*self) -> T {
+            return self.field
+        }
+    }
+
+    fn test1(t *Test<i32>) -> i32 {
+        return [Test<i32>]:pub_fn(t) + [Test<i32>]:priv_fn(t)
+    }
+}
+
+fn test2(t *test:Test<i32>) -> i32 {
+    return [test:Test<i32>]:pub_fn(t) +
+           [test:Test<i32>]:priv_fn(t)  //__error: "usage of private function priv_fn on type ovidc_test:test:Test<i32>"
+}

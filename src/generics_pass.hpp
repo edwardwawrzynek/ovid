@@ -111,16 +111,15 @@ class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
                                   const GenericsPassState &state) override;
   int visitGenericForwardIdentifier(GenericForwardIdentifier &instruct,
                                     const GenericsPassState &state) override;
-  int visitImplGenericFnExtract(GenericSelect &instruct,
-                                const GenericsPassState &state) override;
+  int visitGenericSelect(GenericSelect &instruct,
+                         const GenericsPassState &state) override;
 
   int visitImpl(Impl &instruct, const GenericsPassState &state) override;
   int visitGenericImpl(GenericImpl &instruct,
                        const GenericsPassState &state) override;
   int visitFunctionDeclare(FunctionDeclare &instruct,
                            const GenericsPassState &state) override;
-  int visitImplFnExtract(Select &instruct,
-                         const GenericsPassState &state) override;
+  int visitSelect(Select &instruct, const GenericsPassState &state) override;
   int visitIntLiteral(IntLiteral &instruct,
                       const GenericsPassState &state) override;
   int visitBoolLiteral(BoolLiteral &instruct,
@@ -149,6 +148,10 @@ class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
   int visitSpecialize(Specialize &instruct,
                       const GenericsPassState &state) override;
   int visitSizeof(Sizeof &instruct, const GenericsPassState &state) override;
+  int visitForwardImpl(ForwardImpl &instruct,
+                       const GenericsPassState &state) override;
+  int visitForwardGenericImpl(ForwardGenericImpl &instruct,
+                              const GenericsPassState &state) override;
 
   int visitStore(Store &instruct, const GenericsPassState &state) override;
   int visitBasicBlock(BasicBlock &instruct,

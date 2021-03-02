@@ -18,10 +18,12 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitGenericForwardIdentifier(GenericForwardIdentifier &instruct,
                                           const S &state);
   virtual T visitGenericImpl(GenericImpl &instruct, const S &state);
-  virtual T visitImplGenericFnExtract(GenericSelect &instruct, const S &state);
+  virtual T visitGenericSelect(GenericSelect &instruct, const S &state);
+  virtual T visitForwardGenericImpl(ForwardGenericImpl &instruct,
+                                    const S &state);
 
   virtual T visitImpl(Impl &instruct, const S &state);
-  virtual T visitImplFnExtract(Select &instruct, const S &state);
+  virtual T visitSelect(Select &instruct, const S &state);
   virtual T visitFunctionDeclare(FunctionDeclare &instruct, const S &state);
   virtual T visitIntLiteral(IntLiteral &instruct, const S &state);
   virtual T visitBoolLiteral(BoolLiteral &instruct, const S &state);
@@ -36,6 +38,7 @@ template <class T, class S> class BaseIRVisitor {
   virtual T visitBuiltinCast(BuiltinCast &instruct, const S &state);
   virtual T visitFieldSelect(FieldSelect &instruct, const S &state);
   virtual T visitForwardIdentifier(ForwardIdentifier &instruct, const S &state);
+  virtual T visitForwardImpl(ForwardImpl &instruct, const S &state);
   virtual T visitSpecialize(Specialize &instruct, const S &state);
   virtual T visitSizeof(Sizeof &instruct, const S &state);
 
@@ -87,8 +90,10 @@ T BaseIRVisitor<T, S>::visitGenericExpression(GenericExpression &instruct,
   } else if (dynamic_cast<GenericImpl *>(&instruct) != nullptr) {
     return visitGenericImpl(dynamic_cast<GenericImpl &>(instruct), state);
   } else if (dynamic_cast<GenericSelect *>(&instruct) != nullptr) {
-    return visitImplGenericFnExtract(dynamic_cast<GenericSelect &>(instruct),
-                                     state);
+    return visitGenericSelect(dynamic_cast<GenericSelect &>(instruct), state);
+  } else if (dynamic_cast<ForwardGenericImpl *>(&instruct) != nullptr) {
+    return visitForwardGenericImpl(dynamic_cast<ForwardGenericImpl &>(instruct),
+                                   state);
   }
 
   assert(false);
@@ -135,7 +140,9 @@ T BaseIRVisitor<T, S>::visitExpression(Expression &instruct, const S &state) {
   } else if (dynamic_cast<Impl *>(&instruct) != nullptr) {
     return visitImpl(dynamic_cast<Impl &>(instruct), state);
   } else if (dynamic_cast<Select *>(&instruct) != nullptr) {
-    return visitImplFnExtract(dynamic_cast<Select &>(instruct), state);
+    return visitSelect(dynamic_cast<Select &>(instruct), state);
+  } else if (dynamic_cast<ForwardImpl *>(&instruct) != nullptr) {
+    return visitForwardImpl(dynamic_cast<ForwardImpl &>(instruct), state);
   }
 
   assert(false);
@@ -287,8 +294,8 @@ T BaseIRVisitor<T, S>::visitGenericImpl(GenericImpl &instruct, const S &state) {
 }
 
 template <class T, class S>
-T BaseIRVisitor<T, S>::visitImplGenericFnExtract(GenericSelect &instruct,
-                                                 const S &state) {
+T BaseIRVisitor<T, S>::visitGenericSelect(GenericSelect &instruct,
+                                          const S &state) {
   return std::move(defaultValue);
 }
 
@@ -298,7 +305,18 @@ T BaseIRVisitor<T, S>::visitImpl(Impl &instruct, const S &state) {
 }
 
 template <class T, class S>
-T BaseIRVisitor<T, S>::visitImplFnExtract(Select &instruct, const S &state) {
+T BaseIRVisitor<T, S>::visitSelect(Select &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitForwardImpl(ForwardImpl &instruct, const S &state) {
+  return std::move(defaultValue);
+}
+
+template <class T, class S>
+T BaseIRVisitor<T, S>::visitForwardGenericImpl(ForwardGenericImpl &instruct,
+                                               const S &state) {
   return std::move(defaultValue);
 }
 

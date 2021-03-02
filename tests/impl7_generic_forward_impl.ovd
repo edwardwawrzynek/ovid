@@ -1,0 +1,30 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+struct Test1<T> {
+    f   *Test2<i32, T>
+}
+
+struct Test2<A, B> {
+    a   A
+    b   B
+}
+
+impl<C> Test1<C> {
+    fn t(*self) -> C {
+        return [Test2<i32, C>]:b(self.f)
+    }
+}
+
+impl<A, B> Test2<A, B> {
+    fn b(*self) -> B {
+        return self.b
+    }
+}
+
+pub fn main() -> i32 {
+    val t2 = Test2<i32, u32> { a: 5, b: 7 }
+    val t1 = Test1<u32> { f: &t2 }
+    return [Test1<u32>]:t(&t1) - 7
+}

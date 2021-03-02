@@ -170,6 +170,18 @@ GenericExpression *Impl::getGenericFnDecl(const std::string &name) {
   return implGetFnDecl<GenericExpression>(name, fn_decls);
 }
 
+ForwardImpl::ForwardImpl(const SourceLocation &loc, const Value &val,
+                         std::shared_ptr<ast::ImplHeader> header)
+    : Expression(loc, val, header->type), header(std::move(header)) {}
+
+ForwardGenericImpl::ForwardGenericImpl(const SourceLocation &loc, const Id &id,
+                                       std::shared_ptr<ast::ImplHeader> header)
+    : GenericExpression(
+          loc, id,
+          std::make_shared<ast::GenericTypeConstructor>(
+              header->type->loc, header->type_params, header->type)),
+      header(std::move(header)) {}
+
 Select::Select(const SourceLocation &loc, const Value &val, Expression &impl,
                const std::string &method, std::shared_ptr<ast::Type> type)
     : Expression(loc, val, std::move(type)), impl(impl), method(method) {}

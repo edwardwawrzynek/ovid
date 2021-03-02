@@ -419,8 +419,8 @@ int IRPrinter::visitGenericImpl(GenericImpl &instruct,
   return 0;
 }
 
-int IRPrinter::visitImplFnExtract(Select &instruct,
-                                  const ast::ASTPrinterState &state) {
+int IRPrinter::visitSelect(Select &instruct,
+                           const ast::ASTPrinterState &state) {
   state.printIndent(output);
   ast::printLoc(output, instruct.loc);
   output << "\t";
@@ -432,8 +432,8 @@ int IRPrinter::visitImplFnExtract(Select &instruct,
   return 0;
 }
 
-int IRPrinter::visitImplGenericFnExtract(GenericSelect &instruct,
-                                         const ast::ASTPrinterState &state) {
+int IRPrinter::visitGenericSelect(GenericSelect &instruct,
+                                  const ast::ASTPrinterState &state) {
   state.printIndent(output);
   ast::printLoc(output, instruct.loc);
   output << "\t";
@@ -447,6 +447,33 @@ int IRPrinter::visitImplGenericFnExtract(GenericSelect &instruct,
          << " ";
   printId(instruct.impl.val.id);
   output << " " << instruct.method << "\n";
+  return 0;
+}
+
+int IRPrinter::visitForwardImpl(ForwardImpl &instruct,
+                                const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printValue(instruct.val);
+
+  output << " = FORWARDIMPL " << type_printer.getType(*instruct.type) << "\n";
+  return 0;
+}
+
+int IRPrinter::visitForwardGenericImpl(ForwardGenericImpl &instruct,
+                                       const ast::ASTPrinterState &state) {
+  state.printIndent(output);
+  ast::printLoc(output, instruct.loc);
+  output << "\t";
+  printId(instruct.id);
+
+  output << " = FORWARDGENERICIMPL "
+         << type_printer.getFormalTypeParameterList(
+                instruct.type_construct->getFormalTypeParameters())
+         << " "
+         << type_printer.getType(*instruct.type_construct->getFormalBoundType())
+         << "\n";
   return 0;
 }
 

@@ -278,6 +278,12 @@ bool checkVisible(const T &sym, ScopeTable<T> *curPackage,
   if (containingTable->getIsFuncScope())
     return true;
 
+  // if the symbol is in an impl block, use the module containing the impl for
+  // visibility checking
+  if (containingTable->getImpl() != nullptr) {
+    containingTable = containingTable->getParent();
+  }
+
   // determine if the symbol is in curPackage
   ScopeTable<T> *tmp = containingTable;
   while (tmp != nullptr) {

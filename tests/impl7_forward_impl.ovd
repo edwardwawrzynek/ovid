@@ -1,0 +1,27 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+struct Test1 {}
+struct Test2 {}
+
+impl Test1 {
+    fn t1(i i32) -> i32 {
+        if i > 0 {
+            return [Test2]:t2(i - 1)
+        } else {
+            return 0
+        }
+    }
+}
+
+impl Test2 {
+    fn t2(i i32) -> i32 {
+        return [Test1]:t1(i) + 1
+    }
+}
+
+
+pub fn main() -> i32 {
+    return [Test1]:t1(6) - 6
+}

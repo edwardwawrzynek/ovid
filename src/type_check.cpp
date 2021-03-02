@@ -824,16 +824,45 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
   const auto &impl = matchingImpls[0];
   const auto &fn_sym =
       impl.first->getDirectScopeTable().findSymbol(node.method);
-  const auto &header = *impl.first->getImpl();
-  // TODO: forward referenced impl blocks
-  assert(header.ir_decl != nullptr);
 
-  ir::Instruction *ir_impl_instr = header.ir_decl;
+  // make sure method is public or we are inside the module the impl is in
+  if (!checkVisible(*fn_sym, root_scopes.names->getScopeTable(package),
+                    root_scopes.names->getScopeTable(currentModule),
+                    fn_sym->is_public)) {
+    errorMan.logError(
+        string_format(
+            "usage of private function \x1b[1m%s\x1b[m on type \x1b[1m%s\x1b[m",
+            node.method.c_str(), type_printer.getType(*node.type).c_str()),
+        node.loc, ErrorType::UseOfPrivateIdentifier);
+  }
+
+  const auto &header = impl.first->getImpl();
+  bool impl_is_generic = !impl.second.empty();
+
+  ir::Instruction *ir_impl_instr = nullptr;
+  if (header->ir_decl != nullptr) {
+    ir_impl_instr = header->ir_decl;
+  } else {
+    // impl declaration hasn't been visited yet, so use a
+    // ForwardImpl|ForwardGenericImpl
+    if (impl_is_generic) {
+      auto forward =
+          std::make_unique<ir::ForwardGenericImpl>(node.loc, ir::Id(), header);
+      ir_impl_instr = forward.get();
+      curInstructionList->push_back(std::move(forward));
+    } else {
+      auto forward =
+          std::make_unique<ir::ForwardImpl>(node.loc, ir::Value(), header);
+      ir_impl_instr = forward.get();
+      curInstructionList->push_back(std::move(forward));
+    }
+  }
+
   ir::Expression *ir_impl = nullptr;
   // insert specialize on impl if impl is generic
-  if (!impl.second.empty()) {
+  if (impl_is_generic) {
     // make sure all type parameters were matched in pattern
-    assert(impl.second.size() == header.type_params.size());
+    assert(impl.second.size() == header->type_params.size());
     for (size_t i = 0; i < impl.second.size(); i++) {
       if (impl.second[i] == nullptr) {
         errorMan.logError(
@@ -841,7 +870,7 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
                 "type parameter \x1b[1m%s\x1b[m is unbound in type constructor "
                 "\x1b[1m%s\x1b[m in impl (perhaps the selected impl is generic "
                 "over types not bound in its pattern)",
-                type_printer.getType(*header.type_params[i]).c_str(),
+                type_printer.getType(*header->type_params[i]).c_str(),
                 type_printer.getType(*node.type).c_str()),
             node.loc, ErrorType::TypeError, false);
         errorMan.logError("selected impl method declared here",
@@ -854,7 +883,7 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
     assert(ir_generic_impl != nullptr);
     auto specialize = std::make_unique<ir::Specialize>(
         node.loc, ir::Value(), *ir_generic_impl, impl.second,
-        substTypes(header.type, header.type_params, impl.second));
+        substTypes(header->type, header->type_params, impl.second));
     ir_impl = specialize.get();
     curInstructionList->push_back(std::move(specialize));
   } else {
@@ -871,7 +900,7 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
 
   if (type_construct->numTypeParams() == 0) {
     type = type_construct->noParamConstruct();
-    type = substTypes(type, header.type_params, impl.second);
+    type = substTypes(type, header->type_params, impl.second);
 
     select = std::make_unique<ir::Select>(node.loc, ir::Value(fn_sym), *ir_impl,
                                           node.method, type);
@@ -881,7 +910,7 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
     auto generic_select_ptr = generic_select.get();
     curInstructionList->push_back(std::move(generic_select));
     type = constructType(type_construct, node.type_params);
-    type = substTypes(type, header.type_params, impl.second);
+    type = substTypes(type, header->type_params, impl.second);
 
     select = std::make_unique<ir::Specialize>(
         node.loc, ir::Value(fn_sym, node.type_params), *generic_select_ptr,

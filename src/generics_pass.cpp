@@ -345,7 +345,7 @@ int GenericsPass::visitGenericImpl(GenericImpl &instruct,
   // create a new header that is specialized
   auto new_header = std::make_shared<ast::ImplHeader>(
       ast::FormalTypeParameterList(), fixType(instruct.header->type, state));
-  auto impl = std::make_unique<ir::Impl>(
+  auto impl = std::make_unique<Impl>(
       instruct.loc, ir::Value(), InstructionList(), instruct.header,
       fixType(instruct.type_construct->getFormalBoundType(), state));
   new_header->ir_decl = impl.get();
@@ -565,8 +565,8 @@ int GenericsPass::visitBasicBlockList(
   return 0;
 }
 
-int GenericsPass::visitImplFnExtract(Select &instruct,
-                                     const GenericsPassState &state) {
+int GenericsPass::visitSelect(Select &instruct,
+                              const GenericsPassState &state) {
   // just replicate node if state.fix_specialize_instr isn't set
   if (!state.fix_specialize_instr) {
     auto newInstr = std::make_unique<Select>(
@@ -596,8 +596,8 @@ int GenericsPass::visitImplFnExtract(Select &instruct,
   }
 }
 
-int GenericsPass::visitImplGenericFnExtract(GenericSelect &instruct,
-                                            const GenericsPassState &state) {
+int GenericsPass::visitGenericSelect(GenericSelect &instruct,
+                                     const GenericsPassState &state) {
   // just replicate node if state.fix_specialize_instr isn't set
   if (!state.fix_specialize_instr) {
     auto newInstr = std::make_unique<GenericSelect>(
@@ -793,8 +793,6 @@ int GenericsPass::visitForwardIdentifier(ForwardIdentifier &instruct,
   // if the forward identifier is resolved, just use what it resolves to.
   // otherwise just copy the node
   if (instruct.symbol_ref->ir_decl.instr != nullptr) {
-    // functions declared inside impl blocks should just ForwardImpl + Select
-    // instead
     assert(instruct.symbol_ref->ir_decl.impl == nullptr);
     auto ir_decl_expr =
         dynamic_cast<Expression *>(instruct.symbol_ref->ir_decl.instr);
@@ -821,8 +819,6 @@ int GenericsPass::visitGenericForwardIdentifier(
   // generic forward identifiers should always resolve to an ir node.
   // ie: no external/native generic functions
   assert(instruct.symbol_ref->ir_decl.instr != nullptr);
-  // functions declared inside impls should use ForwardImpl + GenericSelect
-  // instead
   assert(instruct.symbol_ref->ir_decl.impl == nullptr);
   auto ir_decl_generic_expr =
       dynamic_cast<GenericExpression *>(instruct.symbol_ref->ir_decl.instr);
@@ -830,6 +826,37 @@ int GenericsPass::visitGenericForwardIdentifier(
 
   state.subs.addGenericExpression(instruct, ir_decl_generic_expr);
 
+  return 0;
+}
+
+int GenericsPass::visitForwardImpl(ForwardImpl &instruct,
+                                   const GenericsPassState &state) {
+  auto resolved = instruct.header->ir_decl;
+  assert(resolved != nullptr);
+  if (!state.subs.hasInstruction(resolved)) {
+    // set new state with root ir list + cur ir list -> global ir list
+    auto new_state = GenericsPassState(
+        false, state.formal_params, state.actual_params, state.subs, nullptr,
+        globalRootInstructionList, globalRootInstructionList, true);
+    visitInstruction(*resolved, new_state);
+  }
+  auto sub = dynamic_cast<Impl *>(state.subs.useInstruction(resolved));
+  assert(sub != nullptr);
+
+  state.subs.addExpression(instruct, sub);
+  return 0;
+}
+
+int GenericsPass::visitForwardGenericImpl(ForwardGenericImpl &instruct,
+                                          const GenericsPassState &state) {
+  auto resolved = instruct.header->ir_decl;
+  assert(resolved != nullptr);
+  // don't look for a substitution on resolved -- it is generic, so substitution
+  // takes place after specialization
+  auto sub = dynamic_cast<GenericImpl *>(resolved);
+  assert(sub != nullptr);
+
+  state.subs.addGenericExpression(instruct, sub);
   return 0;
 }
 
