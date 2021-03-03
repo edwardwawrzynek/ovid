@@ -1,0 +1,19 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+struct Type2<T> {
+    a   T
+}
+
+impl<T> Type2<T> {
+    fn f1<A>(*self, a A) -> (T, A) {
+        return (self.a, a)
+    }
+}
+
+pub fn main() -> i32 {
+    val t = Type2<i32> { a: 5 }
+    val f1 = t.f1:<i8>(5)
+    return f1.0 - f1.1
+}

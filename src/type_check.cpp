@@ -791,7 +791,7 @@ bool TypeCheck::checkNumberOfImpls(const ImplSubsList &impls,
   if (impls.empty()) {
     errorMan.logError(
         string_format(
-            "type \x1b[1m%s\x1b[m doesn't have a method \x1b[1m%s\x1b[m",
+            "type \x1b[1m%s\x1b[m does not have a method \x1b[1m%s\x1b[m",
             type_printer.getType(type).c_str(), method.c_str()),
         loc, ErrorType::TypeError);
     return false;
@@ -815,15 +815,11 @@ bool TypeCheck::checkNumberOfImpls(const ImplSubsList &impls,
   return true;
 }
 
-TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
-                                           const TypeCheckState &state) {
-  auto matchingImpls = findImplsForType(*node.type, &node.method);
-  if (!checkNumberOfImpls(matchingImpls, node.method, *node.type, node.loc)) {
-    return TypeCheckResult::nullResult();
-  }
-  const auto &impl = matchingImpls[0];
-  const auto &fn_sym =
-      impl.first->getDirectScopeTable().findSymbol(node.method);
+TypeCheckResult TypeCheck::selectImplSub(
+    ImplSub impl, const std::string &method, ast::Type &impl_type,
+    const TypeList &method_actual_type_params, const TypeCheckState &state,
+    const SourceLocation &loc) {
+  const auto &fn_sym = impl.first->getDirectScopeTable().findSymbol(method);
 
   // make sure method is public or we are inside the module the impl is in
   if (!checkVisible(*fn_sym, root_scopes.names->getScopeTable(package),
@@ -832,8 +828,8 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
     errorMan.logError(
         string_format(
             "usage of private function \x1b[1m%s\x1b[m on type \x1b[1m%s\x1b[m",
-            node.method.c_str(), type_printer.getType(*node.type).c_str()),
-        node.loc, ErrorType::UseOfPrivateIdentifier);
+            method.c_str(), type_printer.getType(impl_type).c_str()),
+        loc, ErrorType::UseOfPrivateIdentifier);
   }
 
   const auto &header = impl.first->getImpl();
@@ -847,12 +843,12 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
     // ForwardImpl|ForwardGenericImpl
     if (impl_is_generic) {
       auto forward =
-          std::make_unique<ir::ForwardGenericImpl>(node.loc, ir::Id(), header);
+          std::make_unique<ir::ForwardGenericImpl>(loc, ir::Id(), header);
       ir_impl_instr = forward.get();
       curInstructionList->push_back(std::move(forward));
     } else {
       auto forward =
-          std::make_unique<ir::ForwardImpl>(node.loc, ir::Value(), header);
+          std::make_unique<ir::ForwardImpl>(loc, ir::Value(), header);
       ir_impl_instr = forward.get();
       curInstructionList->push_back(std::move(forward));
     }
@@ -871,8 +867,8 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
                 "\x1b[1m%s\x1b[m in impl (perhaps the selected impl is generic "
                 "over types not bound in its pattern)",
                 type_printer.getType(*header->type_params[i]).c_str(),
-                type_printer.getType(*node.type).c_str()),
-            node.loc, ErrorType::TypeError, false);
+                type_printer.getType(impl_type).c_str()),
+            loc, ErrorType::TypeError, false);
         errorMan.logError("selected impl method declared here",
                           fn_sym->decl_loc, ErrorType::Note);
         return TypeCheckResult::nullResult();
@@ -882,7 +878,7 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
     auto ir_generic_impl = dynamic_cast<ir::GenericExpression *>(ir_impl_instr);
     assert(ir_generic_impl != nullptr);
     auto specialize = std::make_unique<ir::Specialize>(
-        node.loc, ir::Value(), *ir_generic_impl, impl.second,
+        loc, ir::Value(), *ir_generic_impl, impl.second,
         substTypes(header->type, header->type_params, impl.second));
     ir_impl = specialize.get();
     curInstructionList->push_back(std::move(specialize));
@@ -892,7 +888,7 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
   }
   // insert function generic select + specialize if needed
   auto type_construct = fn_sym->type;
-  if (!checkNumTypeParams(type_construct, node.type_params, node.loc))
+  if (!checkNumTypeParams(type_construct, method_actual_type_params, loc))
     return TypeCheckResult::nullResult();
 
   std::shared_ptr<Type> type = nullptr;
@@ -902,23 +898,139 @@ TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
     type = type_construct->noParamConstruct();
     type = substTypes(type, header->type_params, impl.second);
 
-    select = std::make_unique<ir::Select>(node.loc, ir::Value(fn_sym), *ir_impl,
-                                          node.method, type);
+    select = std::make_unique<ir::Select>(loc, ir::Value(fn_sym), *ir_impl,
+                                          method, type);
   } else {
     auto generic_select = std::make_unique<ir::GenericSelect>(
-        node.loc, ir::Id(fn_sym), *ir_impl, node.method, type_construct);
+        loc, ir::Id(fn_sym), *ir_impl, method, type_construct);
     auto generic_select_ptr = generic_select.get();
     curInstructionList->push_back(std::move(generic_select));
-    type = constructType(type_construct, node.type_params);
+    type = constructType(type_construct, method_actual_type_params);
     type = substTypes(type, header->type_params, impl.second);
 
     select = std::make_unique<ir::Specialize>(
-        node.loc, ir::Value(fn_sym, node.type_params), *generic_select_ptr,
-        node.type_params, type);
+        loc, ir::Value(fn_sym, method_actual_type_params), *generic_select_ptr,
+        method_actual_type_params, type);
   }
   auto selectPtr = select.get();
   curInstructionList->push_back(std::move(select));
   return TypeCheckResult(type, selectPtr);
+}
+
+TypeCheckResult TypeCheck::visitImplSelect(ImplSelect &node,
+                                           const TypeCheckState &state) {
+  auto matchingImpls = findImplsForType(*node.type, &node.method);
+  if (!checkNumberOfImpls(matchingImpls, node.method, *node.type, node.loc)) {
+    return TypeCheckResult::nullResult();
+  }
+  const auto &impl = matchingImpls[0];
+
+  return selectImplSub(impl, node.method, *node.type, node.type_params, state,
+                       node.loc);
+}
+
+TypeCheckResult
+TypeCheck::visitFunctionCallFieldAccess(const FunctionCall &node,
+                                        const TypeCheckState &state) {
+  auto field_access = dynamic_cast<FieldAccess *>(node.funcExpr.get());
+  assert(field_access != nullptr);
+  auto expr = visitNode(*field_access->lvalue, state.withoutTypeHint());
+  if (expr.isNull())
+    return TypeCheckResult::nullResult();
+
+  // methods have a name, not a number
+  if (field_access->has_field_num) {
+    errorMan.logError(
+        string_format(
+            "type \x1b[1m%s\x1b[m does not have a method \x1b[1m%i\x1b[m",
+            type_printer.getType(*expr.resType).c_str(),
+            field_access->field_num),
+        node.loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+
+  auto impl_type = expr.resType.get();
+  auto ptr_type = dynamic_cast<PointerType *>(impl_type);
+  auto method = &field_access->field;
+  // if the type has to be dereferenced to get the method
+  // ie -- (*T).method() where method is impl'd on T
+  bool impl_type_derefed = false;
+  auto matchingImpls =
+      findImplsForType(*impl_type->withoutMutability(), method);
+  if (matchingImpls.empty() && ptr_type != nullptr) {
+    matchingImpls =
+        findImplsForType(*ptr_type->type->withoutMutability(), method);
+    if (!matchingImpls.empty()) {
+      impl_type = ptr_type->type.get();
+      impl_type_derefed = true;
+    }
+  }
+  // make sure method exists
+  if (!checkNumberOfImpls(matchingImpls, *method, *impl_type, node.loc)) {
+    return TypeCheckResult::nullResult();
+  }
+  // select the function we are calling
+  auto funcExprRes = selectImplSub(matchingImpls[0], *method, *impl_type,
+                                   field_access->type_params, state, node.loc);
+  if (funcExprRes.isNull())
+    return TypeCheckResult::nullResult();
+
+  auto fn_type = dynamic_cast<NamedFunctionType *>(funcExprRes.resType.get());
+  assert(fn_type != nullptr);
+
+  if (!fn_type->is_self_func) {
+    errorMan.logError(
+        string_format(
+            "function \x1b[1m%s\x1b[m on type \x1b[1m%s\x1b[m is not a method "
+            "(methods have \x1b[1mself\x1b[m as their first formal argument)",
+            method->c_str(), type_printer.getType(*impl_type).c_str()),
+        node.loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+
+  // if the self argument is a pointer -- if we need to take address of expr for
+  // arg
+  auto self_type = fn_type->argTypes[0].get();
+  bool self_is_ptr = dynamic_cast<PointerType *>(self_type) != nullptr;
+  // the level of dereference we need to add to the self argument (-1 = address,
+  // 0 = none, 1 = dereference)
+  auto self_deref_level =
+      impl_type_derefed ? (self_is_ptr ? 0 : 1) : (self_is_ptr ? -1 : 0);
+
+  // deref/address self argument to appropriate level
+  TypeCheckResult self_expr = expr;
+  if (self_deref_level == -1) {
+    self_expr = doAddress(expr, state, field_access->lvalue->loc);
+  } else if (self_deref_level == 1) {
+    self_expr = doDeref(expr, state, field_access->lvalue->loc);
+  }
+
+  // make sure type of self expr matches expected
+  // this should only happen if *mut self was expected but *self was passed
+  if (!self_expr.resType->equalToExpected(*self_type)) {
+    errorMan.logError(
+        string_format("type of self argument \x1b[1m%s\x1b[m doesn't match "
+                      "expected type \x1b[1m%s\x1b[m",
+                      type_printer.getType(*self_expr.resType).c_str(),
+                      type_printer.getType(*self_type).c_str()),
+        field_access->lvalue->loc, ErrorType::TypeError);
+    return TypeCheckResult::nullResult();
+  }
+
+  // visit args and create FunctionCall instruction
+  std::vector<std::reference_wrapper<ir::Expression>> args;
+  args.emplace_back(*self_expr.resExpr);
+  if (!visitFuncCallArgs(node.args, fn_type, 1, state, args, node.loc)) {
+    return TypeCheckResult::nullResult();
+  }
+
+  auto instr = std::make_unique<ir::FunctionCall>(
+      node.loc, ir::Value(), *funcExprRes.resExpr, args, fn_type->retType);
+  auto instrPointer = instr.get();
+  curInstructionList->push_back(std::move(instr));
+
+  return doImplicitConversion(TypeCheckResult(fn_type->retType, instrPointer),
+                              state, node.loc);
 }
 
 TypeCheckResult TypeCheck::visitIfStatement(IfStatement &node,
@@ -1159,69 +1271,88 @@ TypeCheckResult TypeCheck::visitFunctionCall(FunctionCall &node,
     } else {
       return visitFunctionCallOperator(node, state);
     }
+  } else if (dynamic_cast<FieldAccess *>(node.funcExpr.get()) != nullptr) {
+    return visitFunctionCallFieldAccess(node, state);
   } else {
-    // visit function expression (TODO: construct type hint from type of
-    // arguments)
-    auto funcRes = visitNode(*node.funcExpr, state.withoutTypeHint());
-    if (funcRes.resType == nullptr)
-      return TypeCheckResult::nullResult();
-    auto funcType = functionTypeFromType(funcRes.resType);
-
-    if (funcType == nullptr) {
-      errorMan.logError(
-          string_format(
-              "cannot do a function call on non function type \x1b[1m%s\x1b[m",
-              type_printer.getType(*funcRes.resType).c_str()),
-          node.funcExpr->loc, ErrorType::TypeError);
-
-      return TypeCheckResult::nullResult();
-    }
-
-    if (funcType->argTypes.size() != node.args.size()) {
-      errorMan.logError(string_format("invalid number of arguments for "
-                                      "function call (expected %i, found %i)",
-                                      funcType->argTypes.size(),
-                                      node.args.size()),
-                        node.loc, ErrorType::TypeError);
-
-      return TypeCheckResult::nullResult();
-    }
-
-    std::vector<std::reference_wrapper<ir::Expression>> args;
-    // visit each arg
-    for (size_t i = 0; i < node.args.size(); i++) {
-      auto &arg = node.args[i];
-      auto &argType = funcType->argTypes[i];
-
-      auto argRes = visitNode(*arg, state.withTypeHint(argType));
-      if (argRes.isNull())
-        return TypeCheckResult::nullResult();
-
-      if (!argRes.resType->equalToExpected(*argType)) {
-        errorMan.logError(
-            string_format("type of expression \x1b[1m%s\x1b[m doesn't match "
-                          "expected type \x1b[1m%s\x1b[m",
-                          type_printer.getType(*argRes.resType).c_str(),
-                          type_printer.getType(*argType).c_str()),
-            arg->loc, ErrorType::TypeError);
-
-        return TypeCheckResult::nullResult();
-      }
-
-      args.emplace_back(*argRes.resExpr);
-    }
-
-    // construct expression
-    auto instr = std::make_unique<ir::FunctionCall>(
-        node.loc, ir::Value(), *funcRes.resExpr, args, funcType->retType);
-    auto instrPointer = instr.get();
-
-    curInstructionList->push_back(std::move(instr));
-
-    // implicitly cast result if requested by type hint
-    return doImplicitConversion(
-        TypeCheckResult(funcType->retType, instrPointer), state, node.loc);
+    return visitFunctionCallRegular(node, state);
   }
+}
+
+TypeCheckResult
+TypeCheck::visitFunctionCallRegular(const FunctionCall &node,
+                                    const TypeCheckState &state) {
+  // visit function expression
+  auto funcRes = visitNode(*node.funcExpr, state.withoutTypeHint());
+  if (funcRes.resType == nullptr)
+    return TypeCheckResult::nullResult();
+  auto funcType = functionTypeFromType(funcRes.resType);
+
+  if (funcType == nullptr) {
+    errorMan.logError(
+        string_format(
+            "cannot do a function call on non function type \x1b[1m%s\x1b[m",
+            type_printer.getType(*funcRes.resType).c_str()),
+        node.funcExpr->loc, ErrorType::TypeError);
+
+    return TypeCheckResult::nullResult();
+  }
+
+  std::vector<std::reference_wrapper<ir::Expression>> args;
+  if (!visitFuncCallArgs(node.args, funcType.get(), 0, state, args, node.loc)) {
+    return TypeCheckResult::nullResult();
+  }
+
+  // construct expression
+  auto instr = std::make_unique<ir::FunctionCall>(
+      node.loc, ir::Value(), *funcRes.resExpr, args, funcType->retType);
+  auto instrPointer = instr.get();
+
+  curInstructionList->push_back(std::move(instr));
+
+  // implicitly cast result if requested by type hint
+  return doImplicitConversion(TypeCheckResult(funcType->retType, instrPointer),
+                              state, node.loc);
+}
+
+bool TypeCheck::visitFuncCallArgs(
+    const ExpressionList &args, FunctionType *fn_type, int args_index_start,
+    const TypeCheckState &state,
+    std::vector<std::reference_wrapper<ir::Expression>> &resArgs,
+    const SourceLocation &loc) {
+  if (fn_type->argTypes.size() - args_index_start != args.size()) {
+    errorMan.logError(string_format("invalid number of arguments for "
+                                    "function call (expected %i, found %i)",
+                                    fn_type->argTypes.size() - args_index_start,
+                                    args.size()),
+                      loc, ErrorType::TypeError);
+
+    return false;
+  }
+
+  // visit each arg
+  for (size_t i = 0; i < args.size(); i++) {
+    auto &arg = args[i];
+    auto &argType = fn_type->argTypes[i + args_index_start];
+
+    auto argRes = visitNode(*arg, state.withTypeHint(argType));
+    if (argRes.isNull())
+      return false;
+
+    if (!argRes.resType->equalToExpected(*argType)) {
+      errorMan.logError(
+          string_format("type of expression \x1b[1m%s\x1b[m doesn't match "
+                        "expected type \x1b[1m%s\x1b[m",
+                        type_printer.getType(*argRes.resType).c_str(),
+                        type_printer.getType(*argType).c_str()),
+          arg->loc, ErrorType::TypeError);
+
+      return false;
+    }
+
+    resArgs.emplace_back(*argRes.resExpr);
+  }
+
+  return true;
 }
 
 TypeCheckResult
@@ -1306,6 +1437,27 @@ TypeCheck::visitShortCircuitingCall(const FunctionCall &node,
   return TypeCheckResult(boolType, resStoragePointer);
 }
 
+TypeCheckResult TypeCheck::doAddress(TypeCheckResult &expr,
+                                     const TypeCheckState &state,
+                                     const SourceLocation &loc) {
+  // make sure expression is a storage
+  if (!expr.resExpr->isAddressable()) {
+    errorMan.logError("cannot take address of expression", expr.resExpr->loc,
+                      ErrorType::TypeError);
+
+    return TypeCheckResult::nullResult();
+  }
+  // construct instruction
+  auto resType = std::make_shared<PointerType>(loc, expr.resType);
+  auto instr =
+      std::make_unique<ir::Address>(loc, ir::Value(), *expr.resExpr, resType);
+  auto instrPointer = instr.get();
+
+  curInstructionList->push_back(std::move(instr));
+
+  return TypeCheckResult(resType, instrPointer);
+}
+
 TypeCheckResult
 TypeCheck::visitFunctionCallAddress(const FunctionCall &node,
                                     const TypeCheckState &state) {
@@ -1315,23 +1467,34 @@ TypeCheck::visitFunctionCallAddress(const FunctionCall &node,
   auto valueRes = visitNode(*node.args[0], state.withoutTypeHint());
   if (valueRes.resType == nullptr)
     return TypeCheckResult::nullResult();
-  // make sure expression is a storage
-  if (!valueRes.resExpr->isAddressable()) {
-    errorMan.logError("cannot take address of expression", node.args[0]->loc,
-                      ErrorType::TypeError);
+
+  return doAddress(valueRes, state, node.funcExpr->loc);
+}
+
+TypeCheckResult TypeCheck::doDeref(TypeCheckResult &expr,
+                                   const TypeCheckState &state,
+                                   const SourceLocation &loc) {
+  // make sure expression is a pointer
+  auto typeRes =
+      dynamic_cast<PointerType *>(withoutMutType(expr.resType).get());
+  if (typeRes == nullptr) {
+    errorMan.logError(
+        string_format("cannot dereference non pointer type \x1b[1m%s\x1b[m",
+                      type_printer.getType(*expr.resType).c_str()),
+        loc, ErrorType::TypeError);
 
     return TypeCheckResult::nullResult();
   }
-  // construct instruction
-  auto resType =
-      std::make_shared<PointerType>(node.funcExpr->loc, valueRes.resType);
-  auto instr = std::make_unique<ir::Address>(node.funcExpr->loc, ir::Value(),
-                                             *valueRes.resExpr, resType);
+  // construct expression
+  auto instr = std::make_unique<ir::Dereference>(loc, ir::Value(),
+                                                 *expr.resExpr, typeRes->type);
   auto instrPointer = instr.get();
 
   curInstructionList->push_back(std::move(instr));
 
-  return TypeCheckResult(resType, instrPointer);
+  // do implicit type conversion if needed
+  return doImplicitConversion(TypeCheckResult(typeRes->type, instrPointer),
+                              state, loc);
 }
 
 TypeCheckResult TypeCheck::visitFunctionCallDeref(const FunctionCall &node,
@@ -1343,27 +1506,8 @@ TypeCheckResult TypeCheck::visitFunctionCallDeref(const FunctionCall &node,
 
   if (valueRes.isNull())
     return TypeCheckResult::nullResult();
-  // make sure expression is a pointer
-  auto typeRes =
-      dynamic_cast<PointerType *>(withoutMutType(valueRes.resType).get());
-  if (typeRes == nullptr) {
-    errorMan.logError(
-        string_format("cannot dereference non pointer type \x1b[1m%s\x1b[m",
-                      type_printer.getType(*valueRes.resType).c_str()),
-        node.args[0]->loc, ErrorType::TypeError);
 
-    return TypeCheckResult::nullResult();
-  }
-  // construct expression
-  auto instr = std::make_unique<ir::Dereference>(
-      node.funcExpr->loc, ir::Value(), *valueRes.resExpr, typeRes->type);
-  auto instrPointer = instr.get();
-
-  curInstructionList->push_back(std::move(instr));
-
-  // do implicit type conversion if needed
-  return doImplicitConversion(TypeCheckResult(typeRes->type, instrPointer),
-                              state, node.loc);
+  return doDeref(valueRes, state, node.loc);
 }
 
 /* if leftRes is not null, place the result of visiting the left side of the
@@ -1794,6 +1938,15 @@ TypeCheckResult TypeCheck::visitFieldAccess(FieldAccess &node,
         node.loc, ErrorType::TypeError);
 
     return TypeCheckResult::nullResult();
+  }
+
+  // field accesses shouldn't have generic type params (only method calls
+  // should)
+  if (!node.type_params.empty()) {
+    errorMan.logError(string_format("unexpected generic type parameter "
+                                    "operator (:<>) on field \x1b[1m%s\x1b[m",
+                                    field_string.c_str()),
+                      node.loc, ErrorType::TypeError);
   }
 
   // check visibility of field

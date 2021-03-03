@@ -140,7 +140,8 @@ public:
   const FormalTypeParameterList &implFormalParams() const;
 };
 
-typedef std::vector<std::pair<ScopeTable<Symbol> *, TypeList>> ImplSubsList;
+typedef std::pair<ScopeTable<Symbol> *, TypeList> ImplSub;
+typedef std::vector<ImplSub> ImplSubsList;
 
 /*
  * The type checking pass
@@ -198,6 +199,13 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
                              const TypeCheckState &state,
                              const TypeList &actual_params);
 
+  // create an instruction sequence to select the first method in subs
+  TypeCheckResult selectImplSub(ImplSub impl, const std::string &method,
+                                ast::Type &impl_type,
+                                const TypeList &method_actual_type_params,
+                                const TypeCheckState &state,
+                                const SourceLocation &loc);
+
   TypeCheckResult visitVarDecl(VarDecl &node,
                                const TypeCheckState &state) override;
   TypeCheckResult visitFunctionDecl(FunctionDecl &node,
@@ -246,15 +254,30 @@ class TypeCheck : public BaseASTVisitor<TypeCheckResult, TypeCheckState> {
   TypeCheckResult visitImplSelect(ImplSelect &node,
                                   const TypeCheckState &state) override;
 
+  // visit args and add visited results to resArgs
+  // compare against fn_type args (starting at args_index_start)
+  bool visitFuncCallArgs(
+      const ExpressionList &args, FunctionType *fn_type, int args_index_start,
+      const TypeCheckState &state,
+      std::vector<std::reference_wrapper<ir::Expression>> &resArgs,
+      const SourceLocation &loc);
+  TypeCheckResult visitFunctionCallRegular(const FunctionCall &node,
+                                           const TypeCheckState &state);
   TypeCheckResult visitFunctionCallOperator(const FunctionCall &node,
                                             const TypeCheckState &state);
   TypeCheckResult visitFunctionCallOperator(const FunctionCall &node,
                                             const TypeCheckState &state,
                                             TypeCheckResult *leftRes);
+  TypeCheckResult doDeref(TypeCheckResult &expr, const TypeCheckState &state,
+                          const SourceLocation &loc);
   TypeCheckResult visitFunctionCallDeref(const FunctionCall &node,
                                          const TypeCheckState &state);
+  TypeCheckResult doAddress(TypeCheckResult &expr, const TypeCheckState &state,
+                            const SourceLocation &loc);
   TypeCheckResult visitFunctionCallAddress(const FunctionCall &node,
                                            const TypeCheckState &state);
+  TypeCheckResult visitFunctionCallFieldAccess(const FunctionCall &node,
+                                               const TypeCheckState &state);
   TypeCheckResult visitShortCircuitingCall(const FunctionCall &node,
                                            const TypeCheckState &state);
   TypeCheckResult visitCompoundAssignmentCall(const FunctionCall &node,

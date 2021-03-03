@@ -494,24 +494,45 @@ Parser::parseFieldAccess(const ParserState &state,
   // consume '.'
   tokenizer.nextToken();
 
+  bool is_field_num = false;
+  int32_t field_num;
+  std::string field;
+
+  SourceLocation pos = expr->loc.through(tokenizer.curTokenLoc);
+
   if (tokenizer.curToken.token == T_IDENT) {
-    auto res = std::make_unique<ast::FieldAccess>(
-        expr->loc.through(tokenizer.curTokenLoc), std::move(expr),
-        tokenizer.curToken.ident);
-    tokenizer.nextToken();
-    return res;
+    field = tokenizer.curToken.ident;
   } else if (tokenizer.curToken.token == T_INTLITERAL) {
-    auto res = std::make_unique<ast::FieldAccess>(
-        expr->loc.through(tokenizer.curTokenLoc), std::move(expr),
-        tokenizer.curToken.int_literal);
-    tokenizer.nextToken();
-    return res;
+    is_field_num = true;
+    field_num = tokenizer.curToken.int_literal;
   } else {
-    auto pos = tokenizer.curTokenLoc;
+    pos = tokenizer.curTokenLoc;
     tokenizer.nextToken();
     return errorMan.logError("expected expression after field access "
                              "operator (.) to be an identifier or number",
                              pos, ErrorType::ParseError);
+  }
+  tokenizer.nextToken();
+
+  // check for :<> operator
+  ast::TypeList type_params;
+  if (tokenizer.curToken.token == T_COLON) {
+    tokenizer.nextToken();
+    if (tokenizer.curToken.token != T_LESS) {
+      return errorMan.logError(
+          "expected generic type list (:<>) after field select",
+          tokenizer.curTokenLoc, ErrorType::ParseError);
+    }
+    type_params = parseTypeParameterList(state);
+    pos = pos.until(tokenizer.curTokenLoc);
+  }
+
+  if (is_field_num) {
+    return std::make_unique<ast::FieldAccess>(pos, std::move(expr), field_num,
+                                              std::move(type_params));
+  } else {
+    return std::make_unique<ast::FieldAccess>(pos, std::move(expr), field,
+                                              std::move(type_params));
   }
 }
 
@@ -909,6 +930,8 @@ Parser::parseNamedFunctionType(const ParserState &state,
   std::vector<std::string> argNames;
   ast::TypeList argTypes;
 
+  bool is_self_func = false;
+
   do {
     tokenizer.nextToken();
     // if no arguments, break
@@ -920,6 +943,7 @@ Parser::parseNamedFunctionType(const ParserState &state,
     if ((tokenizer.curToken.token == T_IDENT &&
          tokenizer.curToken.ident == self_arg_ident) ||
         tokenizer.curToken.token == T_STAR) {
+      is_self_func = true;
       auto start_loc = tokenizer.curTokenLoc;
       auto type = parseSelfParamDecl(state);
       if (type == nullptr)
@@ -978,7 +1002,8 @@ Parser::parseNamedFunctionType(const ParserState &state,
   auto loc = startPos.through(retType->loc);
 
   return std::make_shared<ast::NamedFunctionType>(
-      loc, std::move(argTypes), std::move(retType), std::move(argNames));
+      loc, std::move(argTypes), std::move(retType), std::move(argNames),
+      is_self_func);
 }
 
 // functionproto ::= ident formaltypeparams? namedFunctionType
@@ -1628,10 +1653,12 @@ Parser::parseImplStatement(const ParserState &state) {
   auto type = parseType(state);
   auto endPos = tokenizer.curTokenLoc;
 
-  auto header = std::make_shared<ast::ImplHeader>(std::move(type_params), type);
+  auto header =
+      std::make_shared<ast::ImplHeader>(std::move(type_params), type, nullptr);
   // the scope table for fn decl's is linked back to the impl header itself
   auto bodyScope = std::make_unique<ScopeTable<Symbol>>(
       true, state.current_scope, "", false, -1, header);
+  header->scope_table = bodyScope.get();
   // add scope table + impl type (for linking self params -> impl type) to state
   ParserState bodyState(state.is_global_level, bodyScope.get(),
                         state.current_type_scope, state.current_module,

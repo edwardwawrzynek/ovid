@@ -355,9 +355,10 @@ std::shared_ptr<NamedFunctionType> FunctionDecl::getFormalBoundFunctionType() {
 }
 
 ImplHeader::ImplHeader(FormalTypeParameterList type_params,
-                       std::shared_ptr<Type> type)
+                       std::shared_ptr<Type> type,
+                       ScopeTable<Symbol> *scope_table)
     : type_params(std::move(type_params)), type(std::move(type)),
-      ir_decl(nullptr) {}
+      ir_decl(nullptr), scope_table(scope_table) {}
 
 ImplStatement::ImplStatement(const SourceLocation &loc,
                              std::shared_ptr<ImplHeader> header,
@@ -435,8 +436,6 @@ std::size_t TupleType::hash() const {
 }
 
 std::size_t StructType::hash() const {
-  // TODO: hashing just the struct name may not differentiate between
-  // differently versioned modules
   std::size_t res = 0;
   for (const auto &param : actual_generic_params) {
     res += param->hash();
@@ -444,8 +443,19 @@ std::size_t StructType::hash() const {
   }
   // add struct name to hash
   std::string name = scopedNameToString(type_alias->getFullyScopedName());
-  res *= std::hash<std::string>{}(name);
+  res += std::hash<std::string>{}(name);
   res *= hash_prime;
+  // go through struct's ancestor symbol tables and add package versioning to
+  // hash
+  auto cur = type_alias->parent_table;
+  while (cur != nullptr && cur->getImpl() == nullptr) {
+    if (cur->getVersionInt() != -1) {
+      res += cur->getVersionInt();
+      res *= hash_prime;
+    }
+    cur = cur->getParent();
+  }
+
   res += struct_hash;
 
   return res;

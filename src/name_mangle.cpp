@@ -169,8 +169,6 @@ static std::string mangleScope(const ScopeTable<T> *scope, MangleType type) {
     res.push_back('B');
     res.append(type_mangler.getType(*impl->type));
     if (!impl->type_params.empty()) {
-      // TODO: cannot mangle type params without substitutions known (scope
-      // table doesn't include specialized substitutions)
       assert(false);
     }
     res.push_back('E');

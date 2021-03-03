@@ -1,0 +1,44 @@
+// __ovid_compiler_test
+//__mode: type_check
+//__end_header
+
+impl i32 {
+    fn t1(self) {}
+    fn t2(*self) {}
+    fn t3(*mut self) {}
+    fn t4(self, a i32, b i32) {}
+    fn t5() {}
+}
+
+fn test1(a i32) {
+    a.t1()
+    a.t2()
+    a.t3() //__error: "type of self argument *i32 doesn't match expected type *mut i32"
+    a.t4(1) //__error: "invalid number of arguments for function call (expected 2, found 1)"
+    a.t5() //__error: "function t5 on type i32 is not a method (methods have self as their first formal argument)"
+
+    a.random() // __error: "type i32 does not have a method random"
+}
+
+fn test2(a *i32) {
+    a.t1()
+    a.t2()
+    a.t3() //__error: "type of self argument *i32 doesn't match expected type *mut i32"
+    a.t4(true, 3) //__error: "type of expression bool doesn't match expected type i32"
+
+    a.random() // __error: "type *i32 does not have a method random"
+}
+
+fn test3(a *mut i32) {
+    a.t1()
+    a.t2()
+    a.t3()
+}
+
+fn test4() {
+    val a = 5
+    mut b = 6
+
+    a.t3() //__error: "type of self argument *i32 doesn't match expected type *mut i32"
+    b.t3()
+}

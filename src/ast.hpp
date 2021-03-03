@@ -42,7 +42,7 @@ public:
   std::shared_ptr<ast::ImplHeader> impl;
   bool is_ident;
 
-  ScopeComponent(std::string ident) : ident(ident), is_ident(true){};
+  ScopeComponent(std::string ident) : ident(std::move(ident)), is_ident(true){};
   ScopeComponent(std::shared_ptr<ast::ImplHeader> impl)
       : impl(std::move(impl)), is_ident(false){};
 };
@@ -419,15 +419,17 @@ class NamedFunctionType : public FunctionType {
 public:
   std::vector<std::string> argNames;
   std::vector<std::shared_ptr<Symbol>> resolvedArgs;
+  bool is_self_func;
 
   bool equal(const Type &expected, bool strict,
              const TypeParamEqualPredicate *typeParamFunc) const override;
 
   NamedFunctionType(const SourceLocation &loc, TypeList argTypes,
                     std::shared_ptr<Type> retType,
-                    std::vector<std::string> argNames)
+                    std::vector<std::string> argNames, bool is_self_func)
       : FunctionType(loc, std::move(argTypes), std::move(retType)),
-        argNames(std::move(argNames)), resolvedArgs(){};
+        argNames(std::move(argNames)), resolvedArgs(),
+        is_self_func(is_self_func){};
 };
 
 /* product types (types with interior fields -- tuples, struct, arrays) */
@@ -653,7 +655,11 @@ public:
   // the header's declaration location in the ir
   ir::Instruction *ir_decl;
 
-  ImplHeader(FormalTypeParameterList type_params, std::shared_ptr<Type> type);
+  // the impl's scope table
+  ScopeTable<Symbol> *scope_table;
+
+  ImplHeader(FormalTypeParameterList type_params, std::shared_ptr<Type> type,
+             ScopeTable<Symbol> *scope_table);
 };
 
 class ImplStatement : public Statement {
@@ -776,15 +782,19 @@ public:
 
   bool has_field_num;
 
-  FieldAccess(const SourceLocation &loc, std::unique_ptr<Expression> lvalue,
-              const std::string &field)
-      : Expression(loc), lvalue(std::move(lvalue)), field(field), field_num(0),
-        has_field_num(false){};
+  TypeList type_params; // type params passed in :<> operator -- only applicable
+                        // for method calls
 
   FieldAccess(const SourceLocation &loc, std::unique_ptr<Expression> lvalue,
-              int32_t field_num)
+              const std::string &field, TypeList type_params)
+      : Expression(loc), lvalue(std::move(lvalue)), field(field), field_num(0),
+        has_field_num(false), type_params(std::move(type_params)){};
+
+  FieldAccess(const SourceLocation &loc, std::unique_ptr<Expression> lvalue,
+              int32_t field_num, TypeList type_params)
       : Expression(loc), lvalue(std::move(lvalue)), field(""),
-        field_num(field_num), has_field_num(true){};
+        field_num(field_num), has_field_num(true),
+        type_params(std::move(type_params)){};
 };
 
 class Sizeof : public Expression {

@@ -344,9 +344,10 @@ int GenericsPass::visitGenericImpl(GenericImpl &instruct,
   // create specialized impl node
   // create a new header that is specialized
   auto new_header = std::make_shared<ast::ImplHeader>(
-      ast::FormalTypeParameterList(), fixType(instruct.header->type, state));
+      ast::FormalTypeParameterList(), fixType(instruct.header->type, state),
+      nullptr);
   auto impl = std::make_unique<Impl>(
-      instruct.loc, ir::Value(), InstructionList(), instruct.header,
+      instruct.loc, ir::Value(), InstructionList(), new_header,
       fixType(instruct.type_construct->getFormalBoundType(), state));
   new_header->ir_decl = impl.get();
   // new -> new global_subs marks this new impl as already visited -- doesn't
@@ -364,6 +365,7 @@ int GenericsPass::visitGenericImpl(GenericImpl &instruct,
   // TODO: ownership of new scope table??
   auto new_scope =
       new ScopeTable<Symbol>(true, old_parent, "", false, -1, new_header);
+  new_header->scope_table = new_scope;
 
   specializations.addSpecialization(instruct.id.id, state.actual_params,
                                     impl.get());
@@ -575,10 +577,8 @@ int GenericsPass::visitSelect(Select &instruct,
         fixType(instruct.type, state));
     return addExpr(std::move(newInstr), instruct, state);
   } else {
-
     // TODO: support typeclass impl resolving (instruct.impl may not be an Impl,
     // so we can't just visit the old node)
-
     auto impl = dynamic_cast<Impl *>(&instruct.impl);
     if (impl == nullptr) {
       // only use the substitution if the original impl is null. Needed for

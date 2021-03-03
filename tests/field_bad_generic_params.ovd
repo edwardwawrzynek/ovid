@@ -1,0 +1,12 @@
+// __ovid_compiler_test
+//__mode: type_check
+//__end_header
+
+struct Test {
+    a i32
+}
+
+fn test(t *Test) {
+    t.a
+    t.a:<i32> //__error: "unexpected generic type parameter operator (:<>) on field a"
+}

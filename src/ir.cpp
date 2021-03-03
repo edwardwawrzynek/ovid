@@ -124,15 +124,8 @@ GenericExpression::GenericExpression(
     : Instruction(loc), id(id), type_construct(std::move(type_construct)) {}
 
 template <typename T>
-T *implGetFnDecl(const std::string &name, ir::InstructionList &fn_decls) {
-  // TODO: cleaner way to get scope table
-
-  // we know name exists on fn_decls, so we have to have at least one fn_decl
-  // (which we can use to get a ref to this impl's scope table)
-  assert(!fn_decls.empty());
-  auto sym_table = getInstrId(fn_decls[0].get())
-                       .sourceName->parent_table->getDirectScopeTable();
-  auto sym = sym_table.findSymbol(name);
+T *implGetFnDecl(const std::string &name, ast::ImplHeader &header) {
+  auto sym = header.scope_table->getDirectScopeTable().findSymbol(name);
   assert(sym->ir_decl.instr != nullptr);
   auto res = dynamic_cast<T *>(sym->ir_decl.instr);
   assert(res != nullptr);
@@ -149,11 +142,11 @@ GenericImpl::GenericImpl(const SourceLocation &loc, const Id &id,
       fn_decls(std::move(fn_decls)), header(std::move(header)) {}
 
 Expression *GenericImpl::getFnDecl(const std::string &name) {
-  return implGetFnDecl<Expression>(name, fn_decls);
+  return implGetFnDecl<Expression>(name, *header);
 }
 
 GenericExpression *GenericImpl::getGenericFnDecl(const std::string &name) {
-  return implGetFnDecl<GenericExpression>(name, fn_decls);
+  return implGetFnDecl<GenericExpression>(name, *header);
 }
 
 Impl::Impl(const SourceLocation &loc, const Value &val,
@@ -163,11 +156,11 @@ Impl::Impl(const SourceLocation &loc, const Value &val,
       header(std::move(header)) {}
 
 Expression *Impl::getFnDecl(const std::string &name) {
-  return implGetFnDecl<Expression>(name, fn_decls);
+  return implGetFnDecl<Expression>(name, *header);
 }
 
 GenericExpression *Impl::getGenericFnDecl(const std::string &name) {
-  return implGetFnDecl<GenericExpression>(name, fn_decls);
+  return implGetFnDecl<GenericExpression>(name, *header);
 }
 
 ForwardImpl::ForwardImpl(const SourceLocation &loc, const Value &val,

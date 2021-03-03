@@ -84,9 +84,9 @@ TypeConstructorPassResult<FunctionType> TypeConstructorPass::visitFunctionType(
     auto namedFType = dynamic_cast<NamedFunctionType *>(type.get());
     if (namedFType != nullptr) {
       return TypeConstructorPassResult<FunctionType>(
-          true, std::make_shared<NamedFunctionType>(type->loc, std::move(args),
-                                                    std::move(ret.actual_type),
-                                                    namedFType->argNames));
+          true, std::make_shared<NamedFunctionType>(
+                    type->loc, std::move(args), std::move(ret.actual_type),
+                    namedFType->argNames, namedFType->is_self_func));
     } else {
       return TypeConstructorPassResult(
           true, std::make_shared<FunctionType>(type->loc, std::move(args),

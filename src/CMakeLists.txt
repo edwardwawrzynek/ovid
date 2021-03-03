@@ -1,5 +1,5 @@
 # LLVM stuff
-find_package(LLVM 11.0.0 REQUIRED)
+find_package(LLVM 11.1.0 REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 
 if (NOT LLVM_FOUND)
