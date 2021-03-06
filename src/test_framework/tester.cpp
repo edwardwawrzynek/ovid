@@ -553,7 +553,7 @@ int TesterInstance::run() {
         if (modes.count(TestMode::Compile) > 0 ||
             modes.count(TestMode::CheckEscape) > 0) {
           // run generics pass
-          ir = ir::GenericsPass::produceIR(scopes, errorMan, ir);
+          ir = ir::GenericsPass::produceIR(scopes, root_scopes, errorMan, ir);
           // run escape analysis
           if (modes.count(TestMode::CheckEscape) > 0) {
             if (runCheckEscape(errorMan, ir))

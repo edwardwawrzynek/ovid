@@ -1,0 +1,221 @@
+impl f64 {
+  /// Return self restricted to the range [low, high].
+  /// If self lies in the range it is unaffected. If self < low, low is returned. If self > high, high is returned
+  pub fn clamp(self, low f64, high f64) -> f64 {
+    if self < low {
+      return low
+    } elsif self > high {
+      return high
+    } else {
+      return self
+    }
+  }
+}
+
+/// Color is an rgb color value with 8 bits per channel.
+pub struct Color {
+  pub r u8
+  pub g u8
+  pub b u8
+}
+
+impl Color {
+  /// Create a color from red, green, and blue values.
+  pub fn new(r u8, g u8, b u8) -> Color {
+    return Color {
+      r: r,
+      g: g,
+      b: b
+    }
+  }
+
+  /// Create a color from f64 rgb values in 0.0 - 1.0 range.
+  pub fn from_float(r f64, g f64, b f64) -> Color {
+    return Color {
+      r: std:bootstrap:f64_to_i32(255.999 * r.clamp(0.0, 1.0)),
+      g: std:bootstrap:f64_to_i32(255.999 * g.clamp(0.0, 1.0)),
+      b: std:bootstrap:f64_to_i32(255.999 * b.clamp(0.0, 1.0))
+    }
+  }
+
+  /// Create a color from a Vec3 with components in 0.0 - 1.0 range
+  pub fn from_vec3(vec *Vec3) -> Color {
+    return from_float(vec.x(), vec.y(), vec.z())
+  }
+}
+
+/// Image is a 24 bit rgb image buffer. It can be manipulated in memory, and read from and written to disk in ppm format.
+pub struct Image {
+  width   usize
+  height  usize
+  data    *mut Color
+}
+
+impl Image {
+  /// Return an empty (black) Image of the given size.
+  pub fn new(width usize, height usize) -> Image {
+    mut img = Image {
+      width: width,
+      height: height,
+      data: std:mem:unsafe_malloc:<Color>(width * height)
+    }
+    img.clear(Color { r: 0, b: 0, g: 0})
+    return img
+  }
+
+  /// Check if the position (x, y) lies on the image.
+  pub fn pos_on_image(*self, x usize, y usize) -> bool {
+    return (x) < self.width && (y) < self.height
+  }
+
+  /// Set the pixel at position (x,y) to color.
+  /// Panics if (x,y) is outside of the image.
+  pub fn set_pixel(*mut self, x usize, y usize, color Color) {
+    if !self.pos_on_image(x, y) {
+      std:core:panic()
+    }
+    *(self.data __unsafe_ptr_add (x + y * self.width)) = color
+  }
+
+  /// Get the color of the pixel at position (x, y).
+  /// Panics if (x, y) is outside of the image.
+  pub fn get_pixel(*self, x usize, y usize) -> Color {
+    if !self.pos_on_image(x, y) {
+      std:core:panic()
+    }
+    return *(self.data __unsafe_ptr_add (x + y * self.width))
+  }
+
+  /// Set every pixel on the image to the given color.
+  pub fn clear(*mut self, color Color) {
+    if color.r == 0 && color.g == 0 && color.b == 0 {
+      std:mem:unsafe_memset:<Color>(self.data, 0, self.width * self.height)
+    } else {
+      mut x = 0
+      while x < self.width {
+        mut y = 0
+        while y < self.height {
+          self.set_pixel(x, y, color)
+          y += 1
+        }
+        x += 1
+      }
+    }
+  }
+
+  /// Write the image to stdout in ppm format.
+  pub fn write_stdout(*self) {
+    // write ppm header
+    std:bootstrap:print_char('P')
+    std:bootstrap:print_char('3')
+    std:bootstrap:print_nl()
+    std:bootstrap:print_num(self.width)
+    std:bootstrap:print_char(' ')
+    std:bootstrap:print_num(self.height)
+    std:bootstrap:print_nl()
+    std:bootstrap:print_num(255)
+    std:bootstrap:print_nl()
+
+    // write pixels
+    mut y = 0
+    while y < self.height {
+      mut x = 0
+      while x < self.width {
+        val color = self.get_pixel(x, y)
+        std:bootstrap:print_num(color.r)
+        std:bootstrap:print_char(' ')
+        std:bootstrap:print_num(color.g)
+        std:bootstrap:print_char(' ')
+        std:bootstrap:print_num(color.b)
+        std:bootstrap:print_nl()
+        x += 1
+      }
+      y += 1
+    }
+  }
+}
+
+native fn sqrt(v f64) -> f64
+
+/// A 3 dimensional floating point (f64) vector.
+pub struct Vec3 {
+  e (f64, f64, f64)
+}
+
+impl Vec3 {
+  /// Create a vector from scalar components.
+  pub fn new(e0 f64, e1 f64, e2 f64) -> Vec3 {
+    return Vec3 { e: (e0, e1, e2) }
+  }
+
+  /// Get the x component of the vector.
+  pub fn x(*self) -> f64 { return self.e.0 }
+  /// Get the y componet of the vector.
+  pub fn y(*self) -> f64 { return self.e.1 }
+  /// Get the z componet of the vector.
+  pub fn z(*self) -> f64 { return self.e.2 }
+
+  /// Return the opposite of the vector.
+  pub fn neg(*self) -> Vec3 {
+    return Vec3 { e: (-self.e.0, -self.e.1, -self.e.2) }
+  }
+
+  /// Perform vector addition on self and other and return result.
+  pub fn add(*self, other Vec3) -> Vec3 {
+    return Vec3 { e: (self.e.0 + other.e.0, self.e.1 + other.e.1, self.e.2 + other.e.2) }
+  }
+
+  /// Perform vector subtraction on self and other and return result
+  pub fn sub(*self, other Vec3) -> Vec3 {
+    return Vec3 { e: (self.e.0 - other.e.0, self.e.1 - other.e.1, self.e.2 - other.e.2) }
+  }
+
+  /// Perform scalar multiplication on self and scalar and return result.
+  pub fn mul(*self, scalar f64) -> Vec3 {
+    return Vec3 { e: (self.e.0 * scalar, self.e.1 * scalar, self.e.2 * scalar) }
+  }
+
+  /// Perform scalar division on self and scalar and return result.
+  pub fn div(*self, scalar f64) -> Vec3 {
+    return self.mul(1.0 / scalar)
+  }
+
+  /// Get the length of the vector.
+  pub fn len(*self) -> f64 {
+    return sqrt(self.len_sq())
+  }
+
+  /// Get the squared length of the vector.
+  pub fn len_sq(*self) -> f64 {
+    return self.e.0 * self.e.0 + self.e.1 * self.e.1 + self.e.2 * self.e.2
+  }
+
+  /// Get the dor product of self and other.
+  pub fn dot(*self, other Vec3) -> f64 {
+    return self.e.0 * other.e.0 + self.e.1 * other.e.1 + self.e.2 * other.e.2
+  }
+
+  /// Get the cross product of self and other.
+  pub fn cross(*self, other Vec3) -> Vec3 {
+    return Vec3 { e: (
+      self.e.1 * other.e.2 - self.e.2 * other.e.1,
+      self.e.2 * other.e.0 - self.e.0 * other.e.2,
+      self.e.0 * other.e.1 - self.e.1 * other.e.0
+    ) }
+  }
+
+  /// Get a unit vector in the direction of self.
+  pub fn normalize(*self) -> Vec3 {
+    return self.div(self.len())
+  }
+
+  pub fn write_stdout(*self) {
+    std:bootstrap:print_float(self.e.0)
+    std:bootstrap:print_char(' ')
+    std:bootstrap:print_float(self.e.1)
+    std:bootstrap:print_char(' ')
+    std:bootstrap:print_float(self.e.2)
+    std:bootstrap:print_char(' ')
+    std:bootstrap:print_nl()
+  }
+}

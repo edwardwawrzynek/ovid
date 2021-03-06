@@ -1,0 +1,14 @@
+fn id<T>(t T) -> T { return t }
+
+fn test() -> *i32 {
+  val v1 = 1
+  val v2 = 2
+  val v3 = 3
+
+  mut a = &v1
+  mut b = &v2
+  mut c = &v3
+  *id:<*mut *i32>(&a) = *id:<*mut *i32>(&b)
+  a = c
+  return c
+}

@@ -1,0 +1,24 @@
+// __ovid_compiler_test
+//__mode: run
+//__end_header
+
+fn test() -> f64 {
+    val a = [i32]:id_f64(1.0)
+    return a
+}
+
+impl f64 {
+    fn id(self) -> f64 {
+        return self
+    }
+}
+
+impl i32 {
+    fn id_f64(v f64) -> f64 {
+        return v.id()
+    }
+}
+
+pub fn main() -> i32 {
+    return 0
+}

@@ -1,3 +1,9 @@
+type usize = u64
+
+native fn GC_malloc(size u64) -> *mut i8
+native fn GC_realloc(ptr *mut i8, size u64) -> *mut i8
+
+// bootstraping support functions declared in bootstrap.c
 native fn std:bootstrap:print_num(num i64) -> void
 native fn std:bootstrap:print_char(c u8) -> void
 native fn std:bootstrap:print_float(f f64) -> void

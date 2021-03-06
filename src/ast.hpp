@@ -168,6 +168,9 @@ public:
   // patterns can't be hashed, so a list is needed
   std::vector<std::unique_ptr<ScopeTable<Symbol>>> impls;
 
+  // specialized impl scopes table
+  std::vector<std::unique_ptr<ScopeTable<Symbol>>> specialized_impls;
+
   ScopesRoot()
       : names(std::make_unique<ScopeTable<Symbol>>(true, nullptr, "")),
         types(std::make_unique<ScopeTable<TypeAlias>>(true, nullptr, "")),

@@ -1,0 +1,21 @@
+/*
+fn upa(a *i32, b i32) -> *i32 {
+	return a __unsafe_ptr_add b
+}
+*/
+
+fn id<T>(t T) -> T { return t }
+
+fn test(a *mut *i32, b *mut *i32) -> *mut *i32 {
+    *a = *id:<*mut *i32>(b)
+    return a
+}
+
+fn main() -> *i32 {
+	val ignore = 6
+	val var = 5
+	mut addr1 = &var
+	mut addr2 = &ignore
+	return *test(&addr2, &addr1)
+}
+

@@ -227,7 +227,7 @@ void Tokenizer::nextToken() {
     if ((curToken.token == T_IDENT || curToken.token == T_INTLITERAL ||
          curToken.token == T_FLOATLITERAL || curToken.token == T_CHARLITERAL ||
          curToken.token == T_BOOLLITERAL || curToken.token == T_RETURN ||
-         curToken.token == T_RPAREN || curToken.token == T_RBRK) &&
+         curToken.token == T_RPAREN || curToken.token == T_RBRK || curToken.token == T_GREATER) &&
         parenLevel <= 0) {
       curToken.token = T_SEMICOLON;
       return;

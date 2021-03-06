@@ -1,0 +1,170 @@
+/// Ray is a directed line starting at an initial point and proceeding towards infinity in a direction. Ray exists in 3 space.
+pub struct Ray {
+  pub orig  Vec3
+  pub dir   Vec3
+}
+
+impl Ray {
+  /// Get the position of a particle moving along the ray at parameter t. (orig + t * dir)
+  pub fn at(*self, t f64) -> Vec3 {
+    return self.orig.add(self.dir.mul(t))
+  }
+}
+
+/// Information on an intersection between ray and object
+pub struct Hit {
+  pub hit         bool
+  pub pos         Vec3
+  pub normal      Vec3
+  pub t           f64
+  pub front_face  bool
+}
+
+/// A sphere in three space
+pub struct Sphere {
+  pub center  Vec3
+  pub radius  f64
+}
+
+impl Sphere {
+  /// Check if a ray intersects a sphere.
+  pub fn hit(*self, r *Ray, t_min f64, t_max f64) -> Hit {
+    val no_hit = Hit { hit: false, pos: [Vec3]:new(0.0, 0.0, 0.0), normal: [Vec3]:new(0.0, 0.0, 0.0), t: 0.0, front_face: false}
+    // ray origin -> center
+    val oc = r.orig.sub(self.center)
+
+    val a = r.dir.len_sq()
+    val b = oc.dot(r.dir)
+    val c = oc.len_sq() - self.radius * self.radius
+
+    // find solution to quadratic at^2 + 2bt + c = 0 on [t_min, t_max]
+    val det = b * b - a*c
+    if det < 0.0 {
+      return no_hit
+    }
+    val root1 = (-b - sqrt(det)) / a
+    val root2 = (-b + sqrt(det)) / a
+    mut root = root1
+    if root < t_min || root > t_max {
+      root = root2
+    }
+    if root < t_min || root > t_max {
+      return no_hit
+    }
+
+    val pos = r.at(root)
+    mut out_normal = pos.sub(self.center)
+    out_normal = out_normal.div(self.radius)
+    val front_face = r.dir.dot(out_normal) < 0.0
+    mut normal = out_normal
+    if !front_face {
+      normal = normal.neg()
+    }
+
+    return Hit {
+      hit: true,
+      pos: pos,
+      normal: normal,
+      t: root,
+      front_face: front_face
+    }
+  }
+}
+
+type Object = Sphere
+type ObjectList = std:Vec<Object>
+
+impl ObjectList {
+  fn hit(*self, r *Ray, t_min f64, t_max f64) -> Hit {
+    mut i = 0
+    while i < self.size() {
+      val obj = self.get(i)
+      val hit = obj.hit(r, t_min, t_max)
+      if hit.hit {
+        return hit
+      }
+      i += 1
+    }
+
+    return Hit { hit: false, pos: [Vec3]:new(0.0, 0.0, 0.0), normal: [Vec3]:new(0.0, 0.0, 0.0), t: 0.0, front_face: false}
+  }
+}
+
+/// Get a nice background gradient for a ray that didn't hit anything
+fn background(r *Ray) -> Color {
+  val unit_dir = r.dir.normalize()
+  val t = 0.5 * (unit_dir.y() + 1.0)
+  val white = [Vec3]:new(1.0, 1.0, 1.0)
+  val blue = [Vec3]:new(0.5, 0.7, 1.0)
+
+  val white_comp = white.mul(1.0 - t)
+  val blue_comp = blue.mul(t)
+  val color = white_comp.add(blue_comp)
+  return [Color]:from_vec3(&color)
+}
+
+fn normal_color(hit *Hit) -> Color {
+  val twice = hit.normal.add([Vec3]:new(1.0, 1.0, 1.0))
+  val res = twice.div(2.0)
+  return [Color]:from_vec3(&res)
+}
+
+/// Calculate the final color for the ray cast from the camera
+fn ray_color(r *Ray, world *ObjectList) -> Color {
+  val hit = world.hit(r, 0.0, 100000000.0)
+  if hit.hit {
+    return normal_color(&hit)
+  } else {
+    return background(r)
+  }
+}
+
+pub fn main() -> i32 {
+  // create world
+  mut world = [ObjectList]:new()
+  world.push(Sphere { center: [Vec3]:new(0.0, 0.0, -1.0), radius: 0.5})
+  world.push(Sphere { center: [Vec3]:new(0.0, -100.5, -1.0), radius: 100.0})
+  // create image
+  val width = 640
+  val height = 360
+  val aspect_ratio = std:bootstrap:i32_to_f64(width) / std:bootstrap:i32_to_f64(height)
+  mut img = [Image]:new(width, height)
+
+  // camera
+  val viewport_height = 2.0
+  val viewport_width = aspect_ratio * viewport_height
+  val focal_length = 1.0
+
+  val origin = [Vec3]:new(0.0, 0.0, 0.0)
+  val horizontal = [Vec3]:new(viewport_width, 0.0, 0.0)
+  val vertical = [Vec3]:new(0.0, viewport_height, 0.0)
+  val lower_left = [Vec3]:new(-viewport_width / 2.0, -viewport_height / 2.0, -focal_length)
+  
+  mut x = 0
+  while x < width {
+    mut y = 0
+    while y < height {
+      val u = std:bootstrap:i32_to_f64(x) / std:bootstrap:i32_to_f64(width - 1)
+      val v = std:bootstrap:i32_to_f64(height - y - 1) / std:bootstrap:i32_to_f64(height - 1)
+
+      // construct ray
+      val horizontal_comp = horizontal.mul(u)
+      val vertical_comp = vertical.mul(v)
+      val dir_comp = horizontal_comp.add(vertical_comp)
+      val ray = Ray {
+        orig: origin,
+        dir: lower_left.add(dir_comp)
+      }
+
+      val color = ray_color(&ray, &world)
+
+      img.set_pixel(x, y, color)
+      y += 1
+    }
+    x += 1
+  }
+
+  img.write_stdout()
+
+  return 0
+}

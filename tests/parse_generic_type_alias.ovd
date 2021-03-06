@@ -1,0 +1,10 @@
+// __ovid_compiler_test
+//__mode: compile
+//__end_header
+
+struct Type<T> {}
+
+type Alias1 = i32
+type Alias2 = Type<Alias1>
+
+fn test() -> i32 {}

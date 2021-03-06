@@ -106,6 +106,7 @@ class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
 
   ErrorManager &errorMan;
   ActiveScopes &active_scopes;
+  ScopesRoot &root_scopes;
 
   int visitGenericFunctionDeclare(GenericFunctionDeclare &instruct,
                                   const GenericsPassState &state) override;
@@ -189,13 +190,15 @@ class GenericsPass : public BaseIRVisitor<int, GenericsPassState> {
                                    const GenericsPassState &state);
 
 public:
-  GenericsPass(ActiveScopes &scopes, ErrorManager &errorMan,
-               InstructionList *rootInstructionList)
+  GenericsPass(ActiveScopes &scopes, ScopesRoot &root_scopes,
+               ErrorManager &errorMan, InstructionList *rootInstructionList)
       : BaseIRVisitor(int()), specializations(),
         globalRootInstructionList(rootInstructionList), errorMan(errorMan),
-        active_scopes(scopes){};
+        active_scopes(scopes), root_scopes(root_scopes){};
 
-  static InstructionList produceIR(ActiveScopes &scopes, ErrorManager &errorMan,
+  static InstructionList produceIR(ActiveScopes &scopes,
+                                   ScopesRoot &root_scopes,
+                                   ErrorManager &errorMan,
                                    const InstructionList &ir);
 };
 

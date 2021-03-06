@@ -252,7 +252,7 @@ int GenericsPass::visitImpl(Impl &instruct, const GenericsPassState &state) {
     visitInstruction(*fn_decl, state);
   }
 
-  state.curInstructionList->push_back(std::move(impl));
+  state.rootInstructionList->push_back(std::move(impl));
   return 0;
 }
 
@@ -362,9 +362,12 @@ int GenericsPass::visitGenericImpl(GenericImpl &instruct,
                                 : getInstrId(instruct.fn_decls[0].get())
                                       .sourceName->parent_table->getParent();
   assert(instruct.fn_decls.empty() || old_parent != nullptr);
-  // TODO: ownership of new scope table??
-  auto new_scope =
-      new ScopeTable<Symbol>(true, old_parent, "", false, -1, new_header);
+
+  auto new_scope_uniq = std::make_unique<ScopeTable<Symbol>>(
+      true, old_parent, "", false, -1, new_header);
+  auto new_scope = new_scope_uniq.get();
+  root_scopes.specialized_impls.push_back(std::move(new_scope_uniq));
+
   new_header->scope_table = new_scope;
 
   specializations.addSpecialization(instruct.id.id, state.actual_params,
@@ -837,7 +840,7 @@ int GenericsPass::visitForwardImpl(ForwardImpl &instruct,
     // set new state with root ir list + cur ir list -> global ir list
     auto new_state = GenericsPassState(
         false, state.formal_params, state.actual_params, state.subs, nullptr,
-        globalRootInstructionList, globalRootInstructionList, true);
+        nullptr, globalRootInstructionList, true);
     visitInstruction(*resolved, new_state);
   }
   auto sub = dynamic_cast<Impl *>(state.subs.useInstruction(resolved));
@@ -906,10 +909,11 @@ int GenericsPass::visitSpecialize(Specialize &instruct,
 }
 
 InstructionList GenericsPass::produceIR(ActiveScopes &scopes,
+                                        ScopesRoot &root_scopes,
                                         ErrorManager &errorMan,
                                         const InstructionList &ir) {
   InstructionList res;
-  auto pass = GenericsPass(scopes, errorMan, &res);
+  auto pass = GenericsPass(scopes, root_scopes, errorMan, &res);
   ast::FormalTypeParameterList empty_formal_params;
   ast::TypeList empty_actual_params;
   auto subs = GenericSubstitutions(&pass.global_subs);

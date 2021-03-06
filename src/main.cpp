@@ -312,7 +312,7 @@ int CLIDriver::run() {
   }
 
   // run generics pass
-  ir = ir::GenericsPass::produceIR(scopes, errorMan, ir);
+  ir = ir::GenericsPass::produceIR(scopes, root_scopes, errorMan, ir);
 
   if (args.dump_mono_ir) {
     std::cout << "\n---- MONOMORPHIC IR ----\n";

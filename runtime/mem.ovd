@@ -4,6 +4,7 @@ type usize = u64
 
 native fn memcpy(dst *mut (), src *(), n usize)
 native fn memmove(dst *mut (), src *mut (), n usize)
+native fn memset(s *mut (), c i32, n usize)
 
 /// Copy the chunk of memory src with length size to dst
 /// src and dst should not overlap
@@ -27,4 +28,27 @@ pub fn unsafe_move<T>(dst *mut T, src *mut T, size usize) {
     val src_voidptr *mut () = __unsafe_ptr_cast src
 
     memcpy(dst_voidptr, src_voidptr, size * __unsafe_sizeof T)
+}
+
+/// Set all the bytes in the chunk of memory dst with size size to value.
+/// Equivalent to memset in c.
+pub fn unsafe_memset<T>(dst *mut T, value i32, size usize) {
+    val dst_voidptr *mut () = __unsafe_ptr_cast dst
+
+    memset(dst_voidptr, value, size * __unsafe_sizeof T)
+}
+
+/// Allocate a gc'd chunk of memory capable of storing size elements of type T.
+/// The returned memory has undefined contents.
+/// equivalent to malloc(size * sizeof(T)) in c
+pub fn unsafe_malloc<T>(size usize) -> *mut T {
+    return __unsafe_ptr_cast GC_malloc(size * __unsafe_sizeof T)
+}
+
+/// Reallocate a chunk of memory allocated by unsafe_malloc to be able to store size elements of type T. If the chunk of memory grew, the new memory has undefined contents.
+pub fn unsafe_realloc<T>(mem *T, size usize) -> *mut T {
+    return __unsafe_ptr_cast GC_realloc(
+        __unsafe_ptr_cast mem, 
+        size * __unsafe_sizeof T
+    )
 }
