@@ -18,18 +18,20 @@ pub struct Hit {
   pub normal      Vec3
   pub t           f64
   pub front_face  bool
+  pub mat         *Material
 }
 
 /// A sphere in three space
 pub struct Sphere {
   pub center  Vec3
   pub radius  f64
+  pub mat     Material
 }
 
 impl Sphere {
   /// Check if a ray intersects a sphere.
   pub fn hit(*self, r *Ray, t_min f64, t_max f64) -> Hit {
-    val no_hit = Hit { hit: false, pos: [Vec3]:new(0.0, 0.0, 0.0), normal: [Vec3]:new(0.0, 0.0, 0.0), t: 0.0, front_face: false}
+    val no_hit = Hit { hit: false, pos: [Vec3]:new(0.0, 0.0, 0.0), normal: [Vec3]:new(0.0, 0.0, 0.0), t: 0.0, front_face: false, mat: std:mem:unsafe_null:<Material>() }
     // ray origin -> center
     val oc = r.orig.sub(self.center)
 
@@ -66,7 +68,8 @@ impl Sphere {
       pos: pos,
       normal: normal,
       t: root,
-      front_face: front_face
+      front_face: front_face,
+      mat: &self.mat
     }
   }
 }
@@ -76,22 +79,181 @@ type ObjectList = std:Vec<Object>
 
 impl ObjectList {
   fn hit(*self, r *Ray, t_min f64, t_max f64) -> Hit {
+    mut closest_t = t_max
+    mut closest_hit = Hit { hit: false, pos: [Vec3]:new(0.0, 0.0, 0.0), normal: [Vec3]:new(0.0, 0.0, 0.0), t: 0.0, front_face: false, mat: std:mem:unsafe_null:<Material>() }
+
     mut i = 0
     while i < self.size() {
       val obj = self.get(i)
       val hit = obj.hit(r, t_min, t_max)
-      if hit.hit {
-        return hit
+      if hit.hit && hit.t < closest_t {
+        closest_t = hit.t
+        closest_hit = hit
       }
       i += 1
     }
 
-    return Hit { hit: false, pos: [Vec3]:new(0.0, 0.0, 0.0), normal: [Vec3]:new(0.0, 0.0, 0.0), t: 0.0, front_face: false}
+    return closest_hit
+  }
+}
+
+impl f64 {
+  fn random(min f64, max f64) -> f64 {
+    return std:bootstrap:random_f64(min, max)
+  }
+
+  fn abs(self) -> f64 {
+    if self < 0.0 {
+      return -self
+    } else {
+      return self
+    }
+  }
+
+  fn min(a f64, b f64) -> f64 {
+    if a <= b {
+      return a
+    } else {
+      return b
+    }
+  }
+}
+
+impl Vec3 {
+  fn random(min f64, max f64) -> Vec3 {
+    return [Vec3]:new(
+      [f64]:random(min, max), 
+      [f64]:random(min, max), 
+      [f64]:random(min, max)
+    )
+  }
+
+  fn near_zero(*self) -> bool {
+    val s = 0.000000001
+    return ((self.e.0).abs() < s) && ((self.e.1).abs() < s) && ((self.e.2).abs() < s)
+  }
+}
+
+fn random_in_unit_sphere() -> Vec3 {
+  while true {
+    val p = [Vec3]:random(-1.0, 1.0)
+    if p.len_sq() < 1.0 {
+      return p
+    }
+  }
+}
+
+fn random_in_unit_disk() -> Vec3 {
+  while true {
+    val p = [Vec3]:new([f64]:random(-1.0, 1.0), [f64]:random(-1.0, 1.0), 0.0)
+    if p.len_sq() < 1.0 {
+      return p
+    }
+  }
+}
+
+fn random_unit_vector() -> Vec3 {
+  val r = random_in_unit_sphere()
+  return r.normalize()
+}
+
+pub struct Material {
+  pub is_lambert  bool
+  pub is_metal    bool
+  pub is_glass    bool
+  pub color       Vec3
+  pub metal_f     f64
+  pub index_of_refract f64
+}
+
+impl Material {
+  fn scatter_lambert(*self, r_in *Ray, hit *Hit) -> (bool, Vec3, Ray) {
+    mut scatter_direction = hit.normal.add(random_unit_vector())
+    if scatter_direction.near_zero() {
+      scatter_direction = hit.normal
+    }
+
+    val scattered = Ray { orig: hit.pos, dir: scatter_direction }
+    val attenuation = self.color
+    return (true, attenuation, scattered)
+  }
+
+  fn reflect(v *Vec3, n *Vec3) -> Vec3 {
+    val a = n.mul(v.dot(*n) * 2.0)
+    return v.sub(a)
+  }
+
+  fn scatter_metal(*self, r_in *Ray, hit *Hit) -> (bool, Vec3, Ray) {
+    val in_dir = r_in.dir.normalize()
+    val reflected = reflect(&in_dir, &hit.normal)
+    val rand_vec = random_in_unit_sphere()
+    val fuzz_vec = rand_vec.mul(self.metal_f)
+    val scatter_direction = reflected.add(fuzz_vec)
+    val scattered = Ray { orig: hit.pos, dir: scatter_direction }
+    val attenuation = self.color
+
+    return (scatter_direction.dot(hit.normal) > 0.0, attenuation, scattered)
+  }
+
+  fn refract(uv *Vec3, n *Vec3, etai_over_etat f64) -> Vec3 {
+    val uv_neg = uv.neg()
+    val cos_theta = [f64]:min(uv_neg.dot(*n), 1.0)
+
+    val r_out_perp_u = uv.add(n.mul(cos_theta))
+    val r_out_perp = r_out_perp_u.mul(etai_over_etat)
+
+    val r_out_parallel_len = -sqrt([f64]:abs(1.0 - r_out_perp.len_sq()))
+    val r_out_parallel = n.mul(r_out_parallel_len)
+
+    return r_out_perp.add(r_out_parallel)
+  }
+
+  fn reflectance(cosine f64, ref_idx f64) -> f64 {
+    mut r0 = (1.0 - ref_idx) / (1.0 + ref_idx)
+    r0 = r0 * r0
+    return r0 + (1.0 - r0) * pow(1.0 - cosine, 5.0)
+  }
+
+  fn scatter_glass(*self, r_in *Ray, hit *Hit) -> (bool, Vec3, Ray) {
+    val attenuation = [Vec3]:new(1.0, 1.0, 1.0)
+    mut refraction_ratio = 0.0
+    if hit.front_face {
+      refraction_ratio = 1.0 / self.index_of_refract
+    } else {
+      refraction_ratio = self.index_of_refract
+    }
+
+    val unit_direction = r_in.dir.normalize()
+    val unit_direction_neg = unit_direction.neg()
+    val cos_theta = [f64]:min(unit_direction_neg.dot(hit.normal), 1.0)
+    val sin_theta = sqrt(1.0 - cos_theta*cos_theta)
+
+    val cannot_refract = refraction_ratio * sin_theta > 1.0
+    mut direction = [Vec3]:new(0.0, 0.0, 0.0)
+
+    if cannot_refract || reflectance(cos_theta, refraction_ratio) > [f64]:random(0.0, 1.0) {
+      direction = reflect(&unit_direction, &hit.normal)
+    } else {
+      direction = refract(&unit_direction, &hit.normal, refraction_ratio)
+    }
+
+    val scattered = Ray { orig: hit.pos, dir: direction }
+    return (true, attenuation, scattered)
+  }
+
+  pub fn scatter(*self, r_in *Ray, hit *Hit) -> (bool, Vec3, Ray) {
+    if self.is_lambert {
+      return self.scatter_lambert(r_in, hit)
+    } elsif self.is_metal {
+      return self.scatter_metal(r_in, hit)
+    } elsif self.is_glass {
+      return self.scatter_glass(r_in, hit)
+    }
   }
 }
 
 /// Get a nice background gradient for a ray that didn't hit anything
-fn background(r *Ray) -> Color {
+fn background(r *Ray) -> Vec3 {
   val unit_dir = r.dir.normalize()
   val t = 0.5 * (unit_dir.y() + 1.0)
   val white = [Vec3]:new(1.0, 1.0, 1.0)
@@ -100,64 +262,200 @@ fn background(r *Ray) -> Color {
   val white_comp = white.mul(1.0 - t)
   val blue_comp = blue.mul(t)
   val color = white_comp.add(blue_comp)
-  return [Color]:from_vec3(&color)
+  return color
 }
 
-fn normal_color(hit *Hit) -> Color {
+fn normal_color(hit *Hit) -> Vec3 {
   val twice = hit.normal.add([Vec3]:new(1.0, 1.0, 1.0))
   val res = twice.div(2.0)
-  return [Color]:from_vec3(&res)
+  return res
 }
 
 /// Calculate the final color for the ray cast from the camera
-fn ray_color(r *Ray, world *ObjectList) -> Color {
-  val hit = world.hit(r, 0.0, 100000000.0)
+fn ray_color(r *Ray, world *ObjectList, depth i32) -> Vec3 {
+  if depth <= 0 {
+    return [Vec3]:new(0.0, 0.0, 0.0)
+  }
+
+  val hit = world.hit(r, 0.001, 100000000.0)
   if hit.hit {
-    return normal_color(&hit)
+    val scatter_res = hit.mat.scatter(r, &hit)
+    val do_child = scatter_res.0
+    val scattered = scatter_res.2
+    val attenuation = scatter_res.1
+    // cast another ray
+    if do_child {
+      val child_ray = ray_color(&scattered, world, depth - 1)
+      return child_ray.mul_elements(attenuation)
+    } else {
+      return [Vec3]:new(0.0, 0.0, 0.0)
+    }
   } else {
     return background(r)
   }
 }
 
-pub fn main() -> i32 {
-  // create world
+pub struct Camera {
+  pub origin      Vec3
+  pub lower_left  Vec3
+  pub horizontal  Vec3
+  pub vertical    Vec3
+  pub u           Vec3
+  pub v           Vec3
+  pub w           Vec3
+  pub lens_radius f64
+}
+
+val pi f64 = 3.1415926535897932385;
+
+pub fn degrees_to_radians(degrees f64) -> f64 {
+  return degrees * pi / 180.0
+}
+
+impl Camera {
+  pub fn new(lookfrom Vec3, lookat Vec3, vup Vec3, vfov f64, aspect_ratio f64, aperture f64, focus_dist f64) -> Camera {
+    val theta = degrees_to_radians(vfov)
+    val h = tan(theta / 2.0)
+    val viewport_height = 2.0 * h
+    val viewport_width = aspect_ratio * viewport_height
+
+    val w_unorm = lookfrom.sub(lookat)
+    val w = w_unorm.normalize()
+
+    val u_unorm = vup.cross(w)
+    val u = u_unorm.normalize()
+
+    val v = w.cross(u)
+
+    val horizontal = u.mul(viewport_width * focus_dist)
+    val vertical = v.mul(viewport_height * focus_dist)
+
+    mut lower_left = lookfrom
+    val ll0 = horizontal.div(-2.0)
+    val ll1 = vertical.div(-2.0)
+    val ll2 = w.mul(-focus_dist)
+    lower_left = lower_left.add(ll0)
+    lower_left = lower_left.add(ll1)
+    lower_left = lower_left.add(ll2)
+
+    return Camera {
+      origin: lookfrom,
+      horizontal: horizontal,
+      vertical: vertical,
+      lower_left: lower_left,
+      u: u,
+      v: v,
+      w: w,
+      lens_radius: aperture / 2.0
+    }
+  }
+
+  pub fn get_ray(*self, s f64, t f64) -> Ray {
+    val random_disk = random_in_unit_disk()
+    val rd = random_disk.mul(self.lens_radius)
+    val offset_x = self.u.mul(rd.x())
+    val offset_y = self.v.mul(rd.y())
+    val offset = offset_x.add(offset_y)
+
+    val horizontal_comp = self.horizontal.mul(s)
+    val vertical_comp = self.vertical.mul(t)
+    val dir_comp = horizontal_comp.add(vertical_comp)
+    val dir_f0 = dir_comp.sub(self.origin)
+    val dir_f1 = dir_f0.sub(offset)
+    val ray = Ray {
+      orig: self.origin.add(offset),
+      dir: self.lower_left.add(dir_f1)
+    }
+
+    return ray
+  }
+}
+
+fn gamma(c Vec3) -> Vec3 {
+  return [Vec3]:new(sqrt(c.x()), sqrt(c.y()), sqrt(c.z()))
+}
+
+fn random_world() -> *ObjectList {
   mut world = [ObjectList]:new()
-  world.push(Sphere { center: [Vec3]:new(0.0, 0.0, -1.0), radius: 0.5})
-  world.push(Sphere { center: [Vec3]:new(0.0, -100.5, -1.0), radius: 100.0})
+
+  val ground_mat = Material { is_lambert: true, is_metal: false, is_glass: false, color: [Vec3]:new(0.7, 0.6, 0.5), metal_f: 0.5, index_of_refract: 0.0 }
+  world.push(Sphere { center: [Vec3]:new(0.0, -1000.0, 0.0), radius: 1000.0, mat: ground_mat })
+
+  mut a = -11.0
+  while a < 11.0 {
+    mut b = -11.0
+    while b < 11.0 {
+      val mat_index = [f64]:random(0.0, 1.0)
+      val radius = [f64]:random(0.0, 0.6)
+      val center = [Vec3]:new(a + [f64]:random(0.0, 0.8), radius, b + [f64]:random(0.0, 0.8))
+
+      mut mat = Material { is_lambert: false, is_metal: false, is_glass: false, color: [Vec3]:new(0.0, 0.0, 0.0), metal_f: 0.0, index_of_refract: 0.0 }
+
+      if mat_index < 0.5 {
+        val rand_color = [Vec3]:random(0.0, 1.0)
+        mat = Material { is_lambert: true, is_metal: false, is_glass: false, color: rand_color.mul_elements(rand_color), metal_f: 0.0, index_of_refract: 0.0 }
+      } elsif mat_index < 0.85 {
+        mat = Material { is_lambert: false, is_metal: true, is_glass: false, color: [Vec3]:random(0.5, 1.0), metal_f: [f64]:random(0.0, 0.5), index_of_refract: 0.0 }
+      } else {
+        mat = Material { is_lambert: false, is_metal: false, is_glass: true, color: [Vec3]:new(0.0, 0.0, 0.0), metal_f: 0.0, index_of_refract: 1.5 }
+      }
+
+      world.push(Sphere { center: center, radius: radius, mat: mat })
+
+      b += 1.5
+    }
+    a += 1.5
+  }
+
+  return &world
+}
+
+pub fn main() -> i32 {
+  val world = *random_world()
+
   // create image
-  val width = 640
-  val height = 360
-  val aspect_ratio = std:bootstrap:i32_to_f64(width) / std:bootstrap:i32_to_f64(height)
+  val aspect_ratio = 1.6
+  val width = 1280
+  val height = std:bootstrap:f64_to_i32(std:bootstrap:i32_to_f64(width) / aspect_ratio)
   mut img = [Image]:new(width, height)
 
   // camera
-  val viewport_height = 2.0
-  val viewport_width = aspect_ratio * viewport_height
-  val focal_length = 1.0
+  val lookfrom = [Vec3]:new(13.0, 2.0, 3.0)
+  val lookat = [Vec3]:new(0.0, 0.0, 0.0)
+  val vup = [Vec3]:new(0.0, 1.0, 0.0)
+  val vfov = 20.0
+  val from_to_at = lookfrom.sub(lookat)
+  val dist_to_focus = 10.0
+  val aperture = 0.1
 
-  val origin = [Vec3]:new(0.0, 0.0, 0.0)
-  val horizontal = [Vec3]:new(viewport_width, 0.0, 0.0)
-  val vertical = [Vec3]:new(0.0, viewport_height, 0.0)
-  val lower_left = [Vec3]:new(-viewport_width / 2.0, -viewport_height / 2.0, -focal_length)
+  val cam = [Camera]:new(lookfrom, lookat, vup, vfov, aspect_ratio, aperture, dist_to_focus)
+  val samples_per_pixel = 120
   
+  val max_depth = 12
+
   mut x = 0
   while x < width {
+    std:bootstrap:stderr_print_num(x)
+    std:bootstrap:stderr_print_char('/')
+    std:bootstrap:stderr_print_num(width)
+    std:bootstrap:stderr_print_nl()
     mut y = 0
     while y < height {
-      val u = std:bootstrap:i32_to_f64(x) / std:bootstrap:i32_to_f64(width - 1)
-      val v = std:bootstrap:i32_to_f64(height - y - 1) / std:bootstrap:i32_to_f64(height - 1)
+      mut sample_i = 0
+      mut color_v3 = [Vec3]:new(0.0, 0.0, 0.0)
+      while sample_i < samples_per_pixel {
+        val u = (std:bootstrap:i32_to_f64(x) + [f64]:random(0.0, 1.0)) / std:bootstrap:i32_to_f64(width - 1)
+        val v = (std:bootstrap:i32_to_f64(height - y - 1) + [f64]:random(0.0, 1.0)) / std:bootstrap:i32_to_f64(height - 1)
 
-      // construct ray
-      val horizontal_comp = horizontal.mul(u)
-      val vertical_comp = vertical.mul(v)
-      val dir_comp = horizontal_comp.add(vertical_comp)
-      val ray = Ray {
-        orig: origin,
-        dir: lower_left.add(dir_comp)
+        val ray = cam.get_ray(u, v)
+
+        val r_color = ray_color(&ray, &world, max_depth)
+        color_v3 = color_v3.add(r_color)
+        sample_i += 1
       }
-
-      val color = ray_color(&ray, &world)
-
+      color_v3 = color_v3.div(std:bootstrap:i32_to_f64(samples_per_pixel))
+      val gamma = gamma(color_v3)
+      val color = [Color]:from_vec3(&gamma)
       img.set_pixel(x, y, color)
       y += 1
     }

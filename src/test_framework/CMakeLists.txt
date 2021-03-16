@@ -7,7 +7,7 @@ set(RUN_TESTS run_tests.cpp)
 # Download and install GoogleTest
 include(ExternalProject)
 ExternalProject_Add(gtest
-        URL https://github.com/google/googletest/archive/release-1.10.0.zip
+        URL https://github.com/google/googletest/archive/release-1.11.0.zip
         PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
         INSTALL_COMMAND ""
         )

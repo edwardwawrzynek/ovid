@@ -41,6 +41,39 @@ sudo cmake --install .
 ## Usage
 ```ovidc --help```
 
+```
+Usage: ovidc [OPTIONS] file...
+The Ovid Language Compiler Backend
+Options:
+  -h, --help             Display this message
+  -o, --output FILE      Output compilation results in FILE
+  -c, --emit-obj         Produce object code output
+  -S, --emit-asm         Produce assembly output
+  --emit-llvm            Produce LLVM IR output
+  -O, --opt-level OPT    Set the optimization level:
+    0  no optimization
+    1  optimize without greatly increasing compile time
+    2  optimize without greatly increasing output size
+    3  optimize fully for speed
+    s  optimize for output size
+    z  optimize fully for output size
+  --code-model MODEL     Set the code model to use:
+    tiny, small, kernel, medium, large
+  --reloc-model MODEL    Set the relocation mode to use:
+    static, pic, dynamic-no-pic, ropi, rwpi, ropi-rwpi
+  --dump-ast             Print the abstract syntax tree for the source code
+  --dump-ir              Print the intermediate representation for the source code
+  --dump-mono-ir         Print the monomorphic intermediate representation for the source code
+  --dump-escape          Print escape analysis results
+  --dump-llvm            Print unoptimized llvm ir
+  --package NAME[:NAME]...
+                         Set the package name
+  --package-version VERSION
+                         Set the package version (must be an integer)
+  --main                 Generate a main function
+  --no-main              Don't generate a main function (default)
+```
+
 #### Examples
 * Compiling and running `test.ovd` (`test.ovd` must contain a `pub fn main() -> i32`):
 

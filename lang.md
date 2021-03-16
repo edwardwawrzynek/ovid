@@ -2,6 +2,8 @@
 
 Ovid is a compiled programming language. It has a strong, static type system. It takes inspiration from Rust, C, and Go.
 
+Ovid's syntax is very similar to Rust, but it features different semantics.
+
 ## Comments
 Single line comments can be denoted with `//`. Multi-line comments are oppened with `/*` and ended with `*/`. Multi-line comments may be nested within each other.
 
@@ -66,21 +68,21 @@ sum(1, sum(sum(2, 3), 4))
 
 A few builtin functions may be called using prefix and infix notation:
 
-Identifier 	| Function				| Notation 	| Precedence 	| Associativity
--		| -					| -		| -		| -
-`!`		| Logical Negation			| Prefix	| 1		| right-to-left
-`~`		| Binary Negation			| Prefix	| 1		| right-to-left
-`-`		| Arithmetic Negation			| Prefix	| 1		| right-to-left
-`*`, `/`, `%`	| Multiplication, Division, Modulo	| Infix		| 2		| left-to-right
-`+`, `-`	| Addition, Subtraction			| Infix		| 3		| left-to-right
-`<<`, `>>` 	| Bitwise left and right  shifts	| Infix		| 4		| left-to-right
-`<`, `<=`, `>`, `>=`, `==`, `!=` | Comparison functions | Infix		| 5		| left-to-right
-`&`		| Bitwise and				| Infix		| 6		| left-to-right
-`^`		| Bitwise exclusive or (xor)		| Infix		| 7		| left-to-right
-`|`		| Bitwise or				| Infix		| 8		| left-to-right
-`&&`		| Logical and (short-circuiting)	| Infix		| 9		| left-to-right
-`||`		| Logical or (short-circuiting)		| Infix		| 10 		| left-to-right
-`=`, `+=`, `-=`, `*=`, `/=`, `%=`, `>>=`, `<<=`, `&=`, `^=`, `|=` | Assignment and compound assignment | Infix | 11 | right-to-left
+|Identifier 	| Function				| Notation 	| Precedence 	| Associativity|
+|-		| -					| -		| -		| -|
+|`!`		| Logical Negation			| Prefix	| 1		| right-to-left|
+|`~`		| Binary Negation			| Prefix	| 1		| right-to-left|
+|`-`		| Arithmetic Negation			| Prefix	| 1		| right-to-left|
+|`*`, `/`, `%`	| Multiplication, Division, Modulo	| Infix		| 2		| left-to-right|
+|`+`, `-`	| Addition, Subtraction			| Infix		| 3		| left-to-right|
+|`<<`, `>>` 	| Bitwise left and right  shifts	| Infix		| 4		| left-to-right|
+|`<`, `<=`, `>`, `>=`, `==`, `!=` | Comparison functions | Infix		| 5		| left-to-right|
+|`&`		| Bitwise and				| Infix		| 6		| left-to-right|
+|`^`		| Bitwise exclusive or (xor)		| Infix		| 7		| left-to-right|
+|`|`		| Bitwise or				| Infix		| 8		| left-to-right|
+|`&&`		| Logical and (short-circuiting)	| Infix		| 9		| left-to-right|
+|`||`		| Logical or (short-circuiting)		| Infix		| 10 		| left-to-right|
+|`=`, `+=`, `-=`, `*=`, `/=`, `%=`, `>>=`, `<<=`, `&=`, `^=`, `|=` | Assignment and compound assignment | Infix | 11 | right-to-left|
 
 For example, a function returning the bitwise negation of the sum of it's arguments:
 ```ovid
@@ -156,6 +158,15 @@ fn func(cond1 bool, cond2 bool) -> i32 {
    }
 
    return res
+}
+```
+
+## While Loops
+While loops repeatedly execute while their condition is true. Similair to if statements, they don't require parentheses around their condition, but need braces around their bodies:
+```ovid
+mut i = 0
+while i < 10 {
+   i += 1
 }
 ```
 
@@ -248,7 +259,7 @@ fn foo2(a *(i32, i32)) -> i32 {
 }
 ```
 
-## Struct's
+## Structs
 
 Structs allow for multiple types to be combined into one.
 
@@ -263,7 +274,6 @@ struct User {
 
 Struct's can be created and manipulated:
 ```ovid
-
 fn new_user() -> User {
     return User { 
         id: new_id(),
@@ -275,5 +285,72 @@ fn new_user() -> User {
 fn user_login(user *mut User) {
     user.sign_in_count += 1
     user.active = true
+}
+```
+
+### Methods
+Methods can be added to structs with the `impl` keyword:
+```ovid
+struct Point {
+   x  f64
+   y  f64
+}
+
+impl Point {
+   fn origin() -> Point {
+      return Point {
+         x: 0.0,
+         y: 0.0
+      }
+   }
+
+   fn move_by(*mut self, x f64, y f64) {
+      self.x += x
+      self.y += y
+   }
+
+   fn len_squared(*self) -> Point {
+      return self.x * self.y
+   }
+}
+
+mut p = Point:origin()
+p.move_by(3.0, 4.0)
+val len = p.len_squared()
+```
+
+## Generics
+Generic type parameters are declared inside of `<>` blocks. Generic types can have
+
+Structs and their impl's can be generic:
+```ovid
+struct Container<T> {
+   object T
+}
+
+impl<T> Container<T> {
+   fn get_object(*self) -> *T {
+      return &self.object
+   }
+}
+
+val a = Container:<i32> { object: 1 }
+val val = a.get_object()
+```
+
+Type aliases can also be generic:
+```ovid
+type Pair<A, B> = (A, B)
+val a Pair:<i32, bool> = (1, false)
+``` 
+
+Functions can also be generic:
+```ovid
+fn make_ref<T>(val T) -> *T {
+   return &val
+}
+
+fn reorder_pair<A, B>(pair (A, B)) -> (B, A) {
+   return (pair.1, pair.0)
 }
 ```
