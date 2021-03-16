@@ -11,3 +11,11 @@ native fn std:bootstrap:assert(cond bool) -> void
 native fn std:bootstrap:i32_to_f64(num i32) -> f64
 native fn std:bootstrap:print_nl() -> void
 native fn std:bootstrap:f64_to_i32(num f64) -> i32
+
+native fn std:bootstrap:stderr_print_num(num i64) -> void
+native fn std:bootstrap:stderr_print_char(c u8) -> void
+native fn std:bootstrap:stderr_print_float(f f64) -> void
+native fn std:bootstrap:stderr_print_nl() -> void
+
+native fn std:bootstrap:random_f64(min f64, max f64) -> f64
+native fn std:bootstrap:null() -> *()

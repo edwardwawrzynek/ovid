@@ -52,3 +52,8 @@ pub fn unsafe_realloc<T>(mem *T, size usize) -> *mut T {
         size * __unsafe_sizeof T
     )
 }
+
+/// Return a null pointer of type T
+pub fn unsafe_null<T>() -> *T {
+    return __unsafe_ptr_cast std:bootstrap:null()
+}
